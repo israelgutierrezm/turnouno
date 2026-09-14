@@ -104,6 +104,7 @@ Route::prefix('v1')->group(function (): void {
 
                 // Configuración de pasarelas por tenant (encender/apagar + llaves).
                 Route::get('/pasarelas', [ConfiguracionPasarelaController::class, 'index'])->name('api.v1.pasarelas.index');
+                Route::get('/pasarelas/activas', [ConfiguracionPasarelaController::class, 'activas'])->name('api.v1.pasarelas.activas');
                 Route::put('/pasarelas/{proveedor}', [ConfiguracionPasarelaController::class, 'upsert'])->name('api.v1.pasarelas.upsert');
 
                 // Créditos: consumo y retenciones (holds) del ledger.

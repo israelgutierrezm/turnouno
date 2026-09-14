@@ -43,7 +43,11 @@ const derechos = ref<DerechoItem[]>([])
 const personaId = ref('')
 const productoVenta = ref('')
 const proveedorPago = ref('manual')
+const proveedores = ref<string[]>(['manual'])
+const metodoPago = ref('')
 const consumos = ref<Record<string, string>>({})
+
+const metodosDisponibles = ['tarjeta', 'oxxo', 'spei', 'efectivo', 'ventanilla']
 
 const nombreProd = ref('')
 const tipoProd = ref('membresia')
@@ -75,6 +79,18 @@ async function cargarPersonas(): Promise<void> {
   personas.value = data.data
   if (personaId.value === '' && personas.value.length > 0) {
     personaId.value = personas.value[0].id
+  }
+}
+
+async function cargarPasarelas(): Promise<void> {
+  try {
+    const { data } = await api.get<{ data: string[] }>('/api/v1/pasarelas/activas')
+    proveedores.value = data.data
+    if (!proveedores.value.includes(proveedorPago.value) && proveedores.value.length > 0) {
+      proveedorPago.value = proveedores.value[0]
+    }
+  } catch {
+    proveedores.value = ['manual']
   }
 }
 
@@ -120,6 +136,7 @@ async function vender(): Promise<void> {
     })
     await api.post(`/api/v1/ordenes/${data.data.id}/pagos`, {
       proveedor: proveedorPago.value,
+      metodo: metodoPago.value || null,
     })
     await cargarDerechos()
   } catch {
@@ -149,7 +166,7 @@ watch(personaId, () => {
 })
 
 onMounted(async () => {
-  await Promise.all([cargarProductos(), cargarPersonas()])
+  await Promise.all([cargarProductos(), cargarPersonas(), cargarPasarelas()])
   await cargarDerechos()
 })
 </script>
@@ -256,15 +273,28 @@ onMounted(async () => {
                 </select>
               </label>
             </div>
-            <div v-if="puedeVender && hayProductos" class="mt-3 flex items-end gap-2">
+            <div v-if="puedeVender && hayProductos" class="mt-3 flex flex-wrap items-end gap-2">
               <label class="text-sm">
                 <span class="text-slate-600">{{ t('membresias.proveedor') }}</span>
                 <select
                   v-model="proveedorPago"
+                  class="mt-1 block rounded-md border border-slate-300 px-2 py-2 text-sm capitalize"
+                >
+                  <option v-for="proveedor in proveedores" :key="proveedor" :value="proveedor">
+                    {{ proveedor }}
+                  </option>
+                </select>
+              </label>
+              <label class="text-sm">
+                <span class="text-slate-600">{{ t('membresias.metodo') }}</span>
+                <select
+                  v-model="metodoPago"
                   class="mt-1 block rounded-md border border-slate-300 px-2 py-2 text-sm"
                 >
-                  <option value="manual">{{ t('membresias.pagoManual') }}</option>
-                  <option value="simulada">{{ t('membresias.pagoSimulada') }}</option>
+                  <option value="">{{ t('membresias.metodoAuto') }}</option>
+                  <option v-for="metodo in metodosDisponibles" :key="metodo" :value="metodo">
+                    {{ t('membresias.metodos.' + metodo) }}
+                  </option>
                 </select>
               </label>
               <button

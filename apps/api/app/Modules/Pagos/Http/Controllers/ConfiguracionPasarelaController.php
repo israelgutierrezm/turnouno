@@ -6,6 +6,7 @@ namespace App\Modules\Pagos\Http\Controllers;
 
 use App\Modules\Pagos\Http\Requests\ConfigurarPasarelaRequest;
 use App\Modules\Pagos\Models\ConfiguracionPasarela;
+use App\Modules\Pagos\Pasarelas\RegistroDePasarelas;
 use App\Modules\Pagos\ProveedorPasarela;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
@@ -37,6 +38,17 @@ class ConfiguracionPasarelaController
         }, $this->configurables());
 
         return response()->json(['data' => $data]);
+    }
+
+    /**
+     * Pasarelas disponibles para cobrar en el tenant (para poblar el selector de
+     * cobro). Requiere `pagos.crear`, no `pagos.configurar`.
+     */
+    public function activas(RegistroDePasarelas $registro): JsonResponse
+    {
+        Gate::authorize('pagos.crear');
+
+        return response()->json(['data' => $registro->disponibles()]);
     }
 
     public function upsert(ConfigurarPasarelaRequest $request, string $proveedor): JsonResponse
