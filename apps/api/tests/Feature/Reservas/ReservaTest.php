@@ -1,0 +1,185 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Models\User;
+use App\Modules\Agenda\Application\CancelarSesion;
+use App\Modules\Agenda\Models\Sesion;
+use App\Modules\Creditos\LibroMayor;
+use App\Modules\Membresias\Models\Derecho;
+use App\Modules\Personas\Models\Persona;
+use App\Modules\Tenancy\Context\TenantContext;
+use App\Modules\Tenancy\Models\Tenant;
+use Carbon\CarbonImmutable;
+use Laravel\Sanctum\Sanctum;
+
+/**
+ * Arma un escenario de reserva: tenant + owner con permiso, oferta/sucursal,
+ * una sesión reservable y un participante con derecho.
+ *
+ * @return array{tenant: Tenant, owner: User, sesion: Sesion, persona: Persona, derecho: Derecho}
+ */
+function escenarioReserva(?int $capacidad = 8, int $unidades = 8000, bool $ilimitado = false, string $cuando = '2026-10-05 19:00'): array
+{
+    $tenant = crearTenant('Pole House');
+    $owner = User::factory()->create();
+    vincularUsuario($tenant, $owner, ['propietario']);
+
+    ['oferta' => $oferta, 'sucursal' => $sucursal] = crearOfertaYSucursal($tenant);
+    $sesion = crearSesion($tenant, $sucursal, $oferta, $capacidad, $cuando);
+    ['persona' => $persona, 'derecho' => $derecho] = participanteConDerecho($tenant, $unidades, $ilimitado);
+
+    return compact('tenant', 'owner', 'sesion', 'persona', 'derecho');
+}
+
+it('confirma la reserva, retiene el credito y aparece en el roster', function (): void {
+    $e = escenarioReserva();
+    Sanctum::actingAs($e['owner']);
+
+    $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->assertCreated()
+        ->assertJsonPath('data.estado', 'confirmada')
+        ->assertJsonPath('data.unidades', 1000);
+
+    $libro = app(LibroMayor::class);
+    expect($libro->saldo($e['derecho']))->toBe(8000);        // el hold no consume el ledger
+    expect($libro->disponible($e['derecho']))->toBe(7000);   // pero sí reduce lo disponible
+
+    $this->getJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas")
+        ->assertOk()
+        ->assertJsonCount(1, 'data');
+});
+
+it('rechaza la reserva cuando la sesion esta llena', function (): void {
+    $e = escenarioReserva(capacidad: 1);
+    Sanctum::actingAs($e['owner']);
+
+    $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->assertCreated();
+
+    ['persona' => $otra] = participanteConDerecho($e['tenant']);
+    $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $otra->ulid])
+        ->assertStatus(409)
+        ->assertJsonPath('code', 'CAPACITY_FULL');
+});
+
+it('rechaza la reserva si la persona no tiene derecho', function (): void {
+    $e = escenarioReserva();
+    $sinDerecho = Persona::factory()->create(['tenant_id' => $e['tenant']->id]);
+
+    Sanctum::actingAs($e['owner']);
+
+    $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $sinDerecho->ulid])
+        ->assertStatus(422)
+        ->assertJsonPath('code', 'ENTITLEMENT_REQUIRED');
+});
+
+it('rechaza la reserva si el derecho no tiene saldo suficiente', function (): void {
+    $e = escenarioReserva(unidades: 500); // menos que el costo (1000)
+    Sanctum::actingAs($e['owner']);
+
+    $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->assertStatus(422)
+        ->assertJsonPath('code', 'ENTITLEMENT_REQUIRED');
+});
+
+it('rechaza una segunda reserva de la misma persona en la sesion', function (): void {
+    $e = escenarioReserva();
+    Sanctum::actingAs($e['owner']);
+
+    $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->assertCreated();
+
+    $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->assertStatus(409)
+        ->assertJsonPath('code', 'ALREADY_BOOKED');
+});
+
+it('es idempotente con la misma idempotency_key', function (): void {
+    $e = escenarioReserva();
+    Sanctum::actingAs($e['owner']);
+
+    $primera = $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", [
+        'persona_id' => $e['persona']->ulid,
+        'idempotency_key' => 'reserva-abc',
+    ])->assertCreated()->json('data.id');
+
+    $segunda = $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", [
+        'persona_id' => $e['persona']->ulid,
+        'idempotency_key' => 'reserva-abc',
+    ])->assertCreated()->json('data.id');
+
+    expect($segunda)->toBe($primera);
+    // El crédito se retuvo una sola vez.
+    expect(app(LibroMayor::class)->disponible($e['derecho']))->toBe(7000);
+});
+
+it('cancelar a tiempo libera el credito retenido', function (): void {
+    $e = escenarioReserva(); // sesión lejana (> 6h)
+    Sanctum::actingAs($e['owner']);
+
+    $reservaUlid = $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->json('data.id');
+
+    $this->postJson("/api/v1/reservas/{$reservaUlid}/cancelar")
+        ->assertOk()
+        ->assertJsonPath('data.estado', 'cancelada');
+
+    $libro = app(LibroMayor::class);
+    expect($libro->saldo($e['derecho']))->toBe(8000);
+    expect($libro->disponible($e['derecho']))->toBe(8000); // el crédito volvió
+});
+
+it('cancelar tarde penaliza consumiendo el credito', function (): void {
+    $cuandoPronto = CarbonImmutable::now('America/Mexico_City')->addHours(2)->format('Y-m-d H:i');
+    $e = escenarioReserva(cuando: $cuandoPronto); // dentro de la ventana de penalización (< 6h)
+    Sanctum::actingAs($e['owner']);
+
+    $reservaUlid = $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->json('data.id');
+
+    $this->postJson("/api/v1/reservas/{$reservaUlid}/cancelar")->assertOk();
+
+    $libro = app(LibroMayor::class);
+    expect($libro->saldo($e['derecho']))->toBe(7000);      // se consumió (penalización)
+    expect($libro->disponible($e['derecho']))->toBe(7000);
+});
+
+it('no permite reservar una sesion cancelada', function (): void {
+    $e = escenarioReserva();
+
+    app(TenantContext::class)->set($e['tenant']);
+    app(CancelarSesion::class)->ejecutar($e['sesion']);
+    app(TenantContext::class)->clear();
+
+    Sanctum::actingAs($e['owner']);
+
+    $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->assertStatus(422)
+        ->assertJsonPath('code', 'SESSION_NOT_BOOKABLE');
+});
+
+it('reserva con derecho ilimitado sin retener credito', function (): void {
+    $e = escenarioReserva(ilimitado: true);
+    Sanctum::actingAs($e['owner']);
+
+    $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->assertCreated()
+        ->assertJsonPath('data.estado', 'confirmada')
+        ->assertJsonPath('data.unidades', 0);
+});
+
+it('exige el permiso reservas.crear', function (): void {
+    $tenant = crearTenant('Acme');
+    $user = User::factory()->create();
+    vincularUsuario($tenant, $user, []); // sin roles ni permisos
+    ['oferta' => $oferta, 'sucursal' => $sucursal] = crearOfertaYSucursal($tenant);
+    $sesion = crearSesion($tenant, $sucursal, $oferta, 8);
+    ['persona' => $persona] = participanteConDerecho($tenant);
+
+    Sanctum::actingAs($user);
+
+    $this->postJson("/api/v1/sesiones/{$sesion->ulid}/reservas", ['persona_id' => $persona->ulid])
+        ->assertStatus(403)
+        ->assertJsonPath('code', 'FORBIDDEN');
+});

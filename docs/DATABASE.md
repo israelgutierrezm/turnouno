@@ -72,6 +72,7 @@ términos en español que usamos en el código y la base de datos.
 - `reglas_recurrencia` (`id`, `ulid`, `tenant_id`, `plantilla_horario_id`, `dia_semana`, `hora_inicio`) — repetición semanal (día ISO + hora local); `unique(plantilla, dia_semana, hora_inicio)`
 - `sesiones` (`id`, `ulid`, `tenant_id`, `plantilla_horario_id?`, `oferta_id`, `sucursal_id`, `recurso_id?`, `inicia_en`, `termina_en`, `zona_horaria`, `capacidad?`, `estado`) — instancia fechada; horas en UTC; `unique(plantilla, inicia_en)` (materialización idempotente, ADR-0010)
 - `asignaciones_sesion` (`id`, `ulid`, `tenant_id`, `sesion_id`, `persona_id`, `rol`) — staff (instructor/asistente) de una sesión; `unique(sesion_id, persona_id)`
+- `reservas` (`id`, `ulid`, `tenant_id`, `sesion_id`, `persona_id`, `derecho_id`, `retencion_id?`, `estado`, `unidades`, `idempotency_key?`) — booking; `idempotency_key` único; `index(sesion_id, estado)`
 
 > `TipoPerfil` (enum): `miembro`, `tutor`, `instructor`, `personal`, `lead`, `cliente`.
 > Un menor (dependiente) puede no tener `user_id` (sin cuenta de acceso).
@@ -80,6 +81,7 @@ términos en español que usamos en el código y la base de datos.
 > `TipoMovimiento`: `concesion`, `consumo`, `ajuste`, `add_on`, `reverso`.
 > `EstadoRetencion`: `activa`, `consumida`, `liberada`, `perdida`.
 > `EstadoSesion`: `programada`, `cancelada`, `finalizada`. `RolSesion`: `instructor`, `asistente`.
+> `EstadoReserva`: `confirmada`, `cancelada` (`en_espera` = waitlist, Slice 7b).
 > `DiaSemana` (int ISO-8601): `1`=lunes … `7`=domingo.
 > **Agenda**: `sesiones.inicia_en`/`termina_en` se guardan en UTC (calculadas desde la
 > hora local de la plantilla + `zona_horaria` de la sucursal); se conserva la zona

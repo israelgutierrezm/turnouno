@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use App\Modules\Agenda\Application\CrearSesionUnica;
+use App\Modules\Agenda\Models\Sesion;
 use App\Modules\Catalogo\Models\Actividad;
 use App\Modules\Catalogo\Models\Oferta;
 use App\Modules\Catalogo\Models\Programa;
@@ -107,4 +109,52 @@ function crearOfertaYSucursal(Tenant $tenant, string $zona = 'America/Mexico_Cit
     $contexto->clear();
 
     return ['oferta' => $oferta, 'sucursal' => $sucursal];
+}
+
+/**
+ * Crea una sesión única reservable en el tenant.
+ */
+function crearSesion(Tenant $tenant, Sucursal $sucursal, Oferta $oferta, ?int $capacidad = 8, string $cuando = '2026-10-05 19:00'): Sesion
+{
+    $contexto = app(TenantContext::class);
+    $contexto->set($tenant);
+
+    $sesion = app(CrearSesionUnica::class)->ejecutar($oferta, $sucursal, [
+        'inicia_en_local' => $cuando,
+        'duracion_minutos' => 60,
+        'capacidad' => $capacidad,
+    ]);
+
+    $contexto->clear();
+
+    return $sesion;
+}
+
+/**
+ * Crea una persona (participante) con un derecho: por defecto un pack con
+ * `$unidades` créditos; con `$ilimitado` un derecho sin saldo (membresía).
+ *
+ * @return array{persona: Persona, derecho: Derecho}
+ */
+function participanteConDerecho(Tenant $tenant, int $unidades = 8000, bool $ilimitado = false): array
+{
+    $contexto = app(TenantContext::class);
+    $contexto->set($tenant);
+    app(PermissionRegistrar::class)->setPermissionsTeamId($tenant->id);
+
+    $producto = app(CrearProducto::class)->ejecutar(
+        'Producto '.Str::random(5),
+        $ilimitado ? TipoProducto::Membresia : TipoProducto::Paquete,
+        0,
+        'MXN',
+        $ilimitado,
+        $ilimitado ? null : $unidades,
+    );
+    $persona = Persona::factory()->create(['tenant_id' => $tenant->id]);
+    $acuerdo = app(CrearAcuerdo::class)->ejecutar($persona, $producto);
+    $derecho = $acuerdo->derechos()->firstOrFail();
+
+    $contexto->clear();
+
+    return ['persona' => $persona, 'derecho' => $derecho];
 }

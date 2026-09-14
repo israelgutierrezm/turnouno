@@ -29,6 +29,7 @@ use App\Modules\Personas\Http\Controllers\PersonaController;
 use App\Modules\Platform\Http\Controllers\HealthController;
 use App\Modules\Recursos\Http\Controllers\InstalacionController;
 use App\Modules\Recursos\Http\Controllers\RecursoController;
+use App\Modules\Reservas\Http\Controllers\ReservaController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -94,6 +95,11 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('/sesiones/{sesion}/cancelar', [SesionController::class, 'cancelar'])->name('api.v1.sesiones.cancelar');
                 Route::post('/sesiones/{sesion}/asignaciones', [AsignacionSesionController::class, 'store'])->name('api.v1.sesiones.asignaciones.store');
                 Route::get('/mis-sesiones', MiAgendaController::class)->name('api.v1.mis-sesiones');
+
+                // Reservas (booking): motor transaccional sobre una sesión.
+                Route::get('/sesiones/{sesion}/reservas', [ReservaController::class, 'index'])->name('api.v1.sesiones.reservas.index');
+                Route::post('/sesiones/{sesion}/reservas', [ReservaController::class, 'store'])->name('api.v1.sesiones.reservas.store');
+                Route::post('/reservas/{reserva}/cancelar', [ReservaController::class, 'cancelar'])->name('api.v1.reservas.cancelar');
 
                 // Recursos: Sucursal → Instalación → Recurso (jerárquico).
                 Route::get('/sucursales/{sucursal}/instalaciones', [InstalacionController::class, 'index'])->name('api.v1.sucursales.instalaciones.index');

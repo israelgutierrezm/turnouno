@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Http;
 
 use App\Modules\Creditos\Exceptions\SaldoInsuficiente;
+use App\Modules\Reservas\Exceptions\ReservaException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -57,6 +58,11 @@ class ApiExceptionRenderer
                 'SALDO_INSUFICIENTE',
                 $e->getMessage() !== '' ? $e->getMessage() : 'Saldo insuficiente.',
                 422,
+            ),
+            $e instanceof ReservaException => $this->make(
+                $e->codigo(),
+                $e->getMessage() !== '' ? $e->getMessage() : 'No se pudo completar la reserva.',
+                $e->estadoHttp(),
             ),
             default => $this->generic($e),
         };
