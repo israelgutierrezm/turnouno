@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Modules\Identity\Http\Controllers\Auth\SessionController;
 use App\Modules\Identity\Http\Controllers\Auth\TokenController;
 use App\Modules\Identity\Http\Controllers\MeController;
+use App\Modules\Identity\Http\Controllers\UsuarioController;
 use App\Modules\Organizaciones\Http\Controllers\OrganizacionController;
 use App\Modules\Organizaciones\Http\Controllers\PersonalSucursalController;
 use App\Modules\Organizaciones\Http\Controllers\SucursalController;
@@ -32,6 +33,8 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/me', MeController::class)->name('api.v1.me');
 
             Route::middleware('tenant.require')->group(function (): void {
+                Route::get('/usuarios', [UsuarioController::class, 'index'])->name('api.v1.usuarios.index');
+
                 Route::get('/personas', [PersonaController::class, 'index'])->name('api.v1.personas.index');
                 Route::get('/personas/{persona}', [PersonaController::class, 'show'])->name('api.v1.personas.show');
 

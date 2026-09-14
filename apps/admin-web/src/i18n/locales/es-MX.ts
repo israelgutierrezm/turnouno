@@ -16,6 +16,7 @@ export default {
     inicio: 'Inicio',
     organizaciones: 'Organizaciones',
     sucursales: 'Sucursales',
+    personal: 'Personal',
     salir: 'Salir',
   },
   inicio: {
@@ -40,5 +41,16 @@ export default {
     vacio: 'Aún no hay sucursales.',
     sinOrganizacion: 'Crea una organización primero.',
     errorCrear: 'No se pudo crear la sucursal.',
+  },
+  personal: {
+    titulo: 'Personal',
+    sucursal: 'Sucursal',
+    usuario: 'Usuario',
+    rol: 'Rol',
+    asignar: 'Asignar',
+    vacio: 'Sin personal en esta sucursal.',
+    sinSucursales: 'Crea una sucursal primero.',
+    sinPermiso: 'No tienes permiso para gestionar personal.',
+    errorAsignar: 'No se pudo asignar el personal.',
   },
 }
