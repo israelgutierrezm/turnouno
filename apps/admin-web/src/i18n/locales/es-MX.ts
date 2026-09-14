@@ -147,6 +147,8 @@ export default {
     sinPersonas: 'Crea una persona primero.',
     derechos: 'Derechos de la persona',
     saldo: 'Saldo',
+    disponible: 'Disponible',
+    consumir: 'Consumir',
     sinDerechos: 'Esta persona no tiene derechos.',
     errorGenerico: 'No se pudo completar la operación.',
     tipos: {

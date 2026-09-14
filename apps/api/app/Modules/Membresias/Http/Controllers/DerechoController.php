@@ -33,6 +33,7 @@ class DerechoController
         return response()->json([
             'data' => $derechos->map(function (Derecho $derecho): array {
                 $saldo = $this->libro->saldo($derecho);
+                $disponible = $this->libro->disponible($derecho);
 
                 return [
                     'id' => $derecho->ulid,
@@ -40,6 +41,8 @@ class DerechoController
                     'ilimitado' => $derecho->ilimitado,
                     'saldo_unidades' => $saldo,
                     'saldo_creditos' => round($saldo / 1000, 3),
+                    'disponible_unidades' => $disponible,
+                    'disponible_creditos' => round($disponible / 1000, 3),
                 ];
             })->all(),
         ]);

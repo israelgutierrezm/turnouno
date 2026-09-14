@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Http;
 
+use App\Modules\Creditos\Exceptions\SaldoInsuficiente;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -51,6 +52,11 @@ class ApiExceptionRenderer
                 'NOT_FOUND',
                 'No se encontró el recurso solicitado.',
                 404,
+            ),
+            $e instanceof SaldoInsuficiente => $this->make(
+                'SALDO_INSUFICIENTE',
+                $e->getMessage() !== '' ? $e->getMessage() : 'Saldo insuficiente.',
+                422,
             ),
             default => $this->generic($e),
         };

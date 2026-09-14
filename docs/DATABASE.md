@@ -64,13 +64,17 @@ términos en español que usamos en el código y la base de datos.
 - `acuerdos` (`id`, `ulid`, `tenant_id`, `persona_id`, `producto_comercial_id`, `fecha_inicio`, `estado`)
 - `derechos` (`id`, `ulid`, `tenant_id`, `acuerdo_id`, `ambito`, `ilimitado`, `valido_desde?`, `valido_hasta?`) — entitlement
 - `movimientos_credito` (`id`, `ulid`, `tenant_id`, `derecho_id`, `tipo`, `unidades`, `descripcion?`) — ledger
+- `retenciones_credito` (`id`, `ulid`, `tenant_id`, `derecho_id`, `unidades`, `estado`, `descripcion?`) — holds (reservas de crédito concurrency-safe)
 
 > `TipoPerfil` (enum): `miembro`, `tutor`, `instructor`, `personal`, `lead`, `cliente`.
 > Un menor (dependiente) puede no tener `user_id` (sin cuenta de acceso).
 > `ModoRecurso` (enum): `unidad`, `pool`. `ModalidadOferta` (enum): `grupal`, `privada`.
 > `TipoProducto`: `membresia`, `paquete`, `pase_dia`, `sesion_individual`, `add_on`, `taller`.
 > `TipoMovimiento`: `concesion`, `consumo`, `ajuste`, `add_on`, `reverso`.
+> `EstadoRetencion`: `activa`, `consumida`, `liberada`, `perdida`.
 > **Dinero**: `precio_minor BIGINT` + `moneda`. **Créditos**: enteros escalados (1 crédito
 > = 1000 unidades). El saldo de un derecho se DERIVA del ledger, nunca se guarda (ADR-0009).
+> **Disponible** = `saldo` (suma del ledger) − suma de retenciones `activa`. Un hold reserva
+> cupo sin mover el ledger; al confirmarlo se registra el `consumo` y el hold pasa a `consumida`.
 
 Todas las tablas de dominio llevan `tenant_id` y son *tenant-scoped* (ADR-0007).

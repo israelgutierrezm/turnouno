@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Membresias\Models;
 
 use App\Modules\Creditos\Models\MovimientoCredito;
+use App\Modules\Creditos\Models\RetencionCredito;
 use App\Modules\Tenancy\Concerns\BelongsToTenant;
 use App\Support\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
@@ -47,5 +48,13 @@ class Derecho extends Model
     public function movimientos(): HasMany
     {
         return $this->hasMany(MovimientoCredito::class);
+    }
+
+    /**
+     * @return HasMany<RetencionCredito, $this>
+     */
+    public function retenciones(): HasMany
+    {
+        return $this->hasMany(RetencionCredito::class);
     }
 }

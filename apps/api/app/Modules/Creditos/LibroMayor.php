@@ -26,4 +26,16 @@ class LibroMayor
     {
         return (int) $derecho->movimientos()->sum('unidades');
     }
+
+    /**
+     * Disponible = saldo del ledger − retenciones (holds) activas.
+     */
+    public function disponible(Derecho $derecho): int
+    {
+        $retenido = (int) $derecho->retenciones()
+            ->where('estado', EstadoRetencion::Activa)
+            ->sum('unidades');
+
+        return $this->saldo($derecho) - $retenido;
+    }
 }

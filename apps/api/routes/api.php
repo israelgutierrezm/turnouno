@@ -6,6 +6,8 @@ use App\Modules\Catalogo\Http\Controllers\ActividadController;
 use App\Modules\Catalogo\Http\Controllers\NivelController;
 use App\Modules\Catalogo\Http\Controllers\OfertaController;
 use App\Modules\Catalogo\Http\Controllers\ProgramaController;
+use App\Modules\Creditos\Http\Controllers\ConsumoController;
+use App\Modules\Creditos\Http\Controllers\RetencionController;
 use App\Modules\Hogares\Http\Controllers\HogarController;
 use App\Modules\Identity\Http\Controllers\Auth\SessionController;
 use App\Modules\Identity\Http\Controllers\Auth\TokenController;
@@ -71,6 +73,13 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('/productos', [ProductoComercialController::class, 'store'])->name('api.v1.productos.store');
                 Route::post('/personas/{persona}/acuerdos', [AcuerdoController::class, 'store'])->name('api.v1.personas.acuerdos.store');
                 Route::get('/personas/{persona}/derechos', [DerechoController::class, 'index'])->name('api.v1.personas.derechos.index');
+
+                // Créditos: consumo y retenciones (holds) del ledger.
+                Route::post('/derechos/{derecho}/consumos', [ConsumoController::class, 'store'])->name('api.v1.derechos.consumos.store');
+                Route::post('/derechos/{derecho}/retenciones', [RetencionController::class, 'store'])->name('api.v1.derechos.retenciones.store');
+                Route::post('/retenciones/{retencion}/confirmar', [RetencionController::class, 'confirmar'])->name('api.v1.retenciones.confirmar');
+                Route::post('/retenciones/{retencion}/liberar', [RetencionController::class, 'liberar'])->name('api.v1.retenciones.liberar');
+                Route::post('/retenciones/{retencion}/perder', [RetencionController::class, 'perder'])->name('api.v1.retenciones.perder');
 
                 // Recursos: Sucursal → Instalación → Recurso (jerárquico).
                 Route::get('/sucursales/{sucursal}/instalaciones', [InstalacionController::class, 'index'])->name('api.v1.sucursales.instalaciones.index');

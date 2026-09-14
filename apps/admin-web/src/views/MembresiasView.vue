@@ -27,6 +27,8 @@ interface DerechoItem {
   ilimitado: boolean
   saldo_unidades: number
   saldo_creditos: number
+  disponible_unidades: number
+  disponible_creditos: number
 }
 
 const { t } = useI18n()
@@ -40,6 +42,7 @@ const derechos = ref<DerechoItem[]>([])
 
 const personaId = ref('')
 const productoVenta = ref('')
+const consumos = ref<Record<string, string>>({})
 
 const nombreProd = ref('')
 const tipoProd = ref('membresia')
@@ -112,6 +115,23 @@ async function vender(): Promise<void> {
     await api.post(`/api/v1/personas/${personaId.value}/acuerdos`, {
       producto_id: productoVenta.value,
     })
+    await cargarDerechos()
+  } catch {
+    error.value = t('membresias.errorGenerico')
+  }
+}
+
+async function consumir(derechoId: string): Promise<void> {
+  error.value = null
+  const creditos = Number(consumos.value[derechoId])
+  if (!creditos || creditos <= 0) {
+    return
+  }
+  try {
+    await api.post(`/api/v1/derechos/${derechoId}/consumos`, {
+      unidades: Math.round(creditos * 1000),
+    })
+    consumos.value[derechoId] = ''
     await cargarDerechos()
   } catch {
     error.value = t('membresias.errorGenerico')
@@ -244,16 +264,36 @@ onMounted(async () => {
             {{ t('membresias.sinDerechos') }}
           </p>
           <ul v-else class="divide-y rounded-lg border border-slate-200 bg-white">
-            <li
-              v-for="derecho in derechos"
-              :key="derecho.id"
-              class="flex items-center justify-between px-4 py-3 text-sm"
-            >
-              <span class="font-medium">{{ derecho.producto }}</span>
-              <span class="text-slate-500">
-                {{ t('membresias.saldo') }}:
-                {{ derecho.ilimitado ? t('membresias.ilimitado') : derecho.saldo_creditos }}
-              </span>
+            <li v-for="derecho in derechos" :key="derecho.id" class="space-y-2 px-4 py-3 text-sm">
+              <div class="flex items-center justify-between">
+                <span class="font-medium">{{ derecho.producto }}</span>
+                <span class="text-slate-500">
+                  <template v-if="derecho.ilimitado">{{ t('membresias.ilimitado') }}</template>
+                  <template v-else>
+                    {{ t('membresias.saldo') }}: {{ derecho.saldo_creditos }} ·
+                    {{ t('membresias.disponible') }}: {{ derecho.disponible_creditos }}
+                  </template>
+                </span>
+              </div>
+              <form
+                v-if="puedeVender && !derecho.ilimitado"
+                class="flex items-center gap-2"
+                @submit.prevent="consumir(derecho.id)"
+              >
+                <input
+                  v-model="consumos[derecho.id]"
+                  type="number"
+                  step="0.001"
+                  :placeholder="t('membresias.creditos')"
+                  class="w-24 rounded-md border border-slate-300 px-2 py-1 text-xs"
+                />
+                <button
+                  type="submit"
+                  class="rounded-md bg-slate-700 px-2 py-1 text-xs font-medium text-white hover:bg-slate-600"
+                >
+                  {{ t('membresias.consumir') }}
+                </button>
+              </form>
             </li>
           </ul>
         </template>
