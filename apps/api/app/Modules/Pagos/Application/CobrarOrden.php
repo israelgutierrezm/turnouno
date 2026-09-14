@@ -8,6 +8,7 @@ use App\Modules\Ordenes\EstadoOrden;
 use App\Modules\Ordenes\Models\Orden;
 use App\Modules\Pagos\EstadoPago;
 use App\Modules\Pagos\Exceptions\OrdenNoPagable;
+use App\Modules\Pagos\MetodoPago;
 use App\Modules\Pagos\Models\Pago;
 use App\Modules\Pagos\Pasarelas\PasarelaDePago;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,7 @@ class CobrarOrden
 {
     public function __construct(private readonly AprobarPago $aprobar) {}
 
-    public function ejecutar(Orden $orden, PasarelaDePago $pasarela, ?string $idempotencyKey = null): Pago
+    public function ejecutar(Orden $orden, PasarelaDePago $pasarela, ?string $idempotencyKey = null, ?MetodoPago $metodo = null): Pago
     {
         if ($idempotencyKey !== null) {
             $previo = Pago::query()->where('idempotency_key', $idempotencyKey)->first();
@@ -35,7 +36,7 @@ class CobrarOrden
             }
         }
 
-        return DB::transaction(function () use ($orden, $pasarela, $idempotencyKey): Pago {
+        return DB::transaction(function () use ($orden, $pasarela, $idempotencyKey, $metodo): Pago {
             $bloqueada = Orden::query()->whereKey($orden->getKey())->lockForUpdate()->firstOrFail();
 
             if ($bloqueada->estado === EstadoOrden::Pagada) {
@@ -52,6 +53,7 @@ class CobrarOrden
             $pago = Pago::create([
                 'orden_id' => $bloqueada->id,
                 'proveedor' => $pasarela->nombre(),
+                'metodo' => $metodo?->value,
                 'estado' => EstadoPago::Pendiente->value,
                 'monto_minor' => $bloqueada->total_minor,
                 'moneda' => $bloqueada->moneda,
@@ -60,7 +62,14 @@ class CobrarOrden
 
             $resultado = $pasarela->cobrar($pago);
 
-            if (! $resultado->aprobado) {
+            // Pago en línea asíncrono: queda pendiente; el webhook lo confirmará.
+            if ($resultado->esPendiente()) {
+                $pago->update(['referencia_externa' => $resultado->referencia]);
+
+                return $pago;
+            }
+
+            if (! $resultado->esAprobado()) {
                 $pago->update([
                     'estado' => EstadoPago::Rechazado->value,
                     'referencia_externa' => $resultado->referencia,

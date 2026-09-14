@@ -25,6 +25,7 @@ use App\Modules\Ordenes\Http\Controllers\OrdenController;
 use App\Modules\Organizaciones\Http\Controllers\OrganizacionController;
 use App\Modules\Organizaciones\Http\Controllers\PersonalSucursalController;
 use App\Modules\Organizaciones\Http\Controllers\SucursalController;
+use App\Modules\Pagos\Http\Controllers\ConfiguracionPasarelaController;
 use App\Modules\Pagos\Http\Controllers\PagoController;
 use App\Modules\Pagos\Http\Controllers\WebhookPagoController;
 use App\Modules\Personas\Http\Controllers\DependientePersonaController;
@@ -93,6 +94,10 @@ Route::prefix('v1')->group(function (): void {
                 Route::get('/ordenes/{orden}', [OrdenController::class, 'show'])->name('api.v1.ordenes.show');
                 Route::post('/ordenes/{orden}/pagos', [PagoController::class, 'store'])->name('api.v1.ordenes.pagos.store');
                 Route::post('/pagos/{pago}/reembolso', [PagoController::class, 'reembolsar'])->name('api.v1.pagos.reembolso');
+
+                // Configuración de pasarelas por tenant (encender/apagar + llaves).
+                Route::get('/pasarelas', [ConfiguracionPasarelaController::class, 'index'])->name('api.v1.pasarelas.index');
+                Route::put('/pasarelas/{proveedor}', [ConfiguracionPasarelaController::class, 'upsert'])->name('api.v1.pasarelas.upsert');
 
                 // Créditos: consumo y retenciones (holds) del ledger.
                 Route::post('/derechos/{derecho}/consumos', [ConsumoController::class, 'store'])->name('api.v1.derechos.consumos.store');

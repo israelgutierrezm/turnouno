@@ -20,7 +20,7 @@ class CatalogoDePermisos
             'miembros.ver', 'miembros.crear', 'miembros.editar',
             'reservas.ver', 'reservas.crear', 'reservas.cancelar',
             'asistencia.ver', 'asistencia.registrar', 'asistencia.anular',
-            'pagos.ver', 'pagos.crear', 'pagos.reembolsar',
+            'pagos.ver', 'pagos.crear', 'pagos.reembolsar', 'pagos.configurar',
             'reportes.exportar', 'personal.gestionar', 'roles.gestionar',
             'organizaciones.ver', 'organizaciones.gestionar',
             'sucursales.ver', 'sucursales.gestionar',

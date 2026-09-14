@@ -6,6 +6,7 @@ namespace App\Modules\Pagos\Models;
 
 use App\Modules\Ordenes\Models\Orden;
 use App\Modules\Pagos\EstadoPago;
+use App\Modules\Pagos\MetodoPago;
 use App\Modules\Tenancy\Concerns\BelongsToTenant;
 use App\Support\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
@@ -24,6 +25,7 @@ class Pago extends Model
     protected $fillable = [
         'orden_id',
         'proveedor',
+        'metodo',
         'estado',
         'monto_minor',
         'moneda',
@@ -36,6 +38,7 @@ class Pago extends Model
      */
     protected $casts = [
         'estado' => EstadoPago::class,
+        'metodo' => MetodoPago::class,
         'monto_minor' => 'integer',
     ];
 

@@ -8,6 +8,7 @@ use App\Modules\Ordenes\Models\Orden;
 use App\Modules\Pagos\Application\CobrarOrden;
 use App\Modules\Pagos\Application\ReembolsarPago;
 use App\Modules\Pagos\Http\Requests\CobrarOrdenRequest;
+use App\Modules\Pagos\MetodoPago;
 use App\Modules\Pagos\Models\Pago;
 use App\Modules\Pagos\Pasarelas\RegistroDePasarelas;
 use Illuminate\Http\JsonResponse;
@@ -25,11 +26,14 @@ class PagoController
 
         $pasarela = $registro->para((string) $request->validated('proveedor'));
         $idempotencyKey = $request->validated('idempotency_key');
+        $metodoValor = $request->validated('metodo');
+        $metodo = is_string($metodoValor) && $metodoValor !== '' ? MetodoPago::from($metodoValor) : null;
 
         $pago = $cobrar->ejecutar(
             $orden,
             $pasarela,
             is_string($idempotencyKey) && $idempotencyKey !== '' ? $idempotencyKey : null,
+            $metodo,
         );
 
         return response()->json([

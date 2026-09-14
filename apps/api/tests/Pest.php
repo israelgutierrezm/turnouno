@@ -131,6 +131,36 @@ function crearSesion(Tenant $tenant, Sucursal $sucursal, Oferta $oferta, ?int $c
 }
 
 /**
+ * Crea un tenant con su usuario propietario autenticable.
+ *
+ * @return array{tenant: Tenant, owner: User}
+ */
+function tenantConDueno(): array
+{
+    $tenant = crearTenant('Pole House');
+    $owner = User::factory()->create();
+    vincularUsuario($tenant, $owner, ['propietario']);
+
+    return ['tenant' => $tenant, 'owner' => $owner];
+}
+
+/**
+ * Crea (vía API) un producto tipo pack de 8 créditos y devuelve su ulid.
+ * Requiere una sesión autenticada con permiso productos.gestionar.
+ */
+function crearProductoPack(): string
+{
+    return test()->postJson('/api/v1/productos', [
+        'nombre' => 'Pack 8 clases',
+        'tipo' => 'paquete',
+        'precio_minor' => 89900,
+        'moneda' => 'MXN',
+        'ilimitado' => false,
+        'creditos_incluidos' => 8000,
+    ])->assertCreated()->json('data.id');
+}
+
+/**
  * Crea una persona (participante) con un derecho: por defecto un pack con
  * `$unidades` créditos; con `$ilimitado` un derecho sin saldo (membresía).
  *

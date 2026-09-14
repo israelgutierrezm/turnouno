@@ -14,32 +14,7 @@ use App\Modules\Pagos\Pasarelas\PasarelaDePago;
 use App\Modules\Pagos\Pasarelas\ResultadoPago;
 use App\Modules\Personas\Models\Persona;
 use App\Modules\Tenancy\Context\TenantContext;
-use App\Modules\Tenancy\Models\Tenant;
 use Laravel\Sanctum\Sanctum;
-
-/**
- * @return array{tenant: Tenant, owner: User}
- */
-function tenantConDueno(): array
-{
-    $tenant = crearTenant('Pole House');
-    $owner = User::factory()->create();
-    vincularUsuario($tenant, $owner, ['propietario']);
-
-    return ['tenant' => $tenant, 'owner' => $owner];
-}
-
-function crearProductoPack(): string
-{
-    return test()->postJson('/api/v1/productos', [
-        'nombre' => 'Pack 8 clases',
-        'tipo' => 'paquete',
-        'precio_minor' => 89900,
-        'moneda' => 'MXN',
-        'ilimitado' => false,
-        'creditos_incluidos' => 8000,
-    ])->assertCreated()->json('data.id');
-}
 
 it('crea una orden pendiente con el total correcto', function (): void {
     ['owner' => $owner] = tenantConDueno();
