@@ -24,5 +24,8 @@ class DatabaseSeeder extends Seeder
         );
 
         app(VincularUsuarioATenant::class)->ejecutar($tenant, $propietario, ['propietario']);
+
+        // Tenants demostrativos de los verticales piloto (pole, natación, gym).
+        $this->call(PilotosSeeder::class);
     }
 }
