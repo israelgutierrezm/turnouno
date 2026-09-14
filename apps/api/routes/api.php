@@ -11,6 +11,9 @@ use App\Modules\Identity\Http\Controllers\Auth\SessionController;
 use App\Modules\Identity\Http\Controllers\Auth\TokenController;
 use App\Modules\Identity\Http\Controllers\MeController;
 use App\Modules\Identity\Http\Controllers\UsuarioController;
+use App\Modules\Membresias\Http\Controllers\AcuerdoController;
+use App\Modules\Membresias\Http\Controllers\DerechoController;
+use App\Modules\Membresias\Http\Controllers\ProductoComercialController;
 use App\Modules\Organizaciones\Http\Controllers\OrganizacionController;
 use App\Modules\Organizaciones\Http\Controllers\PersonalSucursalController;
 use App\Modules\Organizaciones\Http\Controllers\SucursalController;
@@ -62,6 +65,12 @@ Route::prefix('v1')->group(function (): void {
                 Route::get('/actividades/{actividad}', [ActividadController::class, 'show'])->name('api.v1.actividades.show');
                 Route::post('/actividades/{actividad}/niveles', [NivelController::class, 'store'])->name('api.v1.actividades.niveles.store');
                 Route::post('/actividades/{actividad}/ofertas', [OfertaController::class, 'store'])->name('api.v1.actividades.ofertas.store');
+
+                // Membresías: producto comercial → acuerdo → derecho (+ ledger).
+                Route::get('/productos', [ProductoComercialController::class, 'index'])->name('api.v1.productos.index');
+                Route::post('/productos', [ProductoComercialController::class, 'store'])->name('api.v1.productos.store');
+                Route::post('/personas/{persona}/acuerdos', [AcuerdoController::class, 'store'])->name('api.v1.personas.acuerdos.store');
+                Route::get('/personas/{persona}/derechos', [DerechoController::class, 'index'])->name('api.v1.personas.derechos.index');
 
                 // Recursos: Sucursal → Instalación → Recurso (jerárquico).
                 Route::get('/sucursales/{sucursal}/instalaciones', [InstalacionController::class, 'index'])->name('api.v1.sucursales.instalaciones.index');
