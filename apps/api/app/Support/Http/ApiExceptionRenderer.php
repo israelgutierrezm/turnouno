@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Http;
 
 use App\Modules\Creditos\Exceptions\SaldoInsuficiente;
+use App\Modules\Pagos\Exceptions\PagoException;
 use App\Modules\Reservas\Exceptions\ReservaException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -62,6 +63,11 @@ class ApiExceptionRenderer
             $e instanceof ReservaException => $this->make(
                 $e->codigo(),
                 $e->getMessage() !== '' ? $e->getMessage() : 'No se pudo completar la reserva.',
+                $e->estadoHttp(),
+            ),
+            $e instanceof PagoException => $this->make(
+                $e->codigo(),
+                $e->getMessage() !== '' ? $e->getMessage() : 'No se pudo completar el pago.',
                 $e->estadoHttp(),
             ),
             default => $this->generic($e),

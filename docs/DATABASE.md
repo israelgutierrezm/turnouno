@@ -34,6 +34,9 @@ términos en español que usamos en el código y la base de datos.
 | Session staff assignment | Asignación de sesión | `AsignacionSesion` | `asignaciones_sesion` |
 | Resource | Recurso | `Recurso` | `recursos` |
 | Attendance | Asistencia | `Asistencia` | `asistencias` |
+| Order | Orden | `Orden` | `ordenes` |
+| Order line | Línea de orden | `LineaOrden` | `lineas_orden` |
+| Payment | Pago | `Pago` | `pagos` |
 
 > `Membresia` (comercial) es distinta del vínculo **usuario ↔ tenant** (pivote
 > `tenant_user`): este último NO es "membresía". Términos distintos, conceptos
@@ -74,6 +77,9 @@ términos en español que usamos en el código y la base de datos.
 - `asignaciones_sesion` (`id`, `ulid`, `tenant_id`, `sesion_id`, `persona_id`, `rol`) — staff (instructor/asistente) de una sesión; `unique(sesion_id, persona_id)`
 - `reservas` (`id`, `ulid`, `tenant_id`, `sesion_id`, `persona_id`, `derecho_id`, `retencion_id?`, `estado`, `unidades`, `idempotency_key?`) — booking; `idempotency_key` único; `index(sesion_id, estado)`
 - `asistencias` (`id`, `ulid`, `tenant_id`, `reserva_id`, `estado`, `registrada_en`) — check-in de una reserva confirmada; `unique(reserva_id)`
+- `ordenes` (`id`, `ulid`, `tenant_id`, `persona_id`, `estado`, `total_minor`, `moneda`) — orden de compra (comprador = `persona_id`)
+- `lineas_orden` (`id`, `ulid`, `tenant_id`, `orden_id`, `producto_comercial_id`, `beneficiario_id?`, `cantidad`, `precio_unitario_minor`, `subtotal_minor`) — `beneficiario` = participante (puede diferir del comprador)
+- `pagos` (`id`, `ulid`, `tenant_id`, `orden_id`, `proveedor`, `estado`, `monto_minor`, `moneda`, `referencia_externa?`, `idempotency_key?`) — intento de cobro; `idempotency_key` único
 
 > `TipoPerfil` (enum): `miembro`, `tutor`, `instructor`, `personal`, `lead`, `cliente`.
 > Un menor (dependiente) puede no tener `user_id` (sin cuenta de acceso).
@@ -84,6 +90,9 @@ términos en español que usamos en el código y la base de datos.
 > `EstadoSesion`: `programada`, `cancelada`, `finalizada`. `RolSesion`: `instructor`, `asistente`.
 > `EstadoReserva`: `confirmada`, `en_espera` (waitlist), `cancelada`.
 > `EstadoAsistencia`: `presente`, `ausente`.
+> `EstadoOrden`: `pendiente`, `pagada`, `cancelada`. `EstadoPago`: `pendiente`, `aprobado`, `rechazado`, `reembolsado`.
+> **Comercio**: una orden se paga vía una **pasarela** (proveedor-agnóstica); el pago
+> aprobado hace el *fulfillment* (concede los derechos) atómicamente (ADR-0012).
 > `DiaSemana` (int ISO-8601): `1`=lunes … `7`=domingo.
 > **Agenda**: `sesiones.inicia_en`/`termina_en` se guardan en UTC (calculadas desde la
 > hora local de la plantilla + `zona_horaria` de la sucursal); se conserva la zona

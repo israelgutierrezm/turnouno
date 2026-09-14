@@ -44,7 +44,7 @@ class CatalogoDePermisos
             'gerente-sucursal' => [
                 'miembros.ver', 'miembros.crear', 'miembros.editar',
                 'reservas.ver', 'reservas.crear', 'reservas.cancelar',
-                'asistencia.ver', 'asistencia.registrar', 'pagos.ver',
+                'asistencia.ver', 'asistencia.registrar', 'pagos.ver', 'pagos.crear',
                 'organizaciones.ver', 'sucursales.ver', 'personal.gestionar',
                 'catalogo.ver', 'catalogo.gestionar', 'recursos.ver', 'recursos.gestionar',
                 'productos.ver', 'membresias.ver', 'membresias.gestionar',
@@ -55,7 +55,7 @@ class CatalogoDePermisos
                 'asistencia.ver', 'asistencia.registrar', 'sucursales.ver',
                 'catalogo.ver', 'recursos.ver',
                 'productos.ver', 'membresias.ver', 'membresias.gestionar',
-                'agenda.ver',
+                'agenda.ver', 'pagos.ver', 'pagos.crear',
             ],
             'miembro' => ['reservas.ver', 'reservas.crear', 'reservas.cancelar'],
         ];

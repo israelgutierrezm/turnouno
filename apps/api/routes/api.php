@@ -21,9 +21,11 @@ use App\Modules\Identity\Http\Controllers\UsuarioController;
 use App\Modules\Membresias\Http\Controllers\AcuerdoController;
 use App\Modules\Membresias\Http\Controllers\DerechoController;
 use App\Modules\Membresias\Http\Controllers\ProductoComercialController;
+use App\Modules\Ordenes\Http\Controllers\OrdenController;
 use App\Modules\Organizaciones\Http\Controllers\OrganizacionController;
 use App\Modules\Organizaciones\Http\Controllers\PersonalSucursalController;
 use App\Modules\Organizaciones\Http\Controllers\SucursalController;
+use App\Modules\Pagos\Http\Controllers\PagoController;
 use App\Modules\Personas\Http\Controllers\DependientePersonaController;
 use App\Modules\Personas\Http\Controllers\PerfilPersonaController;
 use App\Modules\Personas\Http\Controllers\PersonaController;
@@ -80,6 +82,11 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('/productos', [ProductoComercialController::class, 'store'])->name('api.v1.productos.store');
                 Route::post('/personas/{persona}/acuerdos', [AcuerdoController::class, 'store'])->name('api.v1.personas.acuerdos.store');
                 Route::get('/personas/{persona}/derechos', [DerechoController::class, 'index'])->name('api.v1.personas.derechos.index');
+
+                // Órdenes y pagos: orden pendiente → cobro (pasarela) → fulfillment (derechos).
+                Route::post('/ordenes', [OrdenController::class, 'store'])->name('api.v1.ordenes.store');
+                Route::get('/ordenes/{orden}', [OrdenController::class, 'show'])->name('api.v1.ordenes.show');
+                Route::post('/ordenes/{orden}/pagos', [PagoController::class, 'store'])->name('api.v1.ordenes.pagos.store');
 
                 // Créditos: consumo y retenciones (holds) del ledger.
                 Route::post('/derechos/{derecho}/consumos', [ConsumoController::class, 'store'])->name('api.v1.derechos.consumos.store');
