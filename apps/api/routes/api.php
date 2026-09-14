@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Modules\Agenda\Http\Controllers\AsignacionSesionController;
+use App\Modules\Agenda\Http\Controllers\MiAgendaController;
+use App\Modules\Agenda\Http\Controllers\PlantillaHorarioController;
+use App\Modules\Agenda\Http\Controllers\SesionController;
 use App\Modules\Catalogo\Http\Controllers\ActividadController;
 use App\Modules\Catalogo\Http\Controllers\NivelController;
 use App\Modules\Catalogo\Http\Controllers\OfertaController;
@@ -80,6 +84,15 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('/retenciones/{retencion}/confirmar', [RetencionController::class, 'confirmar'])->name('api.v1.retenciones.confirmar');
                 Route::post('/retenciones/{retencion}/liberar', [RetencionController::class, 'liberar'])->name('api.v1.retenciones.liberar');
                 Route::post('/retenciones/{retencion}/perder', [RetencionController::class, 'perder'])->name('api.v1.retenciones.perder');
+
+                // Agenda: Oferta → Plantilla de horario → Sesión (materializada) + staff.
+                Route::post('/ofertas/{oferta}/plantillas-horario', [PlantillaHorarioController::class, 'store'])->name('api.v1.ofertas.plantillas-horario.store');
+                Route::post('/plantillas-horario/{plantilla}/sesiones', [PlantillaHorarioController::class, 'generar'])->name('api.v1.plantillas-horario.sesiones.generar');
+                Route::get('/sucursales/{sucursal}/sesiones', [SesionController::class, 'index'])->name('api.v1.sucursales.sesiones.index');
+                Route::post('/sucursales/{sucursal}/sesiones', [SesionController::class, 'store'])->name('api.v1.sucursales.sesiones.store');
+                Route::post('/sesiones/{sesion}/cancelar', [SesionController::class, 'cancelar'])->name('api.v1.sesiones.cancelar');
+                Route::post('/sesiones/{sesion}/asignaciones', [AsignacionSesionController::class, 'store'])->name('api.v1.sesiones.asignaciones.store');
+                Route::get('/mis-sesiones', MiAgendaController::class)->name('api.v1.mis-sesiones');
 
                 // Recursos: Sucursal → Instalación → Recurso (jerárquico).
                 Route::get('/sucursales/{sucursal}/instalaciones', [InstalacionController::class, 'index'])->name('api.v1.sucursales.instalaciones.index');

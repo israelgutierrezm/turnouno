@@ -28,7 +28,10 @@ términos en español que usamos en el código y la base de datos.
 | Guardian | Tutor | `Tutor` | `tutores` |
 | Membership (comercial) | Membresía | `Membresia` | `membresias` |
 | Booking | Reserva | `Reserva` | `reservas` |
+| Schedule template | Plantilla de horario | `PlantillaHorario` | `plantillas_horario` |
+| Recurrence rule | Regla de recurrencia | `ReglaRecurrencia` | `reglas_recurrencia` |
 | Session | Sesión | `Sesion` | `sesiones` |
+| Session staff assignment | Asignación de sesión | `AsignacionSesion` | `asignaciones_sesion` |
 | Resource | Recurso | `Recurso` | `recursos` |
 | Attendance | Asistencia | `Asistencia` | `asistencias` |
 
@@ -36,7 +39,7 @@ términos en español que usamos en el código y la base de datos.
 > `tenant_user`): este último NO es "membresía". Términos distintos, conceptos
 > distintos.
 
-## Esquema actual (Slice 1 + Slice 2)
+## Esquema actual (hasta Slice 6)
 
 ### Plataforma / identidad *(nombres en inglés, conservados)*
 - `tenants` (`id`, `ulid`, `name`, `slug`, `status`)
@@ -65,6 +68,10 @@ términos en español que usamos en el código y la base de datos.
 - `derechos` (`id`, `ulid`, `tenant_id`, `acuerdo_id`, `ambito`, `ilimitado`, `valido_desde?`, `valido_hasta?`) — entitlement
 - `movimientos_credito` (`id`, `ulid`, `tenant_id`, `derecho_id`, `tipo`, `unidades`, `descripcion?`) — ledger
 - `retenciones_credito` (`id`, `ulid`, `tenant_id`, `derecho_id`, `unidades`, `estado`, `descripcion?`) — holds (reservas de crédito concurrency-safe)
+- `plantillas_horario` (`id`, `ulid`, `tenant_id`, `oferta_id`, `sucursal_id`, `recurso_id?`, `nombre?`, `duracion_minutos`, `capacidad?`, `vigente_desde`, `vigente_hasta?`, `activa`) — definición recurrente de una clase
+- `reglas_recurrencia` (`id`, `ulid`, `tenant_id`, `plantilla_horario_id`, `dia_semana`, `hora_inicio`) — repetición semanal (día ISO + hora local); `unique(plantilla, dia_semana, hora_inicio)`
+- `sesiones` (`id`, `ulid`, `tenant_id`, `plantilla_horario_id?`, `oferta_id`, `sucursal_id`, `recurso_id?`, `inicia_en`, `termina_en`, `zona_horaria`, `capacidad?`, `estado`) — instancia fechada; horas en UTC; `unique(plantilla, inicia_en)` (materialización idempotente, ADR-0010)
+- `asignaciones_sesion` (`id`, `ulid`, `tenant_id`, `sesion_id`, `persona_id`, `rol`) — staff (instructor/asistente) de una sesión; `unique(sesion_id, persona_id)`
 
 > `TipoPerfil` (enum): `miembro`, `tutor`, `instructor`, `personal`, `lead`, `cliente`.
 > Un menor (dependiente) puede no tener `user_id` (sin cuenta de acceso).
@@ -72,6 +79,12 @@ términos en español que usamos en el código y la base de datos.
 > `TipoProducto`: `membresia`, `paquete`, `pase_dia`, `sesion_individual`, `add_on`, `taller`.
 > `TipoMovimiento`: `concesion`, `consumo`, `ajuste`, `add_on`, `reverso`.
 > `EstadoRetencion`: `activa`, `consumida`, `liberada`, `perdida`.
+> `EstadoSesion`: `programada`, `cancelada`, `finalizada`. `RolSesion`: `instructor`, `asistente`.
+> `DiaSemana` (int ISO-8601): `1`=lunes … `7`=domingo.
+> **Agenda**: `sesiones.inicia_en`/`termina_en` se guardan en UTC (calculadas desde la
+> hora local de la plantilla + `zona_horaria` de la sucursal); se conserva la zona
+> como snapshot para mostrar. Las sesiones se **materializan** desde las plantillas
+> (ADR-0010).
 > **Dinero**: `precio_minor BIGINT` + `moneda`. **Créditos**: enteros escalados (1 crédito
 > = 1000 unidades). El saldo de un derecho se DERIVA del ledger, nunca se guarda (ADR-0009).
 > **Disponible** = `saldo` (suma del ledger) − suma de retenciones `activa`. Un hold reserva

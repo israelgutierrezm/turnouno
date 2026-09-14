@@ -28,6 +28,7 @@ class CatalogoDePermisos
             'recursos.ver', 'recursos.gestionar',
             'productos.ver', 'productos.gestionar',
             'membresias.ver', 'membresias.gestionar',
+            'agenda.ver', 'agenda.gestionar',
         ];
     }
 
@@ -47,12 +48,14 @@ class CatalogoDePermisos
                 'organizaciones.ver', 'sucursales.ver', 'personal.gestionar',
                 'catalogo.ver', 'catalogo.gestionar', 'recursos.ver', 'recursos.gestionar',
                 'productos.ver', 'membresias.ver', 'membresias.gestionar',
+                'agenda.ver', 'agenda.gestionar',
             ],
             'recepcionista' => [
                 'miembros.ver', 'reservas.ver', 'reservas.crear',
                 'asistencia.ver', 'asistencia.registrar', 'sucursales.ver',
                 'catalogo.ver', 'recursos.ver',
                 'productos.ver', 'membresias.ver', 'membresias.gestionar',
+                'agenda.ver',
             ],
             'miembro' => ['reservas.ver', 'reservas.crear', 'reservas.cancelar'],
         ];
