@@ -40,6 +40,15 @@ interface SesionItem {
   instructores: InstructorSesion[]
 }
 
+interface ReservaItem {
+  id: string
+  estado: string
+  persona: string
+  inicia_en: string
+  unidades: number
+  asistencia: string | null
+}
+
 const { t } = useI18n()
 const auth = useAuthStore()
 
@@ -74,7 +83,17 @@ const diasSeleccionados = ref<number[]>([])
 const instructorSel = ref<Record<string, string>>({})
 const error = ref<string | null>(null)
 
+// Reservas (roster) por sesión.
+const rosterAbierto = ref<string | null>(null)
+const rosters = ref<Record<string, ReservaItem[]>>({})
+const reservaPersona = ref<Record<string, string>>({})
+const reservaEsperar = ref<Record<string, boolean>>({})
+
 const puedeGestionar = computed(() => auth.puede('agenda.gestionar'))
+const puedeVerReservas = computed(() => auth.puede('reservas.ver'))
+const puedeReservar = computed(() => auth.puede('reservas.crear'))
+const puedeCancelarReserva = computed(() => auth.puede('reservas.cancelar'))
+const puedeAsistencia = computed(() => auth.puede('asistencia.registrar'))
 const haySucursales = computed(() => sucursales.value.length > 0)
 const hayOfertas = computed(() => ofertas.value.length > 0)
 
@@ -188,6 +207,60 @@ async function asignar(sesionId: string): Promise<void> {
   }
 }
 
+async function cargarRoster(sesionId: string): Promise<void> {
+  const { data } = await api.get<{ data: ReservaItem[] }>(`/api/v1/sesiones/${sesionId}/reservas`)
+  rosters.value[sesionId] = data.data
+}
+
+async function alternarRoster(sesionId: string): Promise<void> {
+  if (rosterAbierto.value === sesionId) {
+    rosterAbierto.value = null
+    return
+  }
+  rosterAbierto.value = sesionId
+  if (puedeVerReservas.value) {
+    await cargarRoster(sesionId)
+  }
+}
+
+async function reservar(sesionId: string): Promise<void> {
+  error.value = null
+  const personaId = reservaPersona.value[sesionId]
+  if (!personaId) {
+    return
+  }
+  try {
+    await api.post(`/api/v1/sesiones/${sesionId}/reservas`, {
+      persona_id: personaId,
+      esperar: reservaEsperar.value[sesionId] ?? false,
+    })
+    reservaPersona.value[sesionId] = ''
+    await cargarRoster(sesionId)
+  } catch {
+    error.value = t('agenda.reservas.errorReservar')
+  }
+}
+
+async function cancelarReserva(reservaId: string, sesionId: string): Promise<void> {
+  error.value = null
+  try {
+    await api.post(`/api/v1/reservas/${reservaId}/cancelar`)
+    await cargarRoster(sesionId)
+  } catch {
+    error.value = t('agenda.errorGenerico')
+  }
+}
+
+async function marcarAsistencia(reservaId: string, sesionId: string, estado: string): Promise<void> {
+  error.value = null
+  try {
+    await api.post(`/api/v1/reservas/${reservaId}/asistencia`, { estado })
+    await cargarRoster(sesionId)
+  } catch {
+    error.value = t('agenda.errorGenerico')
+  }
+}
+
 watch(sucursalId, () => {
   void cargarSesiones()
 })
@@ -281,6 +354,88 @@ onMounted(async () => {
                 >
                   {{ t('agenda.cancelar') }}
                 </button>
+              </div>
+
+              <div v-if="puedeVerReservas && sesion.estado === 'programada'">
+                <button
+                  class="text-xs font-medium text-slate-600 hover:text-slate-900"
+                  @click="alternarRoster(sesion.id)"
+                >
+                  {{ rosterAbierto === sesion.id ? '▾' : '▸' }} {{ t('agenda.reservas.titulo') }}
+                </button>
+
+                <div v-if="rosterAbierto === sesion.id" class="mt-2 space-y-2 rounded-md bg-slate-50 p-3">
+                  <ul v-if="(rosters[sesion.id]?.length ?? 0) > 0" class="space-y-1">
+                    <li
+                      v-for="reserva in rosters[sesion.id]"
+                      :key="reserva.id"
+                      class="flex flex-wrap items-center justify-between gap-2"
+                    >
+                      <span>
+                        {{ reserva.persona }}
+                        <span
+                          class="text-xs"
+                          :class="reserva.estado === 'en_espera' ? 'text-amber-600' : 'text-slate-400'"
+                        >
+                          · {{ t('agenda.reservas.estados.' + reserva.estado) }}
+                        </span>
+                        <span v-if="reserva.asistencia" class="text-xs text-emerald-600">
+                          · {{ t('agenda.reservas.asistencias.' + reserva.asistencia) }}
+                        </span>
+                      </span>
+                      <span class="flex items-center gap-1">
+                        <template v-if="puedeAsistencia && reserva.estado === 'confirmada'">
+                          <button
+                            class="rounded border border-emerald-300 px-1.5 py-0.5 text-xs text-emerald-700 hover:bg-emerald-50"
+                            @click="marcarAsistencia(reserva.id, sesion.id, 'presente')"
+                          >
+                            {{ t('agenda.reservas.presente') }}
+                          </button>
+                          <button
+                            class="rounded border border-slate-300 px-1.5 py-0.5 text-xs text-slate-600 hover:bg-slate-100"
+                            @click="marcarAsistencia(reserva.id, sesion.id, 'ausente')"
+                          >
+                            {{ t('agenda.reservas.ausente') }}
+                          </button>
+                        </template>
+                        <button
+                          v-if="puedeCancelarReserva"
+                          class="rounded border border-red-300 px-1.5 py-0.5 text-xs text-red-700 hover:bg-red-50"
+                          @click="cancelarReserva(reserva.id, sesion.id)"
+                        >
+                          {{ t('agenda.reservas.cancelar') }}
+                        </button>
+                      </span>
+                    </li>
+                  </ul>
+                  <p v-else class="text-xs text-slate-500">{{ t('agenda.reservas.sinReservas') }}</p>
+
+                  <form
+                    v-if="puedeReservar"
+                    class="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2"
+                    @submit.prevent="reservar(sesion.id)"
+                  >
+                    <select
+                      v-model="reservaPersona[sesion.id]"
+                      class="rounded-md border border-slate-300 px-2 py-1 text-xs"
+                    >
+                      <option value="">{{ t('agenda.reservas.elegirPersona') }}</option>
+                      <option v-for="persona in personas" :key="persona.id" :value="persona.id">
+                        {{ persona.nombre }} {{ persona.apellidos }}
+                      </option>
+                    </select>
+                    <label class="flex items-center gap-1 text-xs text-slate-600">
+                      <input v-model="reservaEsperar[sesion.id]" type="checkbox" />
+                      {{ t('agenda.reservas.esperar') }}
+                    </label>
+                    <button
+                      type="submit"
+                      class="rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-white hover:bg-slate-700"
+                    >
+                      {{ t('agenda.reservas.reservar') }}
+                    </button>
+                  </form>
+                </div>
               </div>
             </li>
           </ul>

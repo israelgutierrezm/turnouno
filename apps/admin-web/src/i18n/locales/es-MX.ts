@@ -201,5 +201,25 @@ export default {
       sab: 'Sáb',
       dom: 'Dom',
     },
+    reservas: {
+      titulo: 'Reservas',
+      sinReservas: 'Sin reservas.',
+      elegirPersona: 'Elegir persona…',
+      esperar: 'Lista de espera si está llena',
+      reservar: 'Reservar',
+      cancelar: 'Cancelar',
+      presente: 'Presente',
+      ausente: 'Ausente',
+      errorReservar: 'No se pudo reservar (cupo, saldo o duplicado).',
+      estados: {
+        confirmada: 'Confirmada',
+        en_espera: 'En espera',
+        cancelada: 'Cancelada',
+      },
+      asistencias: {
+        presente: 'Asistió',
+        ausente: 'No asistió',
+      },
+    },
   },
 }
