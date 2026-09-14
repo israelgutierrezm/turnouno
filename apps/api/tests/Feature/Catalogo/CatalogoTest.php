@@ -38,6 +38,21 @@ it('crea programa, actividad, nivel y oferta y los muestra anidados', function (
     expect($respuesta->json('data.actividades.0.ofertas.0.capacidad'))->toBe(8);
 });
 
+it('lista las ofertas del tenant con su actividad', function (): void {
+    $tenant = crearTenant('Pole House');
+    $user = User::factory()->create();
+    vincularUsuario($tenant, $user, ['propietario']);
+    ['oferta' => $oferta] = crearOfertaYSucursal($tenant);
+
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/v1/ofertas')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $oferta->ulid)
+        ->assertJsonPath('data.0.actividad', 'Pole Fitness');
+});
+
 it('prohibe crear programa sin el permiso catalogo.gestionar', function (): void {
     $tenant = crearTenant('Acme');
     $user = User::factory()->create();

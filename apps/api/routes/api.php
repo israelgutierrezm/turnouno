@@ -70,6 +70,7 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('/programas/{programa}/actividades', [ActividadController::class, 'store'])->name('api.v1.programas.actividades.store');
                 Route::get('/actividades/{actividad}', [ActividadController::class, 'show'])->name('api.v1.actividades.show');
                 Route::post('/actividades/{actividad}/niveles', [NivelController::class, 'store'])->name('api.v1.actividades.niveles.store');
+                Route::get('/ofertas', [OfertaController::class, 'index'])->name('api.v1.ofertas.index');
                 Route::post('/actividades/{actividad}/ofertas', [OfertaController::class, 'store'])->name('api.v1.actividades.ofertas.store');
 
                 // Membresías: producto comercial → acuerdo → derecho (+ ledger).

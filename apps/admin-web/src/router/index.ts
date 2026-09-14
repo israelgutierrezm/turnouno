@@ -59,6 +59,11 @@ const router = createRouter({
       name: 'membresias',
       component: () => import('@/views/MembresiasView.vue'),
     },
+    {
+      path: '/agenda',
+      name: 'agenda',
+      component: () => import('@/views/AgendaView.vue'),
+    },
     { path: '/health', name: 'health', component: () => import('@/views/HealthView.vue') },
   ],
 })
