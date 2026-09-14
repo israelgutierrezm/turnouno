@@ -1,14 +1,20 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
+import { useAuthStore } from '@/stores/auth'
+
+const { t } = useI18n()
+const auth = useAuthStore()
+</script>
 
 <template>
   <section class="space-y-3">
-    <h2 class="text-xl font-semibold">TurnoUno · Admin</h2>
+    <h2 class="text-xl font-semibold">{{ t('inicio.titulo') }}</h2>
     <p class="text-slate-600">
-      Sprint 0 shell. Membership, scheduling and booking modules are delivered slice by slice
-      against the shared, configurable core.
+      {{ t('inicio.bienvenida', { nombre: auth.me?.usuario.nombre ?? '' }) }}
     </p>
-    <RouterLink to="/health" class="inline-block text-slate-800 underline">
-      Check API health →
+    <RouterLink to="/sucursales" class="inline-block text-slate-800 underline">
+      {{ t('nav.sucursales') }} →
     </RouterLink>
   </section>
 </template>
