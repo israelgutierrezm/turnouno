@@ -42,6 +42,7 @@ const derechos = ref<DerechoItem[]>([])
 
 const personaId = ref('')
 const productoVenta = ref('')
+const proveedorPago = ref('manual')
 const consumos = ref<Record<string, string>>({})
 
 const nombreProd = ref('')
@@ -112,8 +113,13 @@ async function crearProducto(): Promise<void> {
 async function vender(): Promise<void> {
   error.value = null
   try {
-    await api.post(`/api/v1/personas/${personaId.value}/acuerdos`, {
-      producto_id: productoVenta.value,
+    // Flujo comercial: crear la orden y cobrarla; el pago aprobado concede el derecho.
+    const { data } = await api.post<{ data: { id: string } }>('/api/v1/ordenes', {
+      persona_id: personaId.value,
+      items: [{ producto_id: productoVenta.value }],
+    })
+    await api.post(`/api/v1/ordenes/${data.data.id}/pagos`, {
+      proveedor: proveedorPago.value,
     })
     await cargarDerechos()
   } catch {
@@ -250,13 +256,24 @@ onMounted(async () => {
                 </select>
               </label>
             </div>
-            <button
-              v-if="puedeVender && hayProductos"
-              class="mt-3 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
-              @click="vender"
-            >
-              {{ t('membresias.venderBtn') }}
-            </button>
+            <div v-if="puedeVender && hayProductos" class="mt-3 flex items-end gap-2">
+              <label class="text-sm">
+                <span class="text-slate-600">{{ t('membresias.proveedor') }}</span>
+                <select
+                  v-model="proveedorPago"
+                  class="mt-1 block rounded-md border border-slate-300 px-2 py-2 text-sm"
+                >
+                  <option value="manual">{{ t('membresias.pagoManual') }}</option>
+                  <option value="simulada">{{ t('membresias.pagoSimulada') }}</option>
+                </select>
+              </label>
+              <button
+                class="rounded-md bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700"
+                @click="vender"
+              >
+                {{ t('membresias.venderBtn') }}
+              </button>
+            </div>
           </div>
 
           <h3 class="pt-2 text-sm font-medium text-slate-700">{{ t('membresias.derechos') }}</h3>
