@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Modules\Reservas\Http\Requests;
+namespace App\Modules\Asistencia\Http\Requests;
 
+use App\Modules\Asistencia\EstadoAsistencia;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
-class CrearReservaRequest extends FormRequest
+class MarcarAsistenciaRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -19,9 +21,7 @@ class CrearReservaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'persona_id' => ['required', 'string'],
-            'idempotency_key' => ['nullable', 'string', 'max:255'],
-            'esperar' => ['nullable', 'boolean'],
+            'estado' => ['required', Rule::enum(EstadoAsistencia::class)],
         ];
     }
 }

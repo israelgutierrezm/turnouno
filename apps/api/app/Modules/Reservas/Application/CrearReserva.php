@@ -33,7 +33,7 @@ class CrearReserva
         private readonly RetenerCreditos $retener,
     ) {}
 
-    public function ejecutar(Sesion $sesion, Persona $persona, ?string $idempotencyKey = null, ?int $unidades = null): Reserva
+    public function ejecutar(Sesion $sesion, Persona $persona, ?string $idempotencyKey = null, bool $permitirEspera = false, ?int $unidades = null): Reserva
     {
         $costo = $unidades ?? self::UNIDADES_POR_SESION;
 
@@ -53,38 +53,44 @@ class CrearReserva
             throw new FueraDeVentana('La sesión ya inició.');
         }
 
-        return DB::transaction(function () use ($sesion, $persona, $idempotencyKey, $costo): Reserva {
+        return DB::transaction(function () use ($sesion, $persona, $idempotencyKey, $permitirEspera, $costo): Reserva {
             $bloqueada = Sesion::query()->whereKey($sesion->getKey())->lockForUpdate()->firstOrFail();
 
             if ($bloqueada->estado !== EstadoSesion::Programada) {
                 throw new SesionNoReservable('La sesión no admite reservas.');
             }
 
-            $yaReservado = Reserva::query()
+            $activa = Reserva::query()
                 ->where('sesion_id', $bloqueada->id)
                 ->where('persona_id', $persona->id)
-                ->where('estado', EstadoReserva::Confirmada->value)
+                ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::EnEspera->value])
                 ->exists();
 
-            if ($yaReservado) {
+            if ($activa) {
                 throw new YaReservado('Ya existe una reserva para esta sesión.');
-            }
-
-            if ($bloqueada->capacidad !== null) {
-                $confirmadas = Reserva::query()
-                    ->where('sesion_id', $bloqueada->id)
-                    ->where('estado', EstadoReserva::Confirmada->value)
-                    ->count();
-
-                if ($confirmadas >= $bloqueada->capacidad) {
-                    throw new CupoLleno('La sesión está llena.');
-                }
             }
 
             $derecho = $this->resolver->paraSesion($persona, $bloqueada, $costo);
 
             if ($derecho === null) {
                 throw new SinDerechoDisponible('No hay un derecho con saldo para esta sesión.');
+            }
+
+            // Si hay cupo definido y está lleno: lista de espera (sin hold) o rechazo.
+            if ($bloqueada->capacidad !== null && $this->confirmadas($bloqueada) >= $bloqueada->capacidad) {
+                if (! $permitirEspera) {
+                    throw new CupoLleno('La sesión está llena.');
+                }
+
+                return Reserva::create([
+                    'sesion_id' => $bloqueada->id,
+                    'persona_id' => $persona->id,
+                    'derecho_id' => $derecho->id,
+                    'retencion_id' => null,
+                    'estado' => EstadoReserva::EnEspera->value,
+                    'unidades' => 0,
+                    'idempotency_key' => $idempotencyKey,
+                ]);
             }
 
             $retencion = null;
@@ -105,5 +111,13 @@ class CrearReserva
                 'idempotency_key' => $idempotencyKey,
             ]);
         });
+    }
+
+    private function confirmadas(Sesion $sesion): int
+    {
+        return Reserva::query()
+            ->where('sesion_id', $sesion->id)
+            ->where('estado', EstadoReserva::Confirmada->value)
+            ->count();
     }
 }

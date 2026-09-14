@@ -10,12 +10,14 @@ use App\Modules\Reservas\Application\CancelarReserva;
 use App\Modules\Reservas\Application\CrearReserva;
 use App\Modules\Reservas\EstadoReserva;
 use App\Modules\Reservas\Http\Requests\CrearReservaRequest;
+use App\Modules\Reservas\Http\ReservaPresenter;
 use App\Modules\Reservas\Models\Reserva;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 
 /**
- * Reservas de una sesión: crear (motor de booking), cancelar y listar el roster.
+ * Reservas de una sesión: crear (motor de booking), cancelar y listar el roster
+ * (confirmadas + lista de espera).
  */
 class ReservaController
 {
@@ -25,13 +27,13 @@ class ReservaController
 
         $reservas = Reserva::query()
             ->where('sesion_id', $sesion->id)
-            ->where('estado', EstadoReserva::Confirmada->value)
-            ->with('persona')
+            ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::EnEspera->value])
+            ->with(['persona', 'asistencia'])
             ->orderBy('id')
             ->get();
 
         return response()->json([
-            'data' => $reservas->map(fn (Reserva $reserva): array => $this->datos($reserva))->all(),
+            'data' => $reservas->map(fn (Reserva $reserva): array => ReservaPresenter::datos($reserva))->all(),
         ]);
     }
 
@@ -49,9 +51,10 @@ class ReservaController
             $sesion,
             $persona,
             is_string($idempotencyKey) && $idempotencyKey !== '' ? $idempotencyKey : null,
+            (bool) $request->validated('esperar'),
         );
 
-        return response()->json(['data' => $this->datos($reserva)], 201);
+        return response()->json(['data' => ReservaPresenter::datos($reserva)], 201);
     }
 
     public function cancelar(Reserva $reserva, CancelarReserva $cancelar): JsonResponse
@@ -60,22 +63,6 @@ class ReservaController
 
         $cancelar->ejecutar($reserva);
 
-        return response()->json(['data' => $this->datos($reserva->refresh())]);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function datos(Reserva $reserva): array
-    {
-        $reserva->loadMissing(['persona', 'sesion']);
-
-        return [
-            'id' => $reserva->ulid,
-            'estado' => $reserva->estado->value,
-            'persona' => trim($reserva->persona->nombre.' '.($reserva->persona->apellidos ?? '')),
-            'inicia_en' => $reserva->sesion->inicia_en->toIso8601String(),
-            'unidades' => $reserva->unidades,
-        ];
+        return response()->json(['data' => ReservaPresenter::datos($reserva->refresh())]);
     }
 }

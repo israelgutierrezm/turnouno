@@ -6,6 +6,7 @@ use App\Modules\Agenda\Http\Controllers\AsignacionSesionController;
 use App\Modules\Agenda\Http\Controllers\MiAgendaController;
 use App\Modules\Agenda\Http\Controllers\PlantillaHorarioController;
 use App\Modules\Agenda\Http\Controllers\SesionController;
+use App\Modules\Asistencia\Http\Controllers\AsistenciaController;
 use App\Modules\Catalogo\Http\Controllers\ActividadController;
 use App\Modules\Catalogo\Http\Controllers\NivelController;
 use App\Modules\Catalogo\Http\Controllers\OfertaController;
@@ -100,6 +101,7 @@ Route::prefix('v1')->group(function (): void {
                 Route::get('/sesiones/{sesion}/reservas', [ReservaController::class, 'index'])->name('api.v1.sesiones.reservas.index');
                 Route::post('/sesiones/{sesion}/reservas', [ReservaController::class, 'store'])->name('api.v1.sesiones.reservas.store');
                 Route::post('/reservas/{reserva}/cancelar', [ReservaController::class, 'cancelar'])->name('api.v1.reservas.cancelar');
+                Route::post('/reservas/{reserva}/asistencia', [AsistenciaController::class, 'store'])->name('api.v1.reservas.asistencia.store');
 
                 // Recursos: Sucursal → Instalación → Recurso (jerárquico).
                 Route::get('/sucursales/{sucursal}/instalaciones', [InstalacionController::class, 'index'])->name('api.v1.sucursales.instalaciones.index');

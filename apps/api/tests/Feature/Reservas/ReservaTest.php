@@ -183,3 +183,82 @@ it('exige el permiso reservas.crear', function (): void {
         ->assertStatus(403)
         ->assertJsonPath('code', 'FORBIDDEN');
 });
+
+it('pone en lista de espera cuando la sesion esta llena y se pidio esperar', function (): void {
+    $e = escenarioReserva(capacidad: 1);
+    Sanctum::actingAs($e['owner']);
+
+    $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->assertCreated();
+
+    ['persona' => $otra, 'derecho' => $derechoOtra] = participanteConDerecho($e['tenant']);
+    $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", [
+        'persona_id' => $otra->ulid,
+        'esperar' => true,
+    ])->assertCreated()->assertJsonPath('data.estado', 'en_espera');
+
+    // En espera no retiene crédito.
+    expect(app(LibroMayor::class)->disponible($derechoOtra))->toBe(8000);
+    // El roster muestra confirmada + en espera.
+    $this->getJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas")->assertOk()->assertJsonCount(2, 'data');
+});
+
+it('promueve al siguiente de la lista de espera al cancelar', function (): void {
+    $e = escenarioReserva(capacidad: 1);
+    Sanctum::actingAs($e['owner']);
+
+    $reservaA = $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->json('data.id');
+
+    ['persona' => $otra, 'derecho' => $derechoOtra] = participanteConDerecho($e['tenant']);
+    $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", [
+        'persona_id' => $otra->ulid,
+        'esperar' => true,
+    ])->assertCreated();
+
+    $this->postJson("/api/v1/reservas/{$reservaA}/cancelar")->assertOk();
+
+    // A liberó su crédito; B fue promovida y ahora retiene el suyo.
+    expect(app(LibroMayor::class)->disponible($e['derecho']))->toBe(8000);
+    expect(app(LibroMayor::class)->disponible($derechoOtra))->toBe(7000);
+
+    // El roster queda con una sola reserva: B confirmada.
+    $this->getJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas")
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.estado', 'confirmada');
+});
+
+it('registra la asistencia de una reserva confirmada', function (): void {
+    $e = escenarioReserva();
+    Sanctum::actingAs($e['owner']);
+
+    $reserva = $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->json('data.id');
+
+    $this->postJson("/api/v1/reservas/{$reserva}/asistencia", ['estado' => 'presente'])
+        ->assertOk()
+        ->assertJsonPath('data.asistencia', 'presente');
+
+    $this->getJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas")
+        ->assertOk()
+        ->assertJsonPath('data.0.asistencia', 'presente');
+});
+
+it('no registra asistencia de una reserva en espera', function (): void {
+    $e = escenarioReserva(capacidad: 1);
+    Sanctum::actingAs($e['owner']);
+
+    $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->assertCreated();
+
+    ['persona' => $otra] = participanteConDerecho($e['tenant']);
+    $enEspera = $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", [
+        'persona_id' => $otra->ulid,
+        'esperar' => true,
+    ])->json('data.id');
+
+    $this->postJson("/api/v1/reservas/{$enEspera}/asistencia", ['estado' => 'presente'])
+        ->assertStatus(422)
+        ->assertJsonPath('code', 'RESERVATION_NOT_CONFIRMED');
+});
