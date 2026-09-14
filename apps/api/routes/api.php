@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Modules\Catalogo\Http\Controllers\ActividadController;
+use App\Modules\Catalogo\Http\Controllers\NivelController;
+use App\Modules\Catalogo\Http\Controllers\OfertaController;
+use App\Modules\Catalogo\Http\Controllers\ProgramaController;
 use App\Modules\Hogares\Http\Controllers\HogarController;
 use App\Modules\Identity\Http\Controllers\Auth\SessionController;
 use App\Modules\Identity\Http\Controllers\Auth\TokenController;
@@ -14,6 +18,8 @@ use App\Modules\Personas\Http\Controllers\DependientePersonaController;
 use App\Modules\Personas\Http\Controllers\PerfilPersonaController;
 use App\Modules\Personas\Http\Controllers\PersonaController;
 use App\Modules\Platform\Http\Controllers\HealthController;
+use App\Modules\Recursos\Http\Controllers\InstalacionController;
+use App\Modules\Recursos\Http\Controllers\RecursoController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -47,6 +53,21 @@ Route::prefix('v1')->group(function (): void {
                 Route::get('/hogares', [HogarController::class, 'index'])->name('api.v1.hogares.index');
                 Route::post('/hogares', [HogarController::class, 'store'])->name('api.v1.hogares.store');
                 Route::get('/hogares/{hogar}', [HogarController::class, 'show'])->name('api.v1.hogares.show');
+
+                // Catálogo: Programa → Actividad → (Nivel, Oferta).
+                Route::get('/programas', [ProgramaController::class, 'index'])->name('api.v1.programas.index');
+                Route::post('/programas', [ProgramaController::class, 'store'])->name('api.v1.programas.store');
+                Route::get('/programas/{programa}', [ProgramaController::class, 'show'])->name('api.v1.programas.show');
+                Route::post('/programas/{programa}/actividades', [ActividadController::class, 'store'])->name('api.v1.programas.actividades.store');
+                Route::get('/actividades/{actividad}', [ActividadController::class, 'show'])->name('api.v1.actividades.show');
+                Route::post('/actividades/{actividad}/niveles', [NivelController::class, 'store'])->name('api.v1.actividades.niveles.store');
+                Route::post('/actividades/{actividad}/ofertas', [OfertaController::class, 'store'])->name('api.v1.actividades.ofertas.store');
+
+                // Recursos: Sucursal → Instalación → Recurso (jerárquico).
+                Route::get('/sucursales/{sucursal}/instalaciones', [InstalacionController::class, 'index'])->name('api.v1.sucursales.instalaciones.index');
+                Route::post('/sucursales/{sucursal}/instalaciones', [InstalacionController::class, 'store'])->name('api.v1.sucursales.instalaciones.store');
+                Route::get('/instalaciones/{instalacion}', [InstalacionController::class, 'show'])->name('api.v1.instalaciones.show');
+                Route::post('/instalaciones/{instalacion}/recursos', [RecursoController::class, 'store'])->name('api.v1.instalaciones.recursos.store');
 
                 Route::get('/organizaciones', [OrganizacionController::class, 'index'])->name('api.v1.organizaciones.index');
                 Route::post('/organizaciones', [OrganizacionController::class, 'store'])->name('api.v1.organizaciones.store');

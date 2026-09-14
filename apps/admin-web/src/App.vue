@@ -40,6 +40,12 @@ async function salir(): Promise<void> {
         <RouterLink to="/personal" class="text-sm text-slate-600 hover:text-slate-900">
           {{ t('nav.personal') }}
         </RouterLink>
+        <RouterLink to="/catalogo" class="text-sm text-slate-600 hover:text-slate-900">
+          {{ t('nav.catalogo') }}
+        </RouterLink>
+        <RouterLink to="/recursos" class="text-sm text-slate-600 hover:text-slate-900">
+          {{ t('nav.recursos') }}
+        </RouterLink>
         <span class="ml-auto text-sm text-slate-500">{{ auth.me?.tenant_actual?.nombre }}</span>
         <button class="text-sm text-slate-600 hover:text-slate-900" @click="salir">
           {{ t('nav.salir') }}

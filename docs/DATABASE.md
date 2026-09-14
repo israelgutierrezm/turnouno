@@ -54,8 +54,15 @@ términos en español que usamos en el código y la base de datos.
 - `marcas` (`id`, `ulid`, `tenant_id`, `organizacion_id`, `nombre`, `slug`)
 - `sucursales` (`id`, `ulid`, `tenant_id`, `marca_id`, `nombre`, `slug`, `zona_horaria?`, `estado`)
 - `asignaciones_personal` (`id`, `ulid`, `tenant_id`, `sucursal_id`, `user_id`, `role_id`)
+- `programas` (`id`, `ulid`, `tenant_id`, `nombre`, `slug`)
+- `actividades` (`id`, `ulid`, `tenant_id`, `programa_id`, `nombre`, `slug`)
+- `niveles` (`id`, `ulid`, `tenant_id`, `actividad_id`, `nombre`, `orden`)
+- `ofertas` (`id`, `ulid`, `tenant_id`, `actividad_id`, `nombre`, `modalidad`, `capacidad?`)
+- `instalaciones` (`id`, `ulid`, `tenant_id`, `sucursal_id`, `nombre`)
+- `recursos` (`id`, `ulid`, `tenant_id`, `instalacion_id`, `recurso_padre_id?`, `nombre`, `tipo?`, `modo`, `capacidad`, `estado`)
 
 > `TipoPerfil` (enum): `miembro`, `tutor`, `instructor`, `personal`, `lead`, `cliente`.
 > Un menor (dependiente) puede no tener `user_id` (sin cuenta de acceso).
+> `ModoRecurso` (enum): `unidad`, `pool`. `ModalidadOferta` (enum): `grupal`, `privada`.
 
 Todas las tablas de dominio llevan `tenant_id` y son *tenant-scoped* (ADR-0007).
