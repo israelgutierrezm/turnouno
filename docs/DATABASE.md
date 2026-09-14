@@ -46,10 +46,16 @@ términos en español que usamos en el código y la base de datos.
   `role_has_permissions` — con `tenant_id` como `team_foreign_key` (ADR-0006)
 
 ### Dominio *(nombres en español)*
-- `personas` (`id`, `ulid`, `tenant_id`, `user_id?`, `nombre`, `apellidos?`, `email?`)
+- `personas` (`id`, `ulid`, `tenant_id`, `user_id?`, `hogar_id?`, `nombre`, `apellidos?`, `email?`, `fecha_nacimiento?`)
+- `perfiles` (`id`, `ulid`, `tenant_id`, `persona_id`, `tipo`) — roles de una persona (miembro, tutor, …); `unique(persona_id, tipo)`
+- `hogares` (`id`, `ulid`, `tenant_id`, `nombre`)
+- `tutelas` (`id`, `ulid`, `tenant_id`, `tutor_id`, `dependiente_id`, `parentesco?`) — tutor → dependiente
 - `organizaciones` (`id`, `ulid`, `tenant_id`, `nombre`, `slug`)
 - `marcas` (`id`, `ulid`, `tenant_id`, `organizacion_id`, `nombre`, `slug`)
 - `sucursales` (`id`, `ulid`, `tenant_id`, `marca_id`, `nombre`, `slug`, `zona_horaria?`, `estado`)
 - `asignaciones_personal` (`id`, `ulid`, `tenant_id`, `sucursal_id`, `user_id`, `role_id`)
+
+> `TipoPerfil` (enum): `miembro`, `tutor`, `instructor`, `personal`, `lead`, `cliente`.
+> Un menor (dependiente) puede no tener `user_id` (sin cuenta de acceso).
 
 Todas las tablas de dominio llevan `tenant_id` y son *tenant-scoped* (ADR-0007).

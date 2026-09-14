@@ -25,6 +25,12 @@ async function salir(): Promise<void> {
         <RouterLink to="/" class="text-sm text-slate-600 hover:text-slate-900">
           {{ t('nav.inicio') }}
         </RouterLink>
+        <RouterLink to="/miembros" class="text-sm text-slate-600 hover:text-slate-900">
+          {{ t('nav.miembros') }}
+        </RouterLink>
+        <RouterLink to="/familias" class="text-sm text-slate-600 hover:text-slate-900">
+          {{ t('nav.familias') }}
+        </RouterLink>
         <RouterLink to="/organizaciones" class="text-sm text-slate-600 hover:text-slate-900">
           {{ t('nav.organizaciones') }}
         </RouterLink>
