@@ -39,7 +39,7 @@ class RegistroDePasarelas
             throw new RuntimeException("La pasarela '{$nombre}' no está activa para este tenant.");
         }
 
-        return $this->crearEnLinea($nombre, $config);
+        return $this->crearConfigurable($nombre, $config);
     }
 
     /**
@@ -49,23 +49,32 @@ class RegistroDePasarelas
      */
     public function disponibles(): array
     {
-        $enLinea = ConfiguracionPasarela::query()
+        $configuradas = ConfiguracionPasarela::query()
             ->where('activa', true)
-            ->whereIn('proveedor', ProveedorPasarela::enLinea())
+            ->whereIn('proveedor', $this->configurables())
             ->pluck('proveedor')
             ->all();
 
-        /** @var list<string> $enLinea */
-        return array_merge(ProveedorPasarela::integrados(), $enLinea);
+        /** @var list<string> $configuradas */
+        return array_merge(ProveedorPasarela::integrados(), $configuradas);
     }
 
-    private function crearEnLinea(string $nombre, ConfiguracionPasarela $config): PasarelaEnLinea
+    /**
+     * @return list<string>
+     */
+    private function configurables(): array
+    {
+        return array_merge(ProveedorPasarela::enLinea(), [ProveedorPasarela::Ventanilla->value]);
+    }
+
+    private function crearConfigurable(string $nombre, ConfiguracionPasarela $config): PasarelaDePago
     {
         return match ($nombre) {
             ProveedorPasarela::Stripe->value => new PasarelaStripe($config),
             ProveedorPasarela::OpenPay->value => new PasarelaOpenPay($config),
             ProveedorPasarela::MercadoPago->value => new PasarelaMercadoPago($config),
-            default => throw new RuntimeException("Pasarela en línea desconocida: {$nombre}."),
+            ProveedorPasarela::Ventanilla->value => new PasarelaVentanilla,
+            default => throw new RuntimeException("Pasarela configurable desconocida: {$nombre}."),
         };
     }
 }

@@ -79,7 +79,7 @@ términos en español que usamos en el código y la base de datos.
 - `asistencias` (`id`, `ulid`, `tenant_id`, `reserva_id`, `estado`, `registrada_en`) — check-in de una reserva confirmada; `unique(reserva_id)`
 - `ordenes` (`id`, `ulid`, `tenant_id`, `persona_id`, `estado`, `total_minor`, `moneda`) — orden de compra (comprador = `persona_id`)
 - `lineas_orden` (`id`, `ulid`, `tenant_id`, `orden_id`, `producto_comercial_id`, `beneficiario_id?`, `cantidad`, `precio_unitario_minor`, `subtotal_minor`) — `beneficiario` = participante (puede diferir del comprador)
-- `pagos` (`id`, `ulid`, `tenant_id`, `orden_id`, `proveedor`, `metodo?`, `estado`, `monto_minor`, `moneda`, `referencia_externa?`, `idempotency_key?`) — intento de cobro; `idempotency_key` único
+- `pagos` (`id`, `ulid`, `tenant_id`, `orden_id`, `proveedor`, `metodo?`, `estado`, `monto_minor`, `moneda`, `referencia_externa?`, `idempotency_key?`, `comprobante_ruta?`, `comprobante_subido_en?`) — intento de cobro; `idempotency_key` único; `comprobante_*` = depósito en ventanilla
 - `configuraciones_pasarela` (`id`, `ulid`, `tenant_id`, `proveedor`, `activa`, `modo`, `credenciales?`) — config de pasarela por tenant; `credenciales` **cifradas**; `unique(tenant_id, proveedor)` (ADR-0014)
 
 > `TipoPerfil` (enum): `miembro`, `tutor`, `instructor`, `personal`, `lead`, `cliente`.

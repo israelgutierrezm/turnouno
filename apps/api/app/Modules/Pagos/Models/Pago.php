@@ -31,6 +31,8 @@ class Pago extends Model
         'moneda',
         'referencia_externa',
         'idempotency_key',
+        'comprobante_ruta',
+        'comprobante_subido_en',
     ];
 
     /**
@@ -40,6 +42,7 @@ class Pago extends Model
         'estado' => EstadoPago::class,
         'metodo' => MetodoPago::class,
         'monto_minor' => 'integer',
+        'comprobante_subido_en' => 'datetime',
     ];
 
     /**

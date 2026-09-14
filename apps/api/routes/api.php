@@ -27,6 +27,7 @@ use App\Modules\Organizaciones\Http\Controllers\PersonalSucursalController;
 use App\Modules\Organizaciones\Http\Controllers\SucursalController;
 use App\Modules\Pagos\Http\Controllers\ConfiguracionPasarelaController;
 use App\Modules\Pagos\Http\Controllers\PagoController;
+use App\Modules\Pagos\Http\Controllers\VentanillaController;
 use App\Modules\Pagos\Http\Controllers\WebhookPagoController;
 use App\Modules\Personas\Http\Controllers\DependientePersonaController;
 use App\Modules\Personas\Http\Controllers\PerfilPersonaController;
@@ -94,6 +95,12 @@ Route::prefix('v1')->group(function (): void {
                 Route::get('/ordenes/{orden}', [OrdenController::class, 'show'])->name('api.v1.ordenes.show');
                 Route::post('/ordenes/{orden}/pagos', [PagoController::class, 'store'])->name('api.v1.ordenes.pagos.store');
                 Route::post('/pagos/{pago}/reembolso', [PagoController::class, 'reembolsar'])->name('api.v1.pagos.reembolso');
+
+                // Ventanilla: el miembro sube comprobante; el staff aprueba/rechaza.
+                Route::post('/pagos/{pago}/comprobante', [VentanillaController::class, 'subir'])->name('api.v1.pagos.comprobante.subir');
+                Route::get('/pagos/{pago}/comprobante', [VentanillaController::class, 'ver'])->name('api.v1.pagos.comprobante.ver');
+                Route::post('/pagos/{pago}/aprobar', [VentanillaController::class, 'aprobar'])->name('api.v1.pagos.aprobar');
+                Route::post('/pagos/{pago}/rechazar', [VentanillaController::class, 'rechazar'])->name('api.v1.pagos.rechazar');
 
                 // Configuración de pasarelas por tenant (encender/apagar + llaves).
                 Route::get('/pasarelas', [ConfiguracionPasarelaController::class, 'index'])->name('api.v1.pasarelas.index');
