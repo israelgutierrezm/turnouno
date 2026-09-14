@@ -26,6 +26,7 @@ use App\Modules\Organizaciones\Http\Controllers\OrganizacionController;
 use App\Modules\Organizaciones\Http\Controllers\PersonalSucursalController;
 use App\Modules\Organizaciones\Http\Controllers\SucursalController;
 use App\Modules\Pagos\Http\Controllers\PagoController;
+use App\Modules\Pagos\Http\Controllers\WebhookPagoController;
 use App\Modules\Personas\Http\Controllers\DependientePersonaController;
 use App\Modules\Personas\Http\Controllers\PerfilPersonaController;
 use App\Modules\Personas\Http\Controllers\PersonaController;
@@ -46,6 +47,10 @@ Route::prefix('v1')->group(function (): void {
     // Autenticación (sin sesión previa).
     Route::post('/auth/token', [TokenController::class, 'store'])->name('api.v1.auth.token');
     Route::post('/auth/login', [SessionController::class, 'store'])->name('api.v1.auth.login');
+
+    // Webhook de pagos: público (sin sesión ni tenant); idempotente. La firma del
+    // proveedor debe verificarse antes de producción.
+    Route::post('/webhooks/pagos/{proveedor}', WebhookPagoController::class)->name('api.v1.webhooks.pagos');
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::delete('/auth/token', [TokenController::class, 'destroy'])->name('api.v1.auth.token.destroy');
@@ -87,6 +92,7 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('/ordenes', [OrdenController::class, 'store'])->name('api.v1.ordenes.store');
                 Route::get('/ordenes/{orden}', [OrdenController::class, 'show'])->name('api.v1.ordenes.show');
                 Route::post('/ordenes/{orden}/pagos', [PagoController::class, 'store'])->name('api.v1.ordenes.pagos.store');
+                Route::post('/pagos/{pago}/reembolso', [PagoController::class, 'reembolsar'])->name('api.v1.pagos.reembolso');
 
                 // Créditos: consumo y retenciones (holds) del ledger.
                 Route::post('/derechos/{derecho}/consumos', [ConsumoController::class, 'store'])->name('api.v1.derechos.consumos.store');

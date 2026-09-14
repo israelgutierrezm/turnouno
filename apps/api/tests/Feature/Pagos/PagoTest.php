@@ -212,3 +212,123 @@ it('rechaza una pasarela desconocida', function (): void {
         ->assertStatus(422)
         ->assertJsonPath('code', 'VALIDATION_FAILED');
 });
+
+/**
+ * Cobra una orden nueva y devuelve [pago_ulid, persona_ulid, derecho_ulid].
+ *
+ * @return array{pago: string, persona: string, derecho: string}
+ */
+function cobrarOrdenNueva(): array
+{
+    $producto = crearProductoPack();
+    $persona = test()->postJson('/api/v1/personas', ['nombre' => 'Ana'])->assertCreated()->json('data.id');
+    $orden = test()->postJson('/api/v1/ordenes', [
+        'persona_id' => $persona,
+        'items' => [['producto_id' => $producto]],
+    ])->assertCreated()->json('data.id');
+
+    $pago = test()->postJson("/api/v1/ordenes/{$orden}/pagos", ['proveedor' => 'manual'])
+        ->assertCreated()->json('data.id');
+
+    $derecho = test()->getJson("/api/v1/personas/{$persona}/derechos")->assertOk()->json('data.0.id');
+
+    return ['pago' => $pago, 'persona' => $persona, 'derecho' => $derecho];
+}
+
+it('reembolsa un pago aprobado revirtiendo el derecho intacto', function (): void {
+    ['owner' => $owner] = tenantConDueno();
+    Sanctum::actingAs($owner);
+
+    ['pago' => $pago, 'persona' => $persona] = cobrarOrdenNueva();
+
+    $this->postJson("/api/v1/pagos/{$pago}/reembolso")
+        ->assertOk()
+        ->assertJsonPath('data.estado', 'reembolsado')
+        ->assertJsonPath('data.orden_estado', 'cancelada');
+
+    // El derecho quedó revertido a 0.
+    $this->getJson("/api/v1/personas/{$persona}/derechos")
+        ->assertOk()
+        ->assertJsonPath('data.0.saldo_creditos', 0);
+});
+
+it('bloquea el reembolso si el derecho ya tuvo consumo', function (): void {
+    ['owner' => $owner] = tenantConDueno();
+    Sanctum::actingAs($owner);
+
+    ['pago' => $pago, 'derecho' => $derecho] = cobrarOrdenNueva();
+
+    $this->postJson("/api/v1/derechos/{$derecho}/consumos", ['unidades' => 1000])->assertCreated();
+
+    $this->postJson("/api/v1/pagos/{$pago}/reembolso")
+        ->assertStatus(422)
+        ->assertJsonPath('code', 'REFUND_BLOCKED_USED');
+});
+
+it('bloquea el reembolso si hay una retención activa', function (): void {
+    ['owner' => $owner] = tenantConDueno();
+    Sanctum::actingAs($owner);
+
+    ['pago' => $pago, 'derecho' => $derecho] = cobrarOrdenNueva();
+
+    $this->postJson("/api/v1/derechos/{$derecho}/retenciones", ['unidades' => 1000])->assertCreated();
+
+    $this->postJson("/api/v1/pagos/{$pago}/reembolso")
+        ->assertStatus(422)
+        ->assertJsonPath('code', 'REFUND_BLOCKED_USED');
+});
+
+it('el reembolso es idempotente', function (): void {
+    ['owner' => $owner] = tenantConDueno();
+    Sanctum::actingAs($owner);
+
+    ['pago' => $pago] = cobrarOrdenNueva();
+
+    $this->postJson("/api/v1/pagos/{$pago}/reembolso")->assertOk();
+    $this->postJson("/api/v1/pagos/{$pago}/reembolso")
+        ->assertOk()
+        ->assertJsonPath('data.estado', 'reembolsado');
+});
+
+it('exige el permiso pagos.reembolsar', function (): void {
+    ['owner' => $owner, 'tenant' => $tenant] = tenantConDueno();
+    $gerente = User::factory()->create();
+    vincularUsuario($tenant, $gerente, ['gerente-sucursal']); // tiene pagos.crear, no reembolsar
+
+    Sanctum::actingAs($owner);
+    ['pago' => $pago] = cobrarOrdenNueva();
+
+    Sanctum::actingAs($gerente);
+    $this->postJson("/api/v1/pagos/{$pago}/reembolso")
+        ->assertStatus(403)
+        ->assertJsonPath('code', 'FORBIDDEN');
+});
+
+it('el webhook confirma un pago pendiente una sola vez (idempotente)', function (): void {
+    $tenant = crearTenant('Pole House');
+    app(TenantContext::class)->set($tenant);
+
+    $producto = app(CrearProducto::class)->ejecutar('Pack', TipoProducto::Paquete, 89900, 'MXN', false, 8000);
+    $persona = Persona::factory()->create(['tenant_id' => $tenant->id]);
+    $orden = app(CrearOrden::class)->ejecutar($persona, [['producto' => $producto, 'cantidad' => 1]]);
+
+    $pago = Pago::create([
+        'orden_id' => $orden->id,
+        'proveedor' => 'simulada',
+        'estado' => 'pendiente',
+        'monto_minor' => $orden->total_minor,
+        'moneda' => 'MXN',
+        'referencia_externa' => 'wh-ref-1',
+    ]);
+    app(TenantContext::class)->clear();
+
+    // Dos webhooks idénticos: el segundo no debe volver a cumplir la orden.
+    $this->postJson('/api/v1/webhooks/pagos/simulada', ['referencia' => 'wh-ref-1', 'estado' => 'aprobado'])->assertOk();
+    $this->postJson('/api/v1/webhooks/pagos/simulada', ['referencia' => 'wh-ref-1', 'estado' => 'aprobado'])->assertOk();
+
+    app(TenantContext::class)->set($tenant);
+    expect($pago->refresh()->estado->value)->toBe('aprobado');
+    expect($orden->refresh()->estado->value)->toBe('pagada');
+    expect(Acuerdo::where('persona_id', $persona->id)->count())->toBe(1);
+    app(TenantContext::class)->clear();
+});

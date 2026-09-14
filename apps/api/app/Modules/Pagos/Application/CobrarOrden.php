@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Pagos\Application;
 
-use App\Modules\Membresias\Application\CrearAcuerdo;
 use App\Modules\Ordenes\EstadoOrden;
 use App\Modules\Ordenes\Models\Orden;
 use App\Modules\Pagos\EstadoPago;
@@ -25,7 +24,7 @@ use Illuminate\Support\Facades\DB;
  */
 class CobrarOrden
 {
-    public function __construct(private readonly CrearAcuerdo $crearAcuerdo) {}
+    public function __construct(private readonly AprobarPago $aprobar) {}
 
     public function ejecutar(Orden $orden, PasarelaDePago $pasarela, ?string $idempotencyKey = null): Pago
     {
@@ -70,28 +69,9 @@ class CobrarOrden
                 return $pago;
             }
 
-            $pago->update([
-                'estado' => EstadoPago::Aprobado->value,
-                'referencia_externa' => $resultado->referencia,
-            ]);
-            $bloqueada->update(['estado' => EstadoOrden::Pagada->value]);
-
-            $this->conceder($bloqueada);
+            $this->aprobar->ejecutar($pago, $bloqueada, (string) $resultado->referencia);
 
             return $pago;
         });
-    }
-
-    private function conceder(Orden $orden): void
-    {
-        $orden->loadMissing(['lineas.producto', 'lineas.beneficiario', 'persona']);
-
-        foreach ($orden->lineas as $linea) {
-            $beneficiario = $linea->beneficiario ?? $orden->persona;
-
-            for ($i = 0; $i < $linea->cantidad; $i++) {
-                $this->crearAcuerdo->ejecutar($beneficiario, $linea->producto);
-            }
-        }
     }
 }

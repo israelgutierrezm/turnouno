@@ -6,7 +6,9 @@ namespace App\Modules\Pagos\Http\Controllers;
 
 use App\Modules\Ordenes\Models\Orden;
 use App\Modules\Pagos\Application\CobrarOrden;
+use App\Modules\Pagos\Application\ReembolsarPago;
 use App\Modules\Pagos\Http\Requests\CobrarOrdenRequest;
+use App\Modules\Pagos\Models\Pago;
 use App\Modules\Pagos\Pasarelas\RegistroDePasarelas;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
@@ -39,5 +41,21 @@ class PagoController
                 'orden_estado' => $orden->refresh()->estado->value,
             ],
         ], 201);
+    }
+
+    public function reembolsar(Pago $pago, ReembolsarPago $reembolsar): JsonResponse
+    {
+        Gate::authorize('pagos.reembolsar');
+
+        $reembolsar->ejecutar($pago);
+        $pago->refresh()->loadMissing('orden');
+
+        return response()->json([
+            'data' => [
+                'id' => $pago->ulid,
+                'estado' => $pago->estado->value,
+                'orden_estado' => $pago->orden->estado->value,
+            ],
+        ]);
     }
 }

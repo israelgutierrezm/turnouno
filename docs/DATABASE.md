@@ -67,7 +67,7 @@ términos en español que usamos en el código y la base de datos.
 - `instalaciones` (`id`, `ulid`, `tenant_id`, `sucursal_id`, `nombre`)
 - `recursos` (`id`, `ulid`, `tenant_id`, `instalacion_id`, `recurso_padre_id?`, `nombre`, `tipo?`, `modo`, `capacidad`, `estado`)
 - `productos_comerciales` (`id`, `ulid`, `tenant_id`, `nombre`, `tipo`, `precio_minor`, `moneda`, `ilimitado`, `creditos_incluidos?`)
-- `acuerdos` (`id`, `ulid`, `tenant_id`, `persona_id`, `producto_comercial_id`, `fecha_inicio`, `estado`)
+- `acuerdos` (`id`, `ulid`, `tenant_id`, `persona_id`, `producto_comercial_id`, `linea_orden_id?`, `fecha_inicio`, `estado`) — `linea_orden_id` traza el origen comercial (nulo en venta directa; permite revertir el fulfillment al reembolsar)
 - `derechos` (`id`, `ulid`, `tenant_id`, `acuerdo_id`, `ambito`, `ilimitado`, `valido_desde?`, `valido_hasta?`) — entitlement
 - `movimientos_credito` (`id`, `ulid`, `tenant_id`, `derecho_id`, `tipo`, `unidades`, `descripcion?`) — ledger
 - `retenciones_credito` (`id`, `ulid`, `tenant_id`, `derecho_id`, `unidades`, `estado`, `descripcion?`) — holds (reservas de crédito concurrency-safe)

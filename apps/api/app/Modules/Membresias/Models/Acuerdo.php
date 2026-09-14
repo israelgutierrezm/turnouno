@@ -22,7 +22,7 @@ class Acuerdo extends Model
 
     protected $table = 'acuerdos';
 
-    protected $fillable = ['persona_id', 'producto_comercial_id', 'fecha_inicio', 'estado'];
+    protected $fillable = ['persona_id', 'producto_comercial_id', 'linea_orden_id', 'fecha_inicio', 'estado'];
 
     /**
      * @var array<string, string>
