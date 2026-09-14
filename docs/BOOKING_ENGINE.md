@@ -1,0 +1,81 @@
+# Booking Engine
+
+## Goal
+
+Answer:
+
+Can this participant reserve this session right now, using which entitlement, and why?
+
+## Pipeline
+
+1. Resolve participant.
+2. Resolve tenant/branch.
+3. Validate booking window/priority.
+4. Validate session state.
+5. Validate participant eligibility.
+6. Validate age/level/discipline rules.
+7. Resolve eligible entitlements.
+8. Validate branch/time restrictions.
+9. Validate outstanding-balance policy if enabled.
+10. Validate capacity and required resources.
+11. Validate duplicate/conflicting booking rules.
+12. Select entitlement source.
+13. Acquire transactional capacity lock.
+14. Place entitlement hold/consume according to policy.
+15. Create booking.
+16. Commit.
+17. Emit BookingCreated.
+
+## Explainability
+
+Return stable error codes such as:
+- BOOKING_NOT_OPEN
+- MEMBERSHIP_REQUIRED
+- ENTITLEMENT_EXHAUSTED
+- LEVEL_REQUIRED
+- AGE_NOT_ELIGIBLE
+- CAPACITY_FULL
+- RESOURCE_UNAVAILABLE
+- OUTSTANDING_BALANCE_BLOCK
+- ALREADY_BOOKED
+
+## Booking windows
+
+Example:
+- Premium member: 14 days
+- Standard member: 10 days
+- Package: 7 days
+- Drop-in: 24 hours
+
+Booking priority and pricing are separate concerns.
+
+## Concurrency
+
+Capacity must be protected by database transactions and locks.
+
+Do not:
+read capacity → check in PHP → insert
+without transactional protection.
+
+Use idempotency keys for booking creation.
+
+## Cancellation
+
+Policies may vary by:
+- tenant
+- branch
+- activity
+- offering
+- membership/product
+
+Example:
+>= 6 hours: release entitlement
+< 6 hours: forfeit entitlement
+
+## Waitlist
+
+Support:
+- FIFO
+- optional priority tiers
+- auto-book or timed offer
+- expiration and next-candidate promotion

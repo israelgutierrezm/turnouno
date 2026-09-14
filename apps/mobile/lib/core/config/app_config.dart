@@ -1,0 +1,14 @@
+/// Static application configuration.
+class AppConfig {
+  const AppConfig._();
+
+  /// Base URL of the TurnoUno API.
+  ///
+  /// Web and the iOS simulator reach the host at `localhost`; the Android
+  /// emulator reaches the host machine at `10.0.2.2`. Override at run time with:
+  ///   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000
+  static const String apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:8000',
+  );
+}

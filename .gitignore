@@ -1,0 +1,41 @@
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Editors ===
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# === Node / Vite ===
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# === PHP / Laravel ===
+/apps/api/vendor/
+# (apps/api keeps its own Laravel .gitignore for storage, bootstrap/cache, etc.)
+
+# PHPStan / Larastan analysis cache (phpstan.neon tmpDir)
+apps/api/build/
+
+# === Environment ===
+.env
+.env.*
+!.env.example
+
+# === Flutter / Dart ===
+apps/mobile/.dart_tool/
+apps/mobile/build/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/.pub-cache/
+apps/mobile/.pub/
+
+# === Logs & misc ===
+*.log
+coverage/
+.phpunit.result.cache
+.phpunit.cache/
