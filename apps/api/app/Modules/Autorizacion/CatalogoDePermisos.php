@@ -57,6 +57,12 @@ class CatalogoDePermisos
                 'productos.ver', 'membresias.ver', 'membresias.gestionar',
                 'agenda.ver', 'pagos.ver', 'pagos.crear',
             ],
+            'instructor' => [
+                'miembros.ver',
+                'reservas.ver',
+                'asistencia.ver', 'asistencia.registrar',
+                'agenda.ver',
+            ],
             'miembro' => ['reservas.ver', 'reservas.crear', 'reservas.cancelar'],
         ];
     }

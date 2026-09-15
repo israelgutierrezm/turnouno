@@ -25,6 +25,8 @@ const auth = useAuthStore()
 
 const derechos = ref<DerechoItem[]>([])
 const reservas = ref<ReservaItem[]>([])
+const error = ref<string | null>(null)
+const cancelando = ref<string | null>(null)
 
 function fechaLocal(reserva: ReservaItem): string {
   return new Intl.DateTimeFormat('es-MX', {
@@ -41,6 +43,22 @@ async function cargar(): Promise<void> {
   const { data } = await api.get<{ data: { derechos: DerechoItem[]; reservas: ReservaItem[] } }>('/api/v1/mi/perfil')
   derechos.value = data.data.derechos
   reservas.value = data.data.reservas
+}
+
+async function cancelar(reserva: ReservaItem): Promise<void> {
+  error.value = null
+  if (!window.confirm(t('perfil.confirmarCancelar'))) {
+    return
+  }
+  cancelando.value = reserva.id
+  try {
+    await api.post(`/api/v1/mi/reservas/${reserva.id}/cancelar`)
+    await cargar()
+  } catch {
+    error.value = t('perfil.errorCancelar')
+  } finally {
+    cancelando.value = null
+  }
 }
 
 onMounted(cargar)
@@ -72,19 +90,29 @@ onMounted(cargar)
 
     <div class="space-y-2">
       <h2 class="text-sm font-medium text-slate-700">{{ t('perfil.reservas') }}</h2>
+      <p v-if="error" class="text-sm text-red-700">{{ error }}</p>
       <p v-if="reservas.length === 0" class="text-sm text-slate-500">{{ t('perfil.sinReservas') }}</p>
       <ul v-else class="divide-y rounded-lg border border-slate-200 bg-white">
         <li
           v-for="reserva in reservas"
           :key="reserva.id"
-          class="flex items-center justify-between px-4 py-3 text-sm"
+          class="flex items-center justify-between gap-2 px-4 py-3 text-sm"
         >
           <span>
             <span class="font-medium">{{ fechaLocal(reserva) }}</span>
             <span class="text-slate-400"> · {{ reserva.oferta }}</span>
           </span>
-          <span class="text-xs" :class="reserva.estado === 'en_espera' ? 'text-amber-600' : 'text-emerald-600'">
-            {{ t('perfil.estados.' + reserva.estado) }}
+          <span class="flex items-center gap-3">
+            <span class="text-xs" :class="reserva.estado === 'en_espera' ? 'text-amber-600' : 'text-emerald-600'">
+              {{ t('perfil.estados.' + reserva.estado) }}
+            </span>
+            <button
+              class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+              :disabled="cancelando === reserva.id"
+              @click="cancelar(reserva)"
+            >
+              {{ t('perfil.cancelar') }}
+            </button>
           </span>
         </li>
       </ul>

@@ -20,6 +20,9 @@ export default {
     sinDerechos: 'Aún no tienes créditos. Compra un paquete o membresía.',
     reservas: 'Mis próximas clases',
     sinReservas: 'No tienes clases reservadas.',
+    cancelar: 'Cancelar',
+    confirmarCancelar: '¿Cancelar esta reserva?',
+    errorCancelar: 'No se pudo cancelar la reserva.',
     estados: {
       confirmada: 'Confirmada',
       en_espera: 'En espera',

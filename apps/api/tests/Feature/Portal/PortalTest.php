@@ -57,6 +57,48 @@ it('el miembro reserva su propia sesion', function (): void {
     $this->getJson('/api/v1/mi/perfil')->assertOk()->assertJsonCount(1, 'data.reservas');
 });
 
+it('el miembro cancela su propia reserva', function (): void {
+    $tenant = crearTenant('Pole House');
+    $owner = User::factory()->create();
+    vincularUsuario($tenant, $owner, ['propietario']);
+    ['oferta' => $oferta, 'sucursal' => $sucursal] = crearOfertaYSucursal($tenant);
+    $sesion = crearSesion($tenant, $sucursal, $oferta, 8);
+
+    $miembro = User::factory()->create();
+    vincularUsuario($tenant, $miembro, ['miembro']);
+    darCreditosAMiembro($tenant, personaDe($miembro), 8000);
+
+    Sanctum::actingAs($miembro);
+
+    $reserva = $this->postJson('/api/v1/mi/reservas', ['sesion_id' => $sesion->ulid])
+        ->assertCreated()->json('data.id');
+
+    $this->postJson("/api/v1/mi/reservas/{$reserva}/cancelar")
+        ->assertOk()
+        ->assertJsonPath('data.estado', 'cancelada');
+});
+
+it('el miembro no puede cancelar la reserva de otra persona', function (): void {
+    $tenant = crearTenant('Pole House');
+    $owner = User::factory()->create();
+    vincularUsuario($tenant, $owner, ['propietario']);
+    ['oferta' => $oferta, 'sucursal' => $sucursal] = crearOfertaYSucursal($tenant);
+    $sesion = crearSesion($tenant, $sucursal, $oferta, 8);
+
+    $otro = User::factory()->create();
+    vincularUsuario($tenant, $otro, ['miembro']);
+    darCreditosAMiembro($tenant, personaDe($otro), 8000);
+    Sanctum::actingAs($otro);
+    $reservaAjena = $this->postJson('/api/v1/mi/reservas', ['sesion_id' => $sesion->ulid])
+        ->assertCreated()->json('data.id');
+
+    $miembro = User::factory()->create();
+    vincularUsuario($tenant, $miembro, ['miembro']);
+    Sanctum::actingAs($miembro);
+
+    $this->postJson("/api/v1/mi/reservas/{$reservaAjena}/cancelar")->assertStatus(403);
+});
+
 it('el miembro compra un producto y lo paga (manual) y recibe el derecho', function (): void {
     $tenant = crearTenant('Pole House');
     $owner = User::factory()->create();

@@ -24,7 +24,7 @@ interface Asignacion {
 const { t } = useI18n()
 const auth = useAuthStore()
 
-const rolesDisponibles = ['propietario', 'gerente-sucursal', 'recepcionista', 'miembro']
+const rolesDisponibles = ['propietario', 'gerente-sucursal', 'recepcionista', 'instructor', 'miembro']
 
 const sucursales = ref<Sucursal[]>([])
 const usuarios = ref<Usuario[]>([])

@@ -9,8 +9,10 @@ use App\Modules\Agenda\Http\SesionPresenter;
 use App\Modules\Agenda\Models\Sesion;
 use App\Modules\Portal\Http\Requests\ReservarRequest;
 use App\Modules\Portal\Support\MiembroActual;
+use App\Modules\Reservas\Application\CancelarReserva;
 use App\Modules\Reservas\Application\CrearReserva;
 use App\Modules\Reservas\Http\ReservaPresenter;
+use App\Modules\Reservas\Models\Reserva;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 
@@ -48,5 +50,20 @@ class AgendaController
         $reserva = $crear->ejecutar($sesion, $persona, null, (bool) $request->validated('esperar'));
 
         return response()->json(['data' => ReservaPresenter::datos($reserva)], 201);
+    }
+
+    /**
+     * Cancela una reserva propia del miembro (autoservicio). Verifica que la
+     * reserva pertenezca a su persona antes de aplicar la política de cancelación.
+     */
+    public function cancelar(Reserva $reserva, CancelarReserva $cancelar): JsonResponse
+    {
+        $persona = $this->miembro->persona();
+
+        abort_unless($reserva->persona_id === $persona->id, 403);
+
+        $cancelar->ejecutar($reserva);
+
+        return response()->json(['data' => ReservaPresenter::datos($reserva->refresh())]);
     }
 }
