@@ -29,6 +29,7 @@ use App\Modules\Pagos\Http\Controllers\ConfiguracionPasarelaController;
 use App\Modules\Pagos\Http\Controllers\PagoController;
 use App\Modules\Pagos\Http\Controllers\VentanillaController;
 use App\Modules\Pagos\Http\Controllers\WebhookPagoController;
+use App\Modules\Pagos\Http\Controllers\WebhookStripeController;
 use App\Modules\Personas\Http\Controllers\DependientePersonaController;
 use App\Modules\Personas\Http\Controllers\PerfilPersonaController;
 use App\Modules\Personas\Http\Controllers\PersonaController;
@@ -53,6 +54,7 @@ Route::prefix('v1')->group(function (): void {
     // Webhook de pagos: público (sin sesión ni tenant); idempotente. La firma del
     // proveedor debe verificarse antes de producción.
     Route::post('/webhooks/pagos/{proveedor}', WebhookPagoController::class)->name('api.v1.webhooks.pagos');
+    Route::post('/webhooks/stripe', WebhookStripeController::class)->name('api.v1.webhooks.stripe');
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::delete('/auth/token', [TokenController::class, 'destroy'])->name('api.v1.auth.token.destroy');

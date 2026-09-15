@@ -45,11 +45,9 @@ it('una pasarela en linea activa habilita el cobro pendiente confirmado por webh
     ['owner' => $owner] = tenantConDueno();
     Sanctum::actingAs($owner);
 
-    $this->putJson('/api/v1/pasarelas/stripe', [
-        'activa' => true,
-        'modo' => 'test',
-        'credenciales' => ['secret_key' => 'sk_test_x'],
-    ])->assertOk();
+    // OpenPay aún no tiene integración real: usa el intento simulado (pendiente)
+    // confirmable por el webhook genérico. Stripe, ya real, exige su webhook firmado.
+    $this->putJson('/api/v1/pasarelas/openpay', ['activa' => true, 'modo' => 'test'])->assertOk();
 
     $producto = crearProductoPack();
     $persona = $this->postJson('/api/v1/personas', ['nombre' => 'Ana'])->assertCreated()->json('data.id');
@@ -59,7 +57,7 @@ it('una pasarela en linea activa habilita el cobro pendiente confirmado por webh
     ])->assertCreated()->json('data.id');
 
     // Cobro en línea: queda PENDIENTE (asíncrono), la orden aún no se paga.
-    $referencia = $this->postJson("/api/v1/ordenes/{$orden}/pagos", ['proveedor' => 'stripe', 'metodo' => 'tarjeta'])
+    $referencia = $this->postJson("/api/v1/ordenes/{$orden}/pagos", ['proveedor' => 'openpay', 'metodo' => 'tarjeta'])
         ->assertCreated()
         ->assertJsonPath('data.estado', 'pendiente')
         ->assertJsonPath('data.orden_estado', 'pendiente')
@@ -69,7 +67,7 @@ it('una pasarela en linea activa habilita el cobro pendiente confirmado por webh
     $this->getJson("/api/v1/personas/{$persona}/derechos")->assertOk()->assertJsonCount(0, 'data');
 
     // El webhook confirma → fulfillment.
-    $this->postJson('/api/v1/webhooks/pagos/stripe', ['referencia' => $referencia, 'estado' => 'aprobado'])->assertOk();
+    $this->postJson('/api/v1/webhooks/pagos/openpay', ['referencia' => $referencia, 'estado' => 'aprobado'])->assertOk();
 
     $this->getJson("/api/v1/personas/{$persona}/derechos")->assertOk()->assertJsonCount(1, 'data');
 });

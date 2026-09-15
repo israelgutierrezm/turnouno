@@ -42,6 +42,12 @@ class ConfirmarPagoWebhook
             return; // Referencia desconocida: se ignora.
         }
 
+        // Stripe tiene su propio webhook con verificación de firma: NO puede
+        // confirmarse por este endpoint genérico (sería saltarse la firma).
+        if ($pago->proveedor === 'stripe') {
+            return;
+        }
+
         $tenant = Tenant::query()->find($pago->tenant_id);
         if ($tenant === null) {
             return;
