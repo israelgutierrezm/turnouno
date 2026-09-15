@@ -243,6 +243,58 @@ it('registra la asistencia de una reserva confirmada', function (): void {
     $this->getJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas")
         ->assertOk()
         ->assertJsonPath('data.0.asistencia', 'presente');
+
+    // F-02: presente consume el crédito retenido (servicio prestado).
+    $libro = app(LibroMayor::class);
+    expect($libro->saldo($e['derecho']))->toBe(7000);
+    expect($libro->disponible($e['derecho']))->toBe(7000);
+});
+
+it('marcar presente es idempotente: no consume dos veces (F-02)', function (): void {
+    $e = escenarioReserva();
+    Sanctum::actingAs($e['owner']);
+
+    $reserva = $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->json('data.id');
+
+    $this->postJson("/api/v1/reservas/{$reserva}/asistencia", ['estado' => 'presente'])->assertOk();
+    $this->postJson("/api/v1/reservas/{$reserva}/asistencia", ['estado' => 'presente'])->assertOk();
+
+    $libro = app(LibroMayor::class);
+    expect($libro->saldo($e['derecho']))->toBe(7000);      // consumido una sola vez
+    expect($libro->disponible($e['derecho']))->toBe(7000);
+});
+
+it('marcar ausente pierde el credito retenido (no-show, F-02)', function (): void {
+    $e = escenarioReserva();
+    Sanctum::actingAs($e['owner']);
+
+    $reserva = $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->json('data.id');
+
+    $this->postJson("/api/v1/reservas/{$reserva}/asistencia", ['estado' => 'ausente'])
+        ->assertOk()
+        ->assertJsonPath('data.asistencia', 'ausente');
+
+    $libro = app(LibroMayor::class);
+    expect($libro->saldo($e['derecho']))->toBe(7000);      // forfeit
+    expect($libro->disponible($e['derecho']))->toBe(7000);
+});
+
+it('marcar asistencia con derecho ilimitado no toca el ledger (F-02)', function (): void {
+    $e = escenarioReserva(ilimitado: true);
+    Sanctum::actingAs($e['owner']);
+
+    $reserva = $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->assertCreated()->json('data.id');
+
+    $this->postJson("/api/v1/reservas/{$reserva}/asistencia", ['estado' => 'presente'])
+        ->assertOk()
+        ->assertJsonPath('data.asistencia', 'presente');
+
+    // Sin retención (ilimitado): saldo y disponible permanecen en 0 sin error.
+    $libro = app(LibroMayor::class);
+    expect($libro->disponible($e['derecho']))->toBe(0);
 });
 
 it('no registra asistencia de una reserva en espera', function (): void {

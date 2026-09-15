@@ -34,9 +34,9 @@ it('pole: pack de créditos, clase grupal, reserva con hold y asistencia', funct
         ->assertOk()
         ->assertJsonPath('data.asistencia', 'presente');
 
-    // El crédito quedó retenido (hold), no consumido del ledger hasta confirmar.
+    // Marcar presente consume el crédito retenido: el servicio fue prestado (F-02).
     $libro = app(LibroMayor::class);
-    expect($libro->saldo($derecho))->toBe(8000);
+    expect($libro->saldo($derecho))->toBe(7000);
     expect($libro->disponible($derecho))->toBe(7000);
 });
 
