@@ -266,6 +266,9 @@ export default {
     vigenteDesde: 'Vigente desde',
     generarHasta: 'Generar hasta',
     crearYGenerar: 'Crear y generar sesiones',
+    nuevaClaseUnica: 'Nueva clase única',
+    fechaHora: 'Fecha y hora',
+    crearUnica: 'Crear clase',
     sinDias: 'Elige al menos un día.',
     errorGenerico: 'No se pudo completar la operación.',
     estados: {

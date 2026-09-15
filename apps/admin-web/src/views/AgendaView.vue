@@ -80,6 +80,12 @@ const generarHasta = ref(sumaDiasISO(30))
 const hora = ref('19:00')
 const diasSeleccionados = ref<number[]>([])
 
+// Formulario de clase única (ad-hoc).
+const ofertaUnicaId = ref('')
+const inicioUnica = ref('')
+const duracionUnica = ref('60')
+const capacidadUnica = ref('')
+
 const instructorSel = ref<Record<string, string>>({})
 const error = ref<string | null>(null)
 
@@ -129,8 +135,13 @@ async function cargarSucursales(): Promise<void> {
 async function cargarOfertas(): Promise<void> {
   const { data } = await api.get<{ data: OfertaItem[] }>('/api/v1/ofertas')
   ofertas.value = data.data
-  if (ofertaId.value === '' && ofertas.value.length > 0) {
-    ofertaId.value = ofertas.value[0].id
+  if (ofertas.value.length > 0) {
+    if (ofertaId.value === '') {
+      ofertaId.value = ofertas.value[0].id
+    }
+    if (ofertaUnicaId.value === '') {
+      ofertaUnicaId.value = ofertas.value[0].id
+    }
   }
 }
 
@@ -176,6 +187,29 @@ async function crearClaseRecurrente(): Promise<void> {
       hasta: generarHasta.value,
     })
     diasSeleccionados.value = []
+    await cargarSesiones()
+  } catch {
+    error.value = t('agenda.errorGenerico')
+  }
+}
+
+async function crearClaseUnica(): Promise<void> {
+  error.value = null
+  if (ofertaUnicaId.value === '' || inicioUnica.value === '') {
+    error.value = t('agenda.errorGenerico')
+    return
+  }
+  try {
+    const capacidadNum = capacidadUnica.value === '' ? null : Number(capacidadUnica.value)
+    await api.post(`/api/v1/sucursales/${sucursalId.value}/sesiones`, {
+      oferta_id: ofertaUnicaId.value,
+      // datetime-local entrega "YYYY-MM-DDTHH:mm"; el backend lo interpreta en la zona de la sucursal.
+      inicia_en_local: inicioUnica.value.replace('T', ' '),
+      duracion_minutos: Number(duracionUnica.value),
+      capacidad: capacidadNum,
+    })
+    inicioUnica.value = ''
+    capacidadUnica.value = ''
     await cargarSesiones()
   } catch {
     error.value = t('agenda.errorGenerico')
@@ -511,6 +545,53 @@ onMounted(async () => {
               class="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
             >
               {{ t('agenda.crearYGenerar') }}
+            </button>
+          </form>
+
+          <!-- Nueva clase única (ad-hoc) -->
+          <h3 class="pt-2 text-sm font-medium text-slate-700">{{ t('agenda.nuevaClaseUnica') }}</h3>
+          <form
+            v-if="puedeGestionar && hayOfertas"
+            class="space-y-3 rounded-lg border border-slate-200 bg-white p-4"
+            @submit.prevent="crearClaseUnica"
+          >
+            <label class="block text-sm">
+              <span class="text-slate-600">{{ t('agenda.oferta') }}</span>
+              <select v-model="ofertaUnicaId" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-2 text-sm">
+                <option v-for="oferta in ofertas" :key="oferta.id" :value="oferta.id">
+                  {{ oferta.nombre }} · {{ oferta.actividad }}
+                </option>
+              </select>
+            </label>
+            <label class="block text-sm">
+              <span class="text-slate-600">{{ t('agenda.fechaHora') }}</span>
+              <input
+                v-model="inicioUnica"
+                type="datetime-local"
+                class="mt-1 w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+              />
+            </label>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="text-sm">
+                <span class="text-slate-600">{{ t('agenda.duracion') }}</span>
+                <input v-model="duracionUnica" type="number" min="1" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-2 text-sm" />
+              </label>
+              <label class="text-sm">
+                <span class="text-slate-600">{{ t('agenda.capacidad') }}</span>
+                <input
+                  v-model="capacidadUnica"
+                  type="number"
+                  min="1"
+                  :placeholder="t('agenda.capacidadOferta')"
+                  class="mt-1 w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+                />
+              </label>
+            </div>
+            <button
+              type="submit"
+              class="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+            >
+              {{ t('agenda.crearUnica') }}
             </button>
           </form>
         </div>
