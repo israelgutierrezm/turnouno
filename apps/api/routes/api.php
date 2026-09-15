@@ -48,9 +48,11 @@ use App\Modules\Tenancy\Http\Controllers\AuthTenantController;
 use App\Modules\Tenancy\Http\Controllers\DirectorioController;
 use App\Modules\Tenancy\Http\Controllers\DocumentosController;
 use App\Modules\Tenancy\Http\Controllers\FacturacionController;
+use App\Modules\Tenancy\Http\Controllers\FormulariosController;
 use App\Modules\Tenancy\Http\Controllers\MiembrosTenantController;
 use App\Modules\Tenancy\Http\Controllers\OnboardingController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
+use App\Modules\Tenancy\Http\Controllers\RespuestasFormularioController;
 use App\Modules\Tenancy\Http\Controllers\TiposDocumentoController;
 use Illuminate\Support\Facades\Route;
 
@@ -112,6 +114,14 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/documentos', [DocumentosController::class, 'subir'])->name('api.v1.app.documentos.subir');
             Route::get('/documentos/{documento}', [DocumentosController::class, 'ver'])->name('api.v1.app.documentos.ver');
             Route::post('/documentos/{documento}/validar', [DocumentosController::class, 'validar'])->name('api.v1.app.documentos.validar');
+
+            // Formularios dinámicos: el admin define formularios/campos; miembros e
+            // instructores responden (validación dinámica). Tenant-local.
+            Route::get('/formularios', [FormulariosController::class, 'index'])->name('api.v1.app.formularios.index');
+            Route::post('/formularios', [FormulariosController::class, 'store'])->name('api.v1.app.formularios.store');
+            Route::post('/formularios/{formulario}/campos', [FormulariosController::class, 'agregarCampo'])->name('api.v1.app.formularios.campos');
+            Route::get('/formularios/{formulario}/respuestas', [RespuestasFormularioController::class, 'index'])->name('api.v1.app.formularios.respuestas.index');
+            Route::post('/formularios/{formulario}/respuestas', [RespuestasFormularioController::class, 'store'])->name('api.v1.app.formularios.respuestas.store');
         });
     });
 
