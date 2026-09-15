@@ -1,0 +1,128 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Tenancy\Http\Controllers;
+
+use App\Modules\Tenancy\ModalidadOfertaTenant;
+use App\Modules\Tenancy\Models\ActividadTenant;
+use App\Modules\Tenancy\Models\OfertaTenant;
+use App\Modules\Tenancy\Models\ProgramaTenant;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+
+/**
+ * Catálogo del estudio (Programa → Actividad → Nivel/Oferta), tenant-local. Primer
+ * módulo operativo en el data plane del tenant: opera SIEMPRE sobre la BD del
+ * estudio resuelto, sin `tenant_id`, gateado por permisos tenant-local.
+ */
+class CatalogoTenantController
+{
+    public function programas(): JsonResponse
+    {
+        $programas = ProgramaTenant::query()->with('actividades.ofertas')->orderBy('id')->get();
+
+        return response()->json([
+            'data' => $programas->map(fn (ProgramaTenant $programa): array => [
+                'id' => $programa->ulid,
+                'nombre' => $programa->nombre,
+                'actividades' => $programa->actividades->map(fn (ActividadTenant $actividad): array => [
+                    'id' => $actividad->ulid,
+                    'nombre' => $actividad->nombre,
+                    'ofertas' => $actividad->ofertas->map(fn (OfertaTenant $oferta): array => $this->presentarOferta($oferta))->all(),
+                ])->all(),
+            ])->all(),
+        ]);
+    }
+
+    public function crearPrograma(Request $request): JsonResponse
+    {
+        $validado = $request->validate(['nombre' => ['required', 'string', 'max:255']]);
+
+        $programa = ProgramaTenant::query()->create([
+            'nombre' => $validado['nombre'],
+            'slug' => $this->slug($validado['nombre']),
+        ]);
+
+        return response()->json(['data' => ['id' => $programa->ulid, 'nombre' => $programa->nombre]], 201);
+    }
+
+    public function crearActividad(Request $request): JsonResponse
+    {
+        $programa = ProgramaTenant::query()->where('ulid', (string) $request->route('programa'))->firstOrFail();
+        $validado = $request->validate(['nombre' => ['required', 'string', 'max:255']]);
+
+        $actividad = $programa->actividades()->create([
+            'nombre' => $validado['nombre'],
+            'slug' => $this->slug($validado['nombre']),
+        ]);
+
+        return response()->json(['data' => ['id' => $actividad->ulid, 'nombre' => $actividad->nombre]], 201);
+    }
+
+    public function crearNivel(Request $request): JsonResponse
+    {
+        $actividad = ActividadTenant::query()->where('ulid', (string) $request->route('actividad'))->firstOrFail();
+        $validado = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+            'orden' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $nivel = $actividad->niveles()->create([
+            'nombre' => $validado['nombre'],
+            'orden' => (int) ($validado['orden'] ?? 0),
+        ]);
+
+        return response()->json(['data' => ['id' => $nivel->ulid, 'nombre' => $nivel->nombre]], 201);
+    }
+
+    public function crearOferta(Request $request): JsonResponse
+    {
+        $actividad = ActividadTenant::query()->where('ulid', (string) $request->route('actividad'))->firstOrFail();
+        $validado = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+            'modalidad' => ['required', Rule::enum(ModalidadOfertaTenant::class)],
+            'capacidad' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $oferta = $actividad->ofertas()->create([
+            'nombre' => $validado['nombre'],
+            'modalidad' => $validado['modalidad'],
+            'capacidad' => $validado['capacidad'] ?? null,
+        ]);
+
+        return response()->json(['data' => $this->presentarOferta($oferta)], 201);
+    }
+
+    public function ofertas(): JsonResponse
+    {
+        $ofertas = OfertaTenant::query()->with('actividad')->orderBy('nombre')->get();
+
+        return response()->json([
+            'data' => $ofertas->map(fn (OfertaTenant $oferta): array => array_merge(
+                $this->presentarOferta($oferta),
+                ['actividad' => $oferta->actividad?->nombre],
+            ))->all(),
+        ]);
+    }
+
+    private function slug(string $nombre): string
+    {
+        return Str::slug($nombre).'-'.Str::lower(Str::random(5));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function presentarOferta(OfertaTenant $oferta): array
+    {
+        return [
+            'id' => $oferta->ulid,
+            'nombre' => $oferta->nombre,
+            'modalidad' => $oferta->modalidad->value,
+            'capacidad' => $oferta->capacidad,
+        ];
+    }
+}

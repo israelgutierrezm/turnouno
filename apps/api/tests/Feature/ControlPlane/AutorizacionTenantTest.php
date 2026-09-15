@@ -14,25 +14,6 @@ afterEach(function (): void {
     File::deleteDirectory(storage_path('tenants'));
 });
 
-/**
- * Invita, activa e inicia sesión como personal con un rol; devuelve el bearer.
- */
-function personalConSesion(string $slug, string $ownerBearer, string $email, string $rol): string
-{
-    $inv = test()->postJson("/api/v1/app/{$slug}/usuarios/invitar", [
-        'nombre' => 'Personal', 'email' => $email, 'rol' => $rol,
-    ], conBearer($ownerBearer))->assertCreated()->json('data.activacion');
-
-    test()->postJson("/api/v1/app/{$slug}/activar", [
-        'email' => $inv['email'], 'token' => $inv['token'],
-        'password' => 'secreto123', 'password_confirmation' => 'secreto123',
-    ])->assertCreated();
-
-    return (string) test()->postJson("/api/v1/app/{$slug}/login", [
-        'email' => $email, 'password' => 'secreto123',
-    ])->assertOk()->json('data.token');
-}
-
 it('el propietario invita personal con rol; el instructor no puede definir tipos de documento', function (): void {
     $e = estudioConSesion('estudio-a', 'a@correo.mx'); // propietario
 

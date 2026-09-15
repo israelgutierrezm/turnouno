@@ -45,6 +45,7 @@ use App\Modules\Recursos\Http\Controllers\InstalacionController;
 use App\Modules\Recursos\Http\Controllers\RecursoController;
 use App\Modules\Reservas\Http\Controllers\ReservaController;
 use App\Modules\Tenancy\Http\Controllers\AuthTenantController;
+use App\Modules\Tenancy\Http\Controllers\CatalogoTenantController;
 use App\Modules\Tenancy\Http\Controllers\DirectorioController;
 use App\Modules\Tenancy\Http\Controllers\DocumentosController;
 use App\Modules\Tenancy\Http\Controllers\FacturacionController;
@@ -126,6 +127,15 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/formularios/{formulario}/campos', [FormulariosController::class, 'agregarCampo'])->middleware('puede:formularios.gestionar')->name('api.v1.app.formularios.campos');
             Route::get('/formularios/{formulario}/respuestas', [RespuestasFormularioController::class, 'index'])->middleware('puede:formularios.gestionar')->name('api.v1.app.formularios.respuestas.index');
             Route::post('/formularios/{formulario}/respuestas', [RespuestasFormularioController::class, 'store'])->middleware('puede:formularios.responder')->name('api.v1.app.formularios.respuestas.store');
+
+            // Catálogo del estudio (data plane del tenant): Programa → Actividad →
+            // Nivel/Oferta. Primer módulo operativo migrado a la BD del tenant.
+            Route::get('/programas', [CatalogoTenantController::class, 'programas'])->middleware('puede:catalogo.ver')->name('api.v1.app.programas.index');
+            Route::post('/programas', [CatalogoTenantController::class, 'crearPrograma'])->middleware('puede:catalogo.gestionar')->name('api.v1.app.programas.store');
+            Route::post('/programas/{programa}/actividades', [CatalogoTenantController::class, 'crearActividad'])->middleware('puede:catalogo.gestionar')->name('api.v1.app.actividades.store');
+            Route::post('/actividades/{actividad}/niveles', [CatalogoTenantController::class, 'crearNivel'])->middleware('puede:catalogo.gestionar')->name('api.v1.app.niveles.store');
+            Route::post('/actividades/{actividad}/ofertas', [CatalogoTenantController::class, 'crearOferta'])->middleware('puede:catalogo.gestionar')->name('api.v1.app.ofertas.store');
+            Route::get('/ofertas', [CatalogoTenantController::class, 'ofertas'])->middleware('puede:catalogo.ver')->name('api.v1.app.ofertas.index');
         });
     });
 
