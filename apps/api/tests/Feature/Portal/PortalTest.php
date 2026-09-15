@@ -99,25 +99,34 @@ it('el miembro no puede cancelar la reserva de otra persona', function (): void 
     $this->postJson("/api/v1/mi/reservas/{$reservaAjena}/cancelar")->assertStatus(403);
 });
 
-it('el miembro compra un producto y lo paga (manual) y recibe el derecho', function (): void {
+it('el miembro NO puede pagar con manual ni simulada; sí con una pasarela pública activa', function (): void {
     $tenant = crearTenant('Pole House');
     $owner = User::factory()->create();
     vincularUsuario($tenant, $owner, ['propietario']);
     $producto = crearProductoPack2($tenant);
 
+    // El tenant activa ventanilla (pasarela pública sin llaves).
+    Sanctum::actingAs($owner);
+    $this->putJson('/api/v1/pasarelas/ventanilla', ['activa' => true, 'modo' => 'test'])->assertOk();
+
     $miembro = User::factory()->create();
     vincularUsuario($tenant, $miembro, ['miembro']);
-
     Sanctum::actingAs($miembro);
 
     $orden = $this->postJson('/api/v1/mi/ordenes', ['producto_id' => $producto])
         ->assertCreated()->json('data.id');
 
-    $this->postJson("/api/v1/mi/ordenes/{$orden}/pagos", ['proveedor' => 'manual'])
-        ->assertCreated()
-        ->assertJsonPath('data.orden_estado', 'pagada');
+    // F-01/SEC-01: manual y simulada aprueban sin dinero → prohibidas en el portal.
+    $this->postJson("/api/v1/mi/ordenes/{$orden}/pagos", ['proveedor' => 'manual'])->assertStatus(422);
+    $this->postJson("/api/v1/mi/ordenes/{$orden}/pagos", ['proveedor' => 'simulada'])->assertStatus(422);
 
-    $this->getJson('/api/v1/mi/perfil')->assertOk()->assertJsonCount(1, 'data.derechos');
+    // Ventanilla sí: crea un pago pendiente (asíncrono; el staff lo aprueba luego).
+    $this->postJson("/api/v1/mi/ordenes/{$orden}/pagos", ['proveedor' => 'ventanilla'])
+        ->assertCreated()
+        ->assertJsonPath('data.estado', 'pendiente');
+
+    // El derecho aún NO se concede: no hay autoservicio gratuito.
+    $this->getJson('/api/v1/mi/perfil')->assertOk()->assertJsonCount(0, 'data.derechos');
 });
 
 it('el miembro ve su historial de compras (solo las suyas)', function (): void {
@@ -126,20 +135,18 @@ it('el miembro ve su historial de compras (solo las suyas)', function (): void {
     vincularUsuario($tenant, $owner, ['propietario']);
     $producto = crearProductoPack2($tenant);
 
-    // Compra de otro miembro (no debe verse).
     $otro = User::factory()->create();
     vincularUsuario($tenant, $otro, ['miembro']);
-    Sanctum::actingAs($otro);
-    $ordenAjena = $this->postJson('/api/v1/mi/ordenes', ['producto_id' => $producto])->assertCreated()->json('data.id');
-    $this->postJson("/api/v1/mi/ordenes/{$ordenAjena}/pagos", ['proveedor' => 'manual'])->assertCreated();
-
-    // El miembro hace su propia compra.
     $miembro = User::factory()->create();
     vincularUsuario($tenant, $miembro, ['miembro']);
-    Sanctum::actingAs($miembro);
-    $orden = $this->postJson('/api/v1/mi/ordenes', ['producto_id' => $producto])->assertCreated()->json('data.id');
-    $this->postJson("/api/v1/mi/ordenes/{$orden}/pagos", ['proveedor' => 'manual'])->assertCreated();
 
+    // El staff cobra en caja (canal manual) a cada miembro.
+    Sanctum::actingAs($owner);
+    venderEnCaja(personaDe($otro)->ulid, $producto);
+    venderEnCaja(personaDe($miembro)->ulid, $producto);
+
+    // El miembro solo ve su propia compra.
+    Sanctum::actingAs($miembro);
     $this->getJson('/api/v1/mi/ordenes')
         ->assertOk()
         ->assertJsonCount(1, 'data')
@@ -165,6 +172,11 @@ it('mi/pasarelas devuelve las llaves publicas sin secretos', function (): void {
 
     $respuesta = $this->getJson('/api/v1/mi/pasarelas')->assertOk()->assertDontSee('sk_SECRETO');
 
+    $proveedores = collect($respuesta->json('data'))->pluck('proveedor');
+    // F-01/SEC-01: el portal nunca expone manual/simulada.
+    expect($proveedores)->not->toContain('manual');
+    expect($proveedores)->not->toContain('simulada');
+
     $stripe = collect($respuesta->json('data'))->firstWhere('proveedor', 'stripe');
     expect($stripe['llaves']['public_key'])->toBe('pk_visible');
     expect($stripe['llaves'])->not->toHaveKey('secret_key');
@@ -180,4 +192,17 @@ function crearProductoPack2(Tenant $tenant): string
     app(TenantContext::class)->clear();
 
     return $producto->ulid;
+}
+
+/**
+ * El staff vende en caja (orden + cobro manual) a la persona indicada.
+ */
+function venderEnCaja(string $personaUlid, string $productoUlid): void
+{
+    $orden = test()->postJson('/api/v1/ordenes', [
+        'persona_id' => $personaUlid,
+        'items' => [['producto_id' => $productoUlid]],
+    ])->assertCreated()->json('data.id');
+
+    test()->postJson("/api/v1/ordenes/{$orden}/pagos", ['proveedor' => 'manual'])->assertCreated();
 }

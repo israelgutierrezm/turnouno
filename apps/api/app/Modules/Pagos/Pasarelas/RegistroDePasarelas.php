@@ -27,6 +27,11 @@ class RegistroDePasarelas
         }
 
         if ($nombre === ProveedorPasarela::Simulada->value) {
+            // La pasarela simulada aprueba sin dinero: jamás debe existir en producción.
+            if (! $this->simuladaPermitida()) {
+                throw new RuntimeException("La pasarela 'simulada' no está permitida en este entorno.");
+            }
+
             return $this->simulada;
         }
 
@@ -43,20 +48,48 @@ class RegistroDePasarelas
     }
 
     /**
-     * Nombres de pasarela disponibles para cobrar en el tenant actual.
+     * Nombres de pasarela disponibles para el personal (staff) del tenant. Incluye
+     * los integrados (manual; simulada solo fuera de producción) y los configurables
+     * activos. NO usar para el canal del miembro (ver `publicasActivas`).
      *
      * @return list<string>
      */
     public function disponibles(): array
     {
-        $configuradas = ConfiguracionPasarela::query()
+        $integrados = $this->simuladaPermitida()
+            ? ProveedorPasarela::integrados()
+            : [ProveedorPasarela::Manual->value];
+
+        return array_merge($integrados, $this->configurablesActivos());
+    }
+
+    /**
+     * Pasarelas que el MIEMBRO puede usar en el portal: solo configurables activas
+     * (en línea + ventanilla) del tenant. Excluye `manual`/`simulada`, que aprueban
+     * sin dinero y solo corresponden al staff/entornos de prueba (F-01/SEC-01).
+     *
+     * @return list<string>
+     */
+    public function publicasActivas(): array
+    {
+        return $this->configurablesActivos();
+    }
+
+    /**
+     * Configurables (en línea + ventanilla) que el tenant tiene activas.
+     *
+     * @return list<string>
+     */
+    private function configurablesActivos(): array
+    {
+        /** @var list<string> $activas */
+        $activas = ConfiguracionPasarela::query()
             ->where('activa', true)
             ->whereIn('proveedor', $this->configurables())
             ->pluck('proveedor')
             ->all();
 
-        /** @var list<string> $configuradas */
-        return array_merge(ProveedorPasarela::integrados(), $configuradas);
+        return $activas;
     }
 
     /**
@@ -65,6 +98,11 @@ class RegistroDePasarelas
     private function configurables(): array
     {
         return array_merge(ProveedorPasarela::enLinea(), [ProveedorPasarela::Ventanilla->value]);
+    }
+
+    private function simuladaPermitida(): bool
+    {
+        return ! app()->environment('production');
     }
 
     private function crearConfigurable(string $nombre, ConfiguracionPasarela $config): PasarelaDePago

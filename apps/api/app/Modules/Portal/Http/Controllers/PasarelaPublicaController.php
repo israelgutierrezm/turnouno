@@ -29,7 +29,8 @@ class PasarelaPublicaController
 
     public function index(): JsonResponse
     {
-        $disponibles = $this->registro->disponibles();
+        // Solo pasarelas públicas activas del tenant (nunca manual/simulada, F-01).
+        $disponibles = $this->registro->publicasActivas();
 
         $configs = ConfiguracionPasarela::query()
             ->whereIn('proveedor', array_keys(self::PUBLICAS))

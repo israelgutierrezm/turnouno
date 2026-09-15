@@ -99,7 +99,12 @@ class CompraController
         $persona = $this->miembro->persona();
         abort_unless($orden->persona_id === $persona->id, 403);
 
-        $pasarela = $registro->para((string) $request->validated('proveedor'));
+        // Defensa en profundidad: el miembro solo cobra con pasarelas públicas del
+        // tenant (nunca manual/simulada, que aprueban sin dinero — F-01/SEC-01).
+        $proveedor = (string) $request->validated('proveedor');
+        abort_unless(in_array($proveedor, $registro->publicasActivas(), true), 403);
+
+        $pasarela = $registro->para($proveedor);
         $metodoValor = $request->validated('metodo');
         $metodo = is_string($metodoValor) && $metodoValor !== '' ? MetodoPago::from($metodoValor) : null;
 

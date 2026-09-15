@@ -34,6 +34,13 @@ class PilotosSeeder extends Seeder
 {
     public function run(): void
     {
+        // Defensa en profundidad: datos demo con contraseña conocida, nunca en prod (SEC-02).
+        if (app()->environment('production')) {
+            $this->command?->warn('PilotosSeeder omitido en producción.');
+
+            return;
+        }
+
         foreach ($this->verticales() as $config) {
             $this->sembrar($config);
         }
@@ -54,7 +61,7 @@ class PilotosSeeder extends Seeder
         $owner = User::create([
             'name' => (string) $c['owner'],
             'email' => (string) $c['email'],
-            'password' => Hash::make('password'),
+            'password' => Hash::make((string) (env('DEMO_PASSWORD') ?? 'password')),
         ]);
         app(VincularUsuarioATenant::class)->ejecutar($tenant, $owner, ['propietario']);
 
