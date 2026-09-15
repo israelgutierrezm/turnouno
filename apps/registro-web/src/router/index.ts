@@ -39,6 +39,12 @@ const router = createRouter({
       component: () => import('@/views/PanelView.vue'),
       meta: { requiereSesion: true },
     },
+    {
+      path: '/onboarding',
+      name: 'onboarding',
+      component: () => import('@/views/OnboardingView.vue'),
+      meta: { requiereSesion: true },
+    },
     { path: '/:pathMatch(.*)*', redirect: { name: 'inicio' } },
   ],
 })

@@ -23,7 +23,7 @@ async function enviar(): Promise<void> {
   }
   try {
     await sesion.activar(slug.value, email.value, token.value, password.value, passwordConfirm.value)
-    void router.push({ name: 'panel' })
+    void router.push({ name: 'onboarding' })
   } catch {
     // El error queda en sesion.error.
   }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 
 import { api, mensajeDeError } from '@/lib/api'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
@@ -119,9 +119,14 @@ onMounted(cargar)
       </div>
     </div>
 
-    <div class="mt-6 tu-card p-6">
-      <h2 class="font-bold text-lg">{{ $t('panel.proximos') }}</h2>
-      <p class="mt-1 text-sm" :style="{ color: 'var(--texto-suave)' }">{{ $t('panel.proximosDesc') }}</p>
+    <div class="mt-6 tu-card p-6 flex items-center justify-between gap-4 flex-wrap">
+      <div>
+        <h2 class="font-bold text-lg">{{ $t('panel.proximos') }}</h2>
+        <p class="mt-1 text-sm" :style="{ color: 'var(--texto-suave)' }">{{ $t('panel.proximosDesc') }}</p>
+      </div>
+      <RouterLink class="tu-btn tu-btn-primario" :to="{ name: 'onboarding' }">
+        {{ $t('panel.irOnboarding') }}
+      </RouterLink>
     </div>
   </section>
 </template>
