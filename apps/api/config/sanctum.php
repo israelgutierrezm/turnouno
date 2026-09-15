@@ -52,7 +52,11 @@ return [
     |
     */
 
-    'expiration' => null,
+    // Expiración de tokens en minutos (SEC-03). null = sin expiración; en producción
+    // conviene fijar SANCTUM_TOKEN_EXPIRATION_MINUTES (p. ej. 43200 = 30 días).
+    'expiration' => env('SANCTUM_TOKEN_EXPIRATION_MINUTES') !== null
+        ? (int) env('SANCTUM_TOKEN_EXPIRATION_MINUTES')
+        : null,
 
     /*
     |--------------------------------------------------------------------------

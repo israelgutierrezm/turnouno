@@ -54,9 +54,9 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function (): void {
     Route::get('/health', HealthController::class)->name('api.v1.health');
 
-    // Autenticación (sin sesión previa).
-    Route::post('/auth/token', [TokenController::class, 'store'])->name('api.v1.auth.token');
-    Route::post('/auth/login', [SessionController::class, 'store'])->name('api.v1.auth.login');
+    // Autenticación (sin sesión previa). Con rate limit por identidad+IP (SEC-03).
+    Route::post('/auth/token', [TokenController::class, 'store'])->middleware('throttle:login')->name('api.v1.auth.token');
+    Route::post('/auth/login', [SessionController::class, 'store'])->middleware('throttle:login')->name('api.v1.auth.login');
 
     // Webhook de pagos: público (sin sesión ni tenant); idempotente. La firma del
     // proveedor debe verificarse antes de producción.
