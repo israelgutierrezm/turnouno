@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Reservas\Http\Controllers;
 
 use App\Modules\Agenda\Models\Sesion;
+use App\Modules\Agenda\Support\AccesoSesion;
 use App\Modules\Personas\Models\Persona;
 use App\Modules\Reservas\Application\CancelarReserva;
 use App\Modules\Reservas\Application\CrearReserva;
@@ -21,9 +22,11 @@ use Illuminate\Support\Facades\Gate;
  */
 class ReservaController
 {
-    public function index(Sesion $sesion): JsonResponse
+    public function index(Sesion $sesion, AccesoSesion $acceso): JsonResponse
     {
         Gate::authorize('reservas.ver');
+        // El instructor solo ve el roster de sus sesiones asignadas (F-09/SEC-05).
+        abort_unless($acceso->puedeOperar($sesion), 403);
 
         $reservas = Reserva::query()
             ->where('sesion_id', $sesion->id)
