@@ -6,6 +6,7 @@ namespace App\Modules\Membresias\Application;
 
 use App\Modules\Creditos\LibroMayor;
 use App\Modules\Creditos\TipoMovimiento;
+use App\Modules\Membresias\EstadoAcuerdo;
 use App\Modules\Membresias\Models\Derecho;
 use App\Modules\Membresias\PoliticaReset;
 use App\Modules\Membresias\PoliticaRollover;
@@ -29,6 +30,12 @@ class GenerarCicloEntitlement
     public function ejecutar(Derecho $derecho): int
     {
         if ($derecho->politica_reset === PoliticaReset::Ninguno || $derecho->ciclo_fin === null) {
+            return 0;
+        }
+
+        // No renovar ciclos de acuerdos que ya no están activos (F-13): un acuerdo
+        // cancelado o pausado no debe seguir recibiendo créditos.
+        if ($derecho->acuerdo->estado !== EstadoAcuerdo::Activo) {
             return 0;
         }
 

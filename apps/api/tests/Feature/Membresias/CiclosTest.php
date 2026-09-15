@@ -101,6 +101,27 @@ it('reinicia el saldo por ciclo de aniversario', function (): void {
     expect($derecho->refresh()->ciclo_inicio?->toDateString())->toBe('2026-09-10');
 });
 
+it('no renueva ciclos de un acuerdo cancelado (F-13)', function (): void {
+    $tenant = crearTenant('Pole House');
+    $derecho = crearDerechoCiclo($tenant, [
+        'politica_reset' => 'calendario',
+        'unidades_por_ciclo' => 4000,
+        'politica_rollover' => 'ninguno',
+        'ciclo_inicio' => '2026-08-01',
+        'ciclo_fin' => '2026-08-31',
+    ], 4000);
+
+    // Cancelar el acuerdo del derecho.
+    $contexto = app(TenantContext::class);
+    $contexto->set($tenant);
+    $derecho->acuerdo->update(['estado' => 'cancelado']);
+    $contexto->clear();
+
+    // Aunque el ciclo ya venció, no se avanza ni se concede crédito nuevo.
+    expect(avanzarCiclos($tenant, $derecho))->toBe(0);
+    expect(saldoDe($tenant, $derecho))->toBe(4000);
+});
+
 it('acarrea todo el saldo con rollover completo', function (): void {
     $tenant = crearTenant('Pole House');
     $derecho = crearDerechoCiclo($tenant, [

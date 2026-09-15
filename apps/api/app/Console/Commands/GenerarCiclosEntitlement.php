@@ -22,24 +22,30 @@ class GenerarCiclosEntitlement extends Command
 
     public function handle(GenerarCicloEntitlement $generar, TenantContext $contexto): int
     {
-        $derechos = Derecho::query()
+        $avanzados = 0;
+
+        /** @var array<int, Tenant|null> $tenants */
+        $tenants = [];
+
+        // Chunk por id para no cargar todos los derechos en memoria (F-13).
+        Derecho::query()
             ->withoutGlobalScope('tenant')
             ->where('politica_reset', '!=', 'ninguno')
             ->whereNotNull('ciclo_fin')
             ->whereDate('ciclo_fin', '<', now()->toDateString())
-            ->get();
+            ->chunkById(200, function ($derechos) use (&$avanzados, &$tenants, $generar, $contexto): void {
+                foreach ($derechos as $derecho) {
+                    $tenant = $tenants[$derecho->tenant_id] ??= Tenant::query()->find($derecho->tenant_id);
+                    if ($tenant === null) {
+                        continue;
+                    }
 
-        $avanzados = 0;
-        foreach ($derechos as $derecho) {
-            $tenant = Tenant::query()->find($derecho->tenant_id);
-            if ($tenant === null) {
-                continue;
-            }
-
-            $contexto->set($tenant);
-            $avanzados += $generar->ejecutar($derecho);
-            $contexto->clear();
-        }
+                    $contexto->set($tenant);
+                    // GenerarCicloEntitlement omite acuerdos no activos (F-13).
+                    $avanzados += $generar->ejecutar($derecho);
+                    $contexto->clear();
+                }
+            });
 
         $this->info("Ciclos avanzados: {$avanzados}.");
 
