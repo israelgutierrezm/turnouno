@@ -120,6 +120,33 @@ it('el miembro compra un producto y lo paga (manual) y recibe el derecho', funct
     $this->getJson('/api/v1/mi/perfil')->assertOk()->assertJsonCount(1, 'data.derechos');
 });
 
+it('el miembro ve su historial de compras (solo las suyas)', function (): void {
+    $tenant = crearTenant('Pole House');
+    $owner = User::factory()->create();
+    vincularUsuario($tenant, $owner, ['propietario']);
+    $producto = crearProductoPack2($tenant);
+
+    // Compra de otro miembro (no debe verse).
+    $otro = User::factory()->create();
+    vincularUsuario($tenant, $otro, ['miembro']);
+    Sanctum::actingAs($otro);
+    $ordenAjena = $this->postJson('/api/v1/mi/ordenes', ['producto_id' => $producto])->assertCreated()->json('data.id');
+    $this->postJson("/api/v1/mi/ordenes/{$ordenAjena}/pagos", ['proveedor' => 'manual'])->assertCreated();
+
+    // El miembro hace su propia compra.
+    $miembro = User::factory()->create();
+    vincularUsuario($tenant, $miembro, ['miembro']);
+    Sanctum::actingAs($miembro);
+    $orden = $this->postJson('/api/v1/mi/ordenes', ['producto_id' => $producto])->assertCreated()->json('data.id');
+    $this->postJson("/api/v1/mi/ordenes/{$orden}/pagos", ['proveedor' => 'manual'])->assertCreated();
+
+    $this->getJson('/api/v1/mi/ordenes')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.estado', 'pagada')
+        ->assertJsonPath('data.0.pagos.0.estado', 'aprobado');
+});
+
 it('mi/pasarelas devuelve las llaves publicas sin secretos', function (): void {
     $tenant = crearTenant('Pole House');
     $owner = User::factory()->create();

@@ -6,9 +6,11 @@ namespace App\Modules\Portal\Http\Controllers;
 
 use App\Modules\Membresias\Models\ProductoComercial;
 use App\Modules\Ordenes\Application\CrearOrden;
+use App\Modules\Ordenes\Models\LineaOrden;
 use App\Modules\Ordenes\Models\Orden;
 use App\Modules\Pagos\Application\CobrarOrden;
 use App\Modules\Pagos\MetodoPago;
+use App\Modules\Pagos\Models\Pago;
 use App\Modules\Pagos\Pasarelas\RegistroDePasarelas;
 use App\Modules\Portal\Http\Requests\CrearOrdenPortalRequest;
 use App\Modules\Portal\Http\Requests\PagarRequest;
@@ -35,6 +37,39 @@ class CompraController
                 'precio_minor' => $producto->precio_minor,
                 'moneda' => $producto->moneda,
                 'ilimitado' => $producto->ilimitado,
+            ])->all(),
+        ]);
+    }
+
+    /**
+     * Historial de compras del propio miembro (órdenes con líneas y estado de pago).
+     */
+    public function ordenes(): JsonResponse
+    {
+        $persona = $this->miembro->persona();
+
+        $ordenes = Orden::query()
+            ->where('persona_id', $persona->id)
+            ->with(['lineas.producto', 'pagos'])
+            ->orderByDesc('id')
+            ->get();
+
+        return response()->json([
+            'data' => $ordenes->map(static fn (Orden $orden): array => [
+                'id' => $orden->ulid,
+                'estado' => $orden->estado->value,
+                'total_minor' => $orden->total_minor,
+                'moneda' => $orden->moneda,
+                'creada_en' => $orden->created_at?->toIso8601String(),
+                'lineas' => $orden->lineas->map(static fn (LineaOrden $linea): array => [
+                    'producto' => $linea->producto->nombre,
+                    'cantidad' => $linea->cantidad,
+                ])->all(),
+                'pagos' => $orden->pagos->map(static fn (Pago $pago): array => [
+                    'estado' => $pago->estado->value,
+                    'proveedor' => $pago->proveedor,
+                    'metodo' => $pago->metodo?->value,
+                ])->all(),
             ])->all(),
         ]);
     }

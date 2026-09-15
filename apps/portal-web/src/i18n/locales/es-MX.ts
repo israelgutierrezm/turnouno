@@ -3,6 +3,7 @@ export default {
     perfil: 'Mi perfil',
     agenda: 'Clases',
     comprar: 'Comprar',
+    misCompras: 'Mis compras',
     salir: 'Salir',
   },
   login: {
@@ -57,5 +58,21 @@ export default {
     comprobanteSubido: 'Comprobante enviado. En cuanto lo aprueben, tendrás tus créditos.',
     redirigiendo: 'Redirigiendo a la pasarela de pago…',
     tarjeta: 'Procesando tu tarjeta…',
+  },
+  compras: {
+    titulo: 'Mis compras',
+    sinCompras: 'Aún no tienes compras.',
+    error: 'No se pudo cargar tu historial.',
+    estados: {
+      pendiente: 'Pendiente',
+      pagada: 'Pagada',
+      cancelada: 'Cancelada',
+    },
+    estadosPago: {
+      pendiente: 'Pendiente',
+      aprobado: 'Aprobado',
+      rechazado: 'Rechazado',
+      reembolsado: 'Reembolsado',
+    },
   },
 }

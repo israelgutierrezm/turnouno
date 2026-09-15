@@ -149,6 +149,7 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('/mi/reservas', [PortalAgendaController::class, 'reservar'])->name('api.v1.mi.reservas.store');
                 Route::post('/mi/reservas/{reserva}/cancelar', [PortalAgendaController::class, 'cancelar'])->name('api.v1.mi.reservas.cancelar');
                 Route::get('/mi/productos', [PortalCompraController::class, 'productos'])->name('api.v1.mi.productos');
+                Route::get('/mi/ordenes', [PortalCompraController::class, 'ordenes'])->name('api.v1.mi.ordenes.index');
                 Route::post('/mi/ordenes', [PortalCompraController::class, 'crearOrden'])->name('api.v1.mi.ordenes.store');
                 Route::post('/mi/ordenes/{orden}/pagos', [PortalCompraController::class, 'pagar'])->name('api.v1.mi.ordenes.pagos.store');
                 Route::get('/mi/pasarelas', [PasarelaPublicaController::class, 'index'])->name('api.v1.mi.pasarelas');

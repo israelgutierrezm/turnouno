@@ -25,6 +25,7 @@ async function salir(): Promise<void> {
         <RouterLink to="/" class="text-sm text-slate-600 hover:text-slate-900">{{ t('nav.perfil') }}</RouterLink>
         <RouterLink to="/agenda" class="text-sm text-slate-600 hover:text-slate-900">{{ t('nav.agenda') }}</RouterLink>
         <RouterLink to="/comprar" class="text-sm text-slate-600 hover:text-slate-900">{{ t('nav.comprar') }}</RouterLink>
+        <RouterLink to="/mis-compras" class="text-sm text-slate-600 hover:text-slate-900">{{ t('nav.misCompras') }}</RouterLink>
         <button class="ml-auto text-sm text-slate-600 hover:text-slate-900" @click="salir">
           {{ t('nav.salir') }}
         </button>
