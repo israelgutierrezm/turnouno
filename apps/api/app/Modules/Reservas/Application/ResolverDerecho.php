@@ -29,7 +29,7 @@ class ResolverDerecho
                     ->where('estado', EstadoAcuerdo::Activo->value);
             })
             ->get()
-            ->filter(fn (Derecho $derecho): bool => $this->vigente($derecho, $sesion->inicia_en));
+            ->filter(fn (Derecho $derecho): bool => $this->vigente($derecho, $sesion->inicia_en) && $this->cubre($derecho, $sesion));
 
         $limitado = $derechos->first(
             fn (Derecho $derecho): bool => ! $derecho->ilimitado && $this->libro->disponible($derecho) >= $unidades,
@@ -40,6 +40,25 @@ class ResolverDerecho
         }
 
         return $derechos->first(fn (Derecho $derecho): bool => $derecho->ilimitado);
+    }
+
+    /**
+     * ¿El derecho cubre esta sesión según sus restricciones de actividad/sucursal?
+     * Sin restricción (nulo) cubre cualquiera.
+     */
+    private function cubre(Derecho $derecho, Sesion $sesion): bool
+    {
+        $sesion->loadMissing('oferta');
+
+        if ($derecho->actividad_id !== null && (int) $derecho->actividad_id !== (int) $sesion->oferta->actividad_id) {
+            return false;
+        }
+
+        if ($derecho->sucursal_id !== null && (int) $derecho->sucursal_id !== (int) $sesion->sucursal_id) {
+            return false;
+        }
+
+        return true;
     }
 
     private function vigente(Derecho $derecho, CarbonInterface $momento): bool

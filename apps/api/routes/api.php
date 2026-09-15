@@ -21,6 +21,7 @@ use App\Modules\Identity\Http\Controllers\UsuarioController;
 use App\Modules\Membresias\Http\Controllers\AcuerdoController;
 use App\Modules\Membresias\Http\Controllers\DerechoController;
 use App\Modules\Membresias\Http\Controllers\ProductoComercialController;
+use App\Modules\Membresias\Http\Controllers\TopUpController;
 use App\Modules\Ordenes\Http\Controllers\OrdenController;
 use App\Modules\Organizaciones\Http\Controllers\OrganizacionController;
 use App\Modules\Organizaciones\Http\Controllers\PersonalSucursalController;
@@ -95,6 +96,7 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('/productos', [ProductoComercialController::class, 'store'])->name('api.v1.productos.store');
                 Route::post('/personas/{persona}/acuerdos', [AcuerdoController::class, 'store'])->name('api.v1.personas.acuerdos.store');
                 Route::get('/personas/{persona}/derechos', [DerechoController::class, 'index'])->name('api.v1.personas.derechos.index');
+                Route::post('/derechos/{derecho}/topups', [TopUpController::class, 'store'])->name('api.v1.derechos.topups.store');
 
                 // Órdenes y pagos: orden pendiente → cobro (pasarela) → fulfillment (derechos).
                 Route::post('/ordenes', [OrdenController::class, 'store'])->name('api.v1.ordenes.store');

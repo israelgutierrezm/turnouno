@@ -66,9 +66,9 @@ términos en español que usamos en el código y la base de datos.
 - `ofertas` (`id`, `ulid`, `tenant_id`, `actividad_id`, `nombre`, `modalidad`, `capacidad?`)
 - `instalaciones` (`id`, `ulid`, `tenant_id`, `sucursal_id`, `nombre`)
 - `recursos` (`id`, `ulid`, `tenant_id`, `instalacion_id`, `recurso_padre_id?`, `nombre`, `tipo?`, `modo`, `capacidad`, `estado`)
-- `productos_comerciales` (`id`, `ulid`, `tenant_id`, `nombre`, `tipo`, `precio_minor`, `moneda`, `ilimitado`, `creditos_incluidos?`)
+- `productos_comerciales` (`id`, `ulid`, `tenant_id`, `nombre`, `tipo`, `precio_minor`, `moneda`, `ilimitado`, `creditos_incluidos?`, `actividad_id?`, `sucursal_id?`, `politica_reset`, `unidades_por_ciclo?`, `politica_rollover`, `rollover_max?`) — plantilla de ciclo/rollover/restricciones (ADR-0017)
 - `acuerdos` (`id`, `ulid`, `tenant_id`, `persona_id`, `producto_comercial_id`, `linea_orden_id?`, `fecha_inicio`, `estado`) — `linea_orden_id` traza el origen comercial (nulo en venta directa; permite revertir el fulfillment al reembolsar)
-- `derechos` (`id`, `ulid`, `tenant_id`, `acuerdo_id`, `ambito`, `ilimitado`, `valido_desde?`, `valido_hasta?`) — entitlement
+- `derechos` (`id`, `ulid`, `tenant_id`, `acuerdo_id`, `ambito`, `actividad_id?`, `sucursal_id?`, `ilimitado`, `politica_reset`, `unidades_por_ciclo?`, `politica_rollover`, `rollover_max?`, `ciclo_inicio?`, `ciclo_fin?`, `valido_desde?`, `valido_hasta?`) — entitlement con ciclo/rollover/restricciones (ADR-0017)
 - `movimientos_credito` (`id`, `ulid`, `tenant_id`, `derecho_id`, `tipo`, `unidades`, `descripcion?`) — ledger
 - `retenciones_credito` (`id`, `ulid`, `tenant_id`, `derecho_id`, `unidades`, `estado`, `descripcion?`) — holds (reservas de crédito concurrency-safe)
 - `plantillas_horario` (`id`, `ulid`, `tenant_id`, `oferta_id`, `sucursal_id`, `recurso_id?`, `nombre?`, `duracion_minutos`, `capacidad?`, `vigente_desde`, `vigente_hasta?`, `activa`) — definición recurrente de una clase
@@ -86,7 +86,8 @@ términos en español que usamos en el código y la base de datos.
 > Un menor (dependiente) puede no tener `user_id` (sin cuenta de acceso).
 > `ModoRecurso` (enum): `unidad`, `pool`. `ModalidadOferta` (enum): `grupal`, `privada`.
 > `TipoProducto`: `membresia`, `paquete`, `pase_dia`, `sesion_individual`, `add_on`, `taller`.
-> `TipoMovimiento`: `concesion`, `consumo`, `ajuste`, `add_on`, `reverso`.
+> `TipoMovimiento`: `concesion`, `consumo`, `ajuste`, `add_on`, `reverso`, `expiracion`.
+> `PoliticaReset`: `ninguno`, `calendario`, `aniversario`. `PoliticaRollover`: `ninguno`, `completo`, `limitado`.
 > `EstadoRetencion`: `activa`, `consumida`, `liberada`, `perdida`.
 > `EstadoSesion`: `programada`, `cancelada`, `finalizada`. `RolSesion`: `instructor`, `asistente`.
 > `EstadoReserva`: `confirmada`, `en_espera` (waitlist), `cancelada`.

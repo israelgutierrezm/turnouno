@@ -14,4 +14,5 @@ enum TipoMovimiento: string
     case Ajuste = 'ajuste';
     case AddOn = 'add_on';
     case Reverso = 'reverso';
+    case Expiracion = 'expiracion';
 }
