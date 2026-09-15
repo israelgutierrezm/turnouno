@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Modules\Membresias\Models;
 
+use App\Modules\Catalogo\Models\Actividad;
 use App\Modules\Membresias\PoliticaReset;
 use App\Modules\Membresias\PoliticaRollover;
 use App\Modules\Membresias\TipoProducto;
+use App\Modules\Organizaciones\Models\Sucursal;
 use App\Modules\Tenancy\Concerns\BelongsToTenant;
 use App\Support\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Producto comercial vendible. Otorga derechos (entitlements) al comprarse, con
@@ -51,4 +54,24 @@ class ProductoComercial extends Model
         'unidades_por_ciclo' => 'integer',
         'rollover_max' => 'integer',
     ];
+
+    /**
+     * Restricción opcional: el producto solo aplica a esta actividad.
+     *
+     * @return BelongsTo<Actividad, $this>
+     */
+    public function actividad(): BelongsTo
+    {
+        return $this->belongsTo(Actividad::class);
+    }
+
+    /**
+     * Restricción opcional: el producto solo aplica a esta sucursal.
+     *
+     * @return BelongsTo<Sucursal, $this>
+     */
+    public function sucursal(): BelongsTo
+    {
+        return $this->belongsTo(Sucursal::class);
+    }
 }

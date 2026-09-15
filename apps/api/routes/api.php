@@ -90,6 +90,7 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('/programas', [ProgramaController::class, 'store'])->name('api.v1.programas.store');
                 Route::get('/programas/{programa}', [ProgramaController::class, 'show'])->name('api.v1.programas.show');
                 Route::post('/programas/{programa}/actividades', [ActividadController::class, 'store'])->name('api.v1.programas.actividades.store');
+                Route::get('/actividades', [ActividadController::class, 'index'])->name('api.v1.actividades.index');
                 Route::get('/actividades/{actividad}', [ActividadController::class, 'show'])->name('api.v1.actividades.show');
                 Route::post('/actividades/{actividad}/niveles', [NivelController::class, 'store'])->name('api.v1.actividades.niveles.store');
                 Route::get('/ofertas', [OfertaController::class, 'index'])->name('api.v1.ofertas.index');

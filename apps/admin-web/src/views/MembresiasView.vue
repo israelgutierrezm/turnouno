@@ -13,6 +13,22 @@ interface Producto {
   moneda: string
   ilimitado: boolean
   creditos_incluidos: number | null
+  politica_reset: string
+  unidades_por_ciclo: number | null
+  politica_rollover: string
+  rollover_max: number | null
+  actividad: string | null
+  sucursal: string | null
+}
+
+interface Actividad {
+  id: string
+  nombre: string
+}
+
+interface Sucursal {
+  id: string
+  nombre: string
 }
 
 interface PersonaItem {
@@ -55,7 +71,20 @@ const precioPesos = ref('')
 const monedaProd = ref('MXN')
 const ilimitadoProd = ref(false)
 const creditosProd = ref('')
+// Plantilla de ciclo/rollover/restricciones (opcional).
+const resetProd = ref('ninguno')
+const unidadesCicloProd = ref('')
+const rolloverProd = ref('ninguno')
+const rolloverMaxProd = ref('')
+const actividadProd = ref('')
+const sucursalProd = ref('')
+const actividades = ref<Actividad[]>([])
+const sucursales = ref<Sucursal[]>([])
+const topUps = ref<Record<string, string>>({})
 const error = ref<string | null>(null)
+
+const resetsDisponibles = ['ninguno', 'calendario', 'aniversario']
+const rolloversDisponibles = ['ninguno', 'completo', 'limitado']
 
 const puedeGestionarProductos = computed(() => auth.puede('productos.gestionar'))
 const puedeVender = computed(() => auth.puede('membresias.gestionar'))
@@ -105,8 +134,27 @@ async function cargarDerechos(): Promise<void> {
   derechos.value = data.data
 }
 
+async function cargarActividades(): Promise<void> {
+  try {
+    const { data } = await api.get<{ data: Actividad[] }>('/api/v1/actividades')
+    actividades.value = data.data
+  } catch {
+    actividades.value = []
+  }
+}
+
+async function cargarSucursales(): Promise<void> {
+  try {
+    const { data } = await api.get<{ data: Sucursal[] }>('/api/v1/sucursales')
+    sucursales.value = data.data
+  } catch {
+    sucursales.value = []
+  }
+}
+
 async function crearProducto(): Promise<void> {
   error.value = null
+  const recurrente = resetProd.value !== 'ninguno'
   try {
     await api.post('/api/v1/productos', {
       nombre: nombreProd.value,
@@ -115,12 +163,43 @@ async function crearProducto(): Promise<void> {
       moneda: monedaProd.value,
       ilimitado: ilimitadoProd.value,
       creditos_incluidos: ilimitadoProd.value ? null : Math.round((Number(creditosProd.value) || 0) * 1000),
+      politica_reset: resetProd.value,
+      unidades_por_ciclo:
+        recurrente && !ilimitadoProd.value ? Math.round((Number(unidadesCicloProd.value) || 0) * 1000) : null,
+      politica_rollover: rolloverProd.value,
+      rollover_max:
+        rolloverProd.value === 'limitado' ? Math.round((Number(rolloverMaxProd.value) || 0) * 1000) : null,
+      actividad_id: actividadProd.value || null,
+      sucursal_id: sucursalProd.value || null,
     })
     nombreProd.value = ''
     precioPesos.value = ''
     creditosProd.value = ''
     ilimitadoProd.value = false
+    resetProd.value = 'ninguno'
+    unidadesCicloProd.value = ''
+    rolloverProd.value = 'ninguno'
+    rolloverMaxProd.value = ''
+    actividadProd.value = ''
+    sucursalProd.value = ''
     await cargarProductos()
+  } catch {
+    error.value = t('membresias.errorGenerico')
+  }
+}
+
+async function recargar(derechoId: string): Promise<void> {
+  error.value = null
+  const creditos = Number(topUps.value[derechoId])
+  if (!creditos || creditos <= 0) {
+    return
+  }
+  try {
+    await api.post(`/api/v1/derechos/${derechoId}/topups`, {
+      unidades: Math.round(creditos * 1000),
+    })
+    topUps.value[derechoId] = ''
+    await cargarDerechos()
   } catch {
     error.value = t('membresias.errorGenerico')
   }
@@ -166,7 +245,11 @@ watch(personaId, () => {
 })
 
 onMounted(async () => {
-  await Promise.all([cargarProductos(), cargarPersonas(), cargarPasarelas()])
+  const tareas = [cargarProductos(), cargarPersonas(), cargarPasarelas()]
+  if (puedeGestionarProductos.value) {
+    tareas.push(cargarActividades(), cargarSucursales())
+  }
+  await Promise.all(tareas)
   await cargarDerechos()
 })
 </script>
@@ -221,6 +304,70 @@ onMounted(async () => {
               class="rounded-md border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
             />
           </div>
+
+          <!-- Ciclo / rollover / restricciones (opcional) -->
+          <details class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+            <summary class="cursor-pointer text-xs font-medium text-slate-600">
+              {{ t('membresias.config') }}
+            </summary>
+            <div class="mt-2 space-y-2">
+              <div class="grid grid-cols-2 gap-2">
+                <label class="text-xs text-slate-600">
+                  {{ t('membresias.reinicio') }}
+                  <select v-model="resetProd" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm">
+                    <option v-for="r in resetsDisponibles" :key="r" :value="r">
+                      {{ t('membresias.reinicios.' + r) }}
+                    </option>
+                  </select>
+                </label>
+                <label v-if="resetProd !== 'ninguno' && !ilimitadoProd" class="text-xs text-slate-600">
+                  {{ t('membresias.unidadesPorCiclo') }}
+                  <input
+                    v-model="unidadesCicloProd"
+                    type="number"
+                    step="0.001"
+                    class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                  />
+                </label>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="text-xs text-slate-600">
+                  {{ t('membresias.rollover') }}
+                  <select v-model="rolloverProd" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm">
+                    <option v-for="r in rolloversDisponibles" :key="r" :value="r">
+                      {{ t('membresias.rollovers.' + r) }}
+                    </option>
+                  </select>
+                </label>
+                <label v-if="rolloverProd === 'limitado'" class="text-xs text-slate-600">
+                  {{ t('membresias.rolloverMax') }}
+                  <input
+                    v-model="rolloverMaxProd"
+                    type="number"
+                    step="0.001"
+                    class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                  />
+                </label>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="text-xs text-slate-600">
+                  {{ t('membresias.restriccionActividad') }}
+                  <select v-model="actividadProd" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm">
+                    <option value="">{{ t('membresias.cualquiera') }}</option>
+                    <option v-for="a in actividades" :key="a.id" :value="a.id">{{ a.nombre }}</option>
+                  </select>
+                </label>
+                <label class="text-xs text-slate-600">
+                  {{ t('membresias.restriccionSucursal') }}
+                  <select v-model="sucursalProd" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm">
+                    <option value="">{{ t('membresias.cualquiera') }}</option>
+                    <option v-for="s in sucursales" :key="s.id" :value="s.id">{{ s.nombre }}</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </details>
+
           <button
             type="submit"
             class="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
@@ -231,19 +378,47 @@ onMounted(async () => {
 
         <p v-if="!hayProductos" class="text-sm text-slate-500">{{ t('membresias.sinProductos') }}</p>
         <ul v-else class="divide-y rounded-lg border border-slate-200 bg-white">
-          <li
-            v-for="producto in productos"
-            :key="producto.id"
-            class="flex items-center justify-between px-4 py-3 text-sm"
-          >
-            <span>
-              <span class="font-medium">{{ producto.nombre }}</span>
-              <span class="text-slate-400"> · {{ t('membresias.tipos.' + producto.tipo) }}</span>
-            </span>
-            <span class="text-slate-500">
-              {{ precioTexto(producto) }} ·
-              {{ producto.ilimitado ? t('membresias.ilimitado') : (producto.creditos_incluidos ?? 0) / 1000 }}
-            </span>
+          <li v-for="producto in productos" :key="producto.id" class="space-y-1 px-4 py-3 text-sm">
+            <div class="flex items-center justify-between">
+              <span>
+                <span class="font-medium">{{ producto.nombre }}</span>
+                <span class="text-slate-400"> · {{ t('membresias.tipos.' + producto.tipo) }}</span>
+              </span>
+              <span class="text-slate-500">
+                {{ precioTexto(producto) }} ·
+                {{ producto.ilimitado ? t('membresias.ilimitado') : (producto.creditos_incluidos ?? 0) / 1000 }}
+              </span>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <span
+                v-if="producto.politica_reset !== 'ninguno'"
+                class="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600"
+              >
+                {{ t('membresias.reinicio') }}: {{ t('membresias.reinicios.' + producto.politica_reset) }}
+                <template v-if="producto.unidades_por_ciclo">
+                  · {{ producto.unidades_por_ciclo / 1000 }}
+                </template>
+              </span>
+              <span
+                v-if="producto.politica_rollover !== 'ninguno'"
+                class="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600"
+              >
+                {{ t('membresias.rollover') }}: {{ t('membresias.rollovers.' + producto.politica_rollover) }}
+                <template v-if="producto.rollover_max"> ({{ producto.rollover_max / 1000 }})</template>
+              </span>
+              <span
+                v-if="producto.actividad"
+                class="rounded bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-700"
+              >
+                {{ producto.actividad }}
+              </span>
+              <span
+                v-if="producto.sucursal"
+                class="rounded bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-700"
+              >
+                {{ producto.sucursal }}
+              </span>
+            </div>
           </li>
         </ul>
       </div>
@@ -322,25 +497,38 @@ onMounted(async () => {
                   </template>
                 </span>
               </div>
-              <form
-                v-if="puedeVender && !derecho.ilimitado"
-                class="flex items-center gap-2"
-                @submit.prevent="consumir(derecho.id)"
-              >
-                <input
-                  v-model="consumos[derecho.id]"
-                  type="number"
-                  step="0.001"
-                  :placeholder="t('membresias.creditos')"
-                  class="w-24 rounded-md border border-slate-300 px-2 py-1 text-xs"
-                />
-                <button
-                  type="submit"
-                  class="rounded-md bg-slate-700 px-2 py-1 text-xs font-medium text-white hover:bg-slate-600"
-                >
-                  {{ t('membresias.consumir') }}
-                </button>
-              </form>
+              <div v-if="puedeVender && !derecho.ilimitado" class="flex flex-wrap items-center gap-2">
+                <form class="flex items-center gap-2" @submit.prevent="consumir(derecho.id)">
+                  <input
+                    v-model="consumos[derecho.id]"
+                    type="number"
+                    step="0.001"
+                    :placeholder="t('membresias.creditos')"
+                    class="w-24 rounded-md border border-slate-300 px-2 py-1 text-xs"
+                  />
+                  <button
+                    type="submit"
+                    class="rounded-md bg-slate-700 px-2 py-1 text-xs font-medium text-white hover:bg-slate-600"
+                  >
+                    {{ t('membresias.consumir') }}
+                  </button>
+                </form>
+                <form class="flex items-center gap-2" @submit.prevent="recargar(derecho.id)">
+                  <input
+                    v-model="topUps[derecho.id]"
+                    type="number"
+                    step="0.001"
+                    :placeholder="t('membresias.topUp')"
+                    class="w-24 rounded-md border border-emerald-300 px-2 py-1 text-xs"
+                  />
+                  <button
+                    type="submit"
+                    class="rounded-md bg-emerald-700 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-600"
+                  >
+                    {{ t('membresias.topUpBtn') }}
+                  </button>
+                </form>
+              </div>
             </li>
           </ul>
         </template>

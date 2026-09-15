@@ -15,6 +15,24 @@ use Illuminate\Support\Str;
 
 class ActividadController
 {
+    /**
+     * Lista las actividades del tenant (para elegir una al restringir un producto).
+     */
+    public function index(): JsonResponse
+    {
+        Gate::authorize('catalogo.ver');
+
+        $actividades = Actividad::query()->with('programa')->orderBy('nombre')->get();
+
+        return response()->json([
+            'data' => $actividades->map(static fn (Actividad $actividad): array => [
+                'id' => $actividad->ulid,
+                'nombre' => $actividad->nombre,
+                'programa' => $actividad->programa->nombre,
+            ])->all(),
+        ]);
+    }
+
     public function store(CrearActividadRequest $request, Programa $programa): JsonResponse
     {
         Gate::authorize('catalogo.gestionar');
