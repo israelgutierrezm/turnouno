@@ -48,6 +48,7 @@ use App\Modules\Tenancy\Http\Controllers\AuthTenantController;
 use App\Modules\Tenancy\Http\Controllers\DirectorioController;
 use App\Modules\Tenancy\Http\Controllers\FacturacionController;
 use App\Modules\Tenancy\Http\Controllers\MiembrosTenantController;
+use App\Modules\Tenancy\Http\Controllers\OnboardingController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
 use Illuminate\Support\Facades\Route;
 
@@ -94,6 +95,11 @@ Route::prefix('v1')->group(function (): void {
 
             // Facturación SaaS del estudio (control plane; separada de pagos de alumnos).
             Route::get('/facturacion', [FacturacionController::class, 'show'])->name('api.v1.app.facturacion');
+
+            // Onboarding (guardar y continuar) y publicación en el directorio.
+            Route::get('/onboarding', [OnboardingController::class, 'show'])->name('api.v1.app.onboarding.show');
+            Route::put('/onboarding', [OnboardingController::class, 'guardar'])->name('api.v1.app.onboarding.guardar');
+            Route::put('/publicacion', [OnboardingController::class, 'publicacion'])->name('api.v1.app.publicacion');
         });
     });
 

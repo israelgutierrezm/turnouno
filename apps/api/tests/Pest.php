@@ -196,3 +196,48 @@ function participanteConDerecho(Tenant $tenant, int $unidades = 8000, bool $ilim
 
     return ['persona' => $persona, 'derecho' => $derecho];
 }
+
+/*
+| Helpers del control plane (multi-tenant por BD).
+*/
+
+/**
+ * Registra, aprovisiona, activa e inicia sesión en un estudio; devuelve su slug y
+ * un bearer token tenant-local.
+ *
+ * @return array{slug: string, bearer: string}
+ */
+function estudioConSesion(string $slug, string $email): array
+{
+    $r = test()->postJson('/api/v1/registro', [
+        'nombre' => 'Estudio '.$slug,
+        'slug' => $slug,
+        'contacto_nombre' => 'Dueño',
+        'contacto_email' => $email,
+        'acepta_terminos' => true,
+    ])->assertCreated();
+
+    $slug = (string) $r->json('data.estudio.slug');
+    $token = (string) $r->json('data.activacion.token');
+
+    test()->postJson("/api/v1/app/{$slug}/activar", [
+        'email' => $email, 'token' => $token,
+        'password' => 'secreto123', 'password_confirmation' => 'secreto123',
+    ])->assertCreated();
+
+    $bearer = (string) test()->postJson("/api/v1/app/{$slug}/login", [
+        'email' => $email, 'password' => 'secreto123',
+    ])->assertOk()->json('data.token');
+
+    return ['slug' => $slug, 'bearer' => $bearer];
+}
+
+/**
+ * Cabecera Authorization con un bearer tenant-local.
+ *
+ * @return array<string, string>
+ */
+function conBearer(string $bearer): array
+{
+    return ['Authorization' => "Bearer {$bearer}"];
+}

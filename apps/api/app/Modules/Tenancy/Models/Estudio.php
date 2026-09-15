@@ -45,6 +45,8 @@ class Estudio extends Model
         'db_driver',
         'db_database',
         'version_migraciones',
+        'onboarding_pasos',
+        'onboarding_completo',
     ];
 
     /**
@@ -59,6 +61,8 @@ class Estudio extends Model
         'trial_inicia_en' => 'date',
         'trial_termina_en' => 'date',
         'precio_por_alumno_minor' => 'integer',
+        'onboarding_pasos' => 'array',
+        'onboarding_completo' => 'boolean',
     ];
 
     /**
