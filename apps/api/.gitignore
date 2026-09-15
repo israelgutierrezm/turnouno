@@ -22,3 +22,6 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Bases de datos por tenant (data plane) generadas en runtime
+/storage/tenants

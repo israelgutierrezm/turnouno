@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Tenancy;
 
 use App\Modules\Tenancy\Context\TenantContext;
+use App\Modules\Tenancy\Database\GestorDeConexionTenant;
 use App\Modules\Tenancy\Models\Tenant;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
@@ -20,6 +21,10 @@ class TenancyServiceProvider extends ServiceProvider
     {
         // One tenant context per request/job lifecycle.
         $this->app->scoped(TenantContext::class);
+
+        // Gestor de conexión del data plane: un estado activo por request/job para
+        // que no se filtre la conexión de un tenant a otro (control plane nuevo).
+        $this->app->scoped(GestorDeConexionTenant::class);
     }
 
     public function boot(): void

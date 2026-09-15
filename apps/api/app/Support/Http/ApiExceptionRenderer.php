@@ -8,6 +8,7 @@ use App\Modules\Creditos\Exceptions\SaldoInsuficiente;
 use App\Modules\Ordenes\Exceptions\OrdenException;
 use App\Modules\Pagos\Exceptions\PagoException;
 use App\Modules\Reservas\Exceptions\ReservaException;
+use App\Modules\Tenancy\Exceptions\TenancyException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -74,6 +75,11 @@ class ApiExceptionRenderer
             $e instanceof OrdenException => $this->make(
                 $e->codigo(),
                 $e->getMessage() !== '' ? $e->getMessage() : 'No se pudo crear la orden.',
+                $e->estadoHttp(),
+            ),
+            $e instanceof TenancyException => $this->make(
+                $e->codigo(),
+                $e->getMessage() !== '' ? $e->getMessage() : 'No se pudo completar la operación de tenancy.',
                 $e->estadoHttp(),
             ),
             default => $this->generic($e),

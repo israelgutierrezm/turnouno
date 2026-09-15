@@ -86,6 +86,28 @@ return [
             ]) : [],
         ],
 
+        /*
+        | Plantilla de conexión por tenant (data plane). El GestorDeConexionTenant
+        | reescribe `database` (y driver/host cuando aplica) en tiempo de ejecución
+        | según la configuración guardada en el control plane para cada estudio.
+        | En dev/test cada tenant es un archivo SQLite (aislamiento físico simple);
+        | en producción se apunta a una base MySQL por tenant con el mismo contrato.
+        */
+        'tenant' => [
+            'driver' => env('TENANT_DB_DRIVER', 'sqlite'),
+            'url' => null,
+            'database' => storage_path('tenants/_plantilla.sqlite'),
+            'host' => env('TENANT_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('TENANT_DB_PORT', env('DB_PORT', '3306')),
+            'username' => env('TENANT_DB_USERNAME', env('DB_USERNAME', 'root')),
+            'password' => env('TENANT_DB_PASSWORD', env('DB_PASSWORD', '')),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'foreign_key_constraints' => true,
+            'engine' => 'InnoDB',
+        ],
+
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DB_URL'),

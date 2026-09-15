@@ -44,6 +44,9 @@ use App\Modules\Portal\Http\Controllers\PerfilController as PortalPerfilControll
 use App\Modules\Recursos\Http\Controllers\InstalacionController;
 use App\Modules\Recursos\Http\Controllers\RecursoController;
 use App\Modules\Reservas\Http\Controllers\ReservaController;
+use App\Modules\Tenancy\Http\Controllers\AuthTenantController;
+use App\Modules\Tenancy\Http\Controllers\DirectorioController;
+use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -64,6 +67,26 @@ Route::prefix('v1')->group(function (): void {
     Route::post('/webhooks/stripe', WebhookStripeController::class)->name('api.v1.webhooks.stripe');
     Route::post('/webhooks/openpay', WebhookOpenPayController::class)->name('api.v1.webhooks.openpay');
     Route::post('/webhooks/mercadopago/{tenant}', WebhookMercadoPagoController::class)->name('api.v1.webhooks.mercadopago');
+
+    /*
+    | Control plane (SaaS multi-tenant por BD). Alta pública de estudios y
+    | directorio (sin tenant), y acceso tenant-local resuelto por slug: la
+    | identidad vive en la BD de cada estudio (no hay login global ni selector
+    | de tenant tras el login). Ver docs/CONTROL_PLANE.md.
+    */
+    Route::post('/registro', [RegistroEstudioController::class, 'store'])->middleware('throttle:login')->name('api.v1.registro');
+    Route::get('/registro/slug', [RegistroEstudioController::class, 'disponibilidad'])->middleware('throttle:60,1')->name('api.v1.registro.slug');
+    Route::get('/directorio', [DirectorioController::class, 'index'])->middleware('throttle:60,1')->name('api.v1.directorio');
+
+    Route::prefix('app/{estudio}')->middleware('estudio.resolver')->group(function (): void {
+        Route::post('/login', [AuthTenantController::class, 'store'])->middleware('throttle:login')->name('api.v1.app.login');
+        Route::post('/activar', [AuthTenantController::class, 'activar'])->middleware('throttle:login')->name('api.v1.app.activar');
+
+        Route::middleware('estudio.auth')->group(function (): void {
+            Route::get('/yo', [AuthTenantController::class, 'yo'])->name('api.v1.app.yo');
+            Route::post('/logout', [AuthTenantController::class, 'destroy'])->name('api.v1.app.logout');
+        });
+    });
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::delete('/auth/token', [TokenController::class, 'destroy'])->name('api.v1.auth.token.destroy');

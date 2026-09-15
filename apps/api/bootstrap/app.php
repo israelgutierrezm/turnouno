@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\CorrelationId;
+use App\Modules\Tenancy\Http\Middleware\AutenticarTenant;
 use App\Modules\Tenancy\Http\Middleware\EnsureTenantContext;
+use App\Modules\Tenancy\Http\Middleware\ResolverEstudio;
 use App\Modules\Tenancy\Http\Middleware\ResolveTenantContext;
 use App\Support\Http\ApiExceptionRenderer;
 use Illuminate\Auth\Middleware\Authorize;
@@ -40,6 +42,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant.resolve' => ResolveTenantContext::class,
             'tenant.require' => EnsureTenantContext::class,
+            // Control plane nuevo (identidad tenant-local por BD): resuelve el
+            // estudio por slug y autentica contra su propia base.
+            'estudio.resolver' => ResolverEstudio::class,
+            'estudio.auth' => AutenticarTenant::class,
         ]);
 
         // Resolve the tenant (and its query scope) BEFORE route-model binding,
