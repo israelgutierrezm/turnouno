@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Tenancy\Models;
 
+use App\Modules\Tenancy\Application\CatalogoDePermisosTenant;
 use App\Support\Concerns\HasPublicId;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -23,7 +24,15 @@ class Usuario extends Authenticatable
 
     protected $table = 'users';
 
-    protected $fillable = ['name', 'email', 'password', 'google_id', 'activo', 'activation_token'];
+    protected $fillable = ['name', 'email', 'password', 'google_id', 'activo', 'activation_token', 'rol'];
+
+    /**
+     * ¿El usuario tiene el permiso dado según su rol tenant-local?
+     */
+    public function puede(string $permiso): bool
+    {
+        return CatalogoDePermisosTenant::puede((string) $this->rol, $permiso);
+    }
 
     /**
      * @var list<string>

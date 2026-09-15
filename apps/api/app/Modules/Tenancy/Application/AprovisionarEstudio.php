@@ -40,7 +40,7 @@ class AprovisionarEstudio
         $this->gestor->ejecutarEn($estudio, function () use ($estudio): void {
             Usuario::query()->firstOrCreate(
                 ['email' => $estudio->contacto_email],
-                ['name' => $estudio->contacto_nombre, 'password' => null, 'activo' => false],
+                ['name' => $estudio->contacto_nombre, 'password' => null, 'activo' => false, 'rol' => 'propietario'],
             );
             // Roles/permisos canónicos tenant-local: fase posterior (migración de Authorization).
         });

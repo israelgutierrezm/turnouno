@@ -54,6 +54,7 @@ use App\Modules\Tenancy\Http\Controllers\OnboardingController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
 use App\Modules\Tenancy\Http\Controllers\RespuestasFormularioController;
 use App\Modules\Tenancy\Http\Controllers\TiposDocumentoController;
+use App\Modules\Tenancy\Http\Controllers\UsuariosTenantController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -93,35 +94,38 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/yo', [AuthTenantController::class, 'yo'])->name('api.v1.app.yo');
             Route::post('/logout', [AuthTenantController::class, 'destroy'])->name('api.v1.app.logout');
 
+            // Invitación de personal (crea usuario tenant-local con rol + activación).
+            Route::post('/usuarios/invitar', [UsuariosTenantController::class, 'invitar'])->middleware('puede:usuarios.invitar')->name('api.v1.app.usuarios.invitar');
+
             // Operación tenant-local: alta de alumnos (data plane del estudio).
-            Route::get('/miembros', [MiembrosTenantController::class, 'index'])->name('api.v1.app.miembros.index');
-            Route::post('/miembros', [MiembrosTenantController::class, 'store'])->name('api.v1.app.miembros.store');
+            Route::get('/miembros', [MiembrosTenantController::class, 'index'])->middleware('puede:miembros.ver')->name('api.v1.app.miembros.index');
+            Route::post('/miembros', [MiembrosTenantController::class, 'store'])->middleware('puede:miembros.gestionar')->name('api.v1.app.miembros.store');
 
             // Facturación SaaS del estudio (control plane; separada de pagos de alumnos).
-            Route::get('/facturacion', [FacturacionController::class, 'show'])->name('api.v1.app.facturacion');
+            Route::get('/facturacion', [FacturacionController::class, 'show'])->middleware('puede:facturacion.ver')->name('api.v1.app.facturacion');
 
             // Onboarding (guardar y continuar) y publicación en el directorio.
-            Route::get('/onboarding', [OnboardingController::class, 'show'])->name('api.v1.app.onboarding.show');
-            Route::put('/onboarding', [OnboardingController::class, 'guardar'])->name('api.v1.app.onboarding.guardar');
-            Route::put('/publicacion', [OnboardingController::class, 'publicacion'])->name('api.v1.app.publicacion');
+            Route::get('/onboarding', [OnboardingController::class, 'show'])->middleware('puede:estudio.gestionar')->name('api.v1.app.onboarding.show');
+            Route::put('/onboarding', [OnboardingController::class, 'guardar'])->middleware('puede:estudio.gestionar')->name('api.v1.app.onboarding.guardar');
+            Route::put('/publicacion', [OnboardingController::class, 'publicacion'])->middleware('puede:estudio.gestionar')->name('api.v1.app.publicacion');
 
             // Documentos: el admin define tipos requeridos; se cargan por persona y
             // el staff los valida (tenant-local, aislado).
-            Route::get('/tipos-documento', [TiposDocumentoController::class, 'index'])->name('api.v1.app.tipos-documento.index');
-            Route::post('/tipos-documento', [TiposDocumentoController::class, 'store'])->name('api.v1.app.tipos-documento.store');
-            Route::put('/tipos-documento/{tipo}', [TiposDocumentoController::class, 'update'])->name('api.v1.app.tipos-documento.update');
-            Route::get('/documentos', [DocumentosController::class, 'index'])->name('api.v1.app.documentos.index');
-            Route::post('/documentos', [DocumentosController::class, 'subir'])->name('api.v1.app.documentos.subir');
-            Route::get('/documentos/{documento}', [DocumentosController::class, 'ver'])->name('api.v1.app.documentos.ver');
-            Route::post('/documentos/{documento}/validar', [DocumentosController::class, 'validar'])->name('api.v1.app.documentos.validar');
+            Route::get('/tipos-documento', [TiposDocumentoController::class, 'index'])->middleware('puede:miembros.ver')->name('api.v1.app.tipos-documento.index');
+            Route::post('/tipos-documento', [TiposDocumentoController::class, 'store'])->middleware('puede:documentos.gestionar')->name('api.v1.app.tipos-documento.store');
+            Route::put('/tipos-documento/{tipo}', [TiposDocumentoController::class, 'update'])->middleware('puede:documentos.gestionar')->name('api.v1.app.tipos-documento.update');
+            Route::get('/documentos', [DocumentosController::class, 'index'])->middleware('puede:miembros.ver')->name('api.v1.app.documentos.index');
+            Route::post('/documentos', [DocumentosController::class, 'subir'])->middleware('puede:documentos.subir')->name('api.v1.app.documentos.subir');
+            Route::get('/documentos/{documento}', [DocumentosController::class, 'ver'])->middleware('puede:miembros.ver')->name('api.v1.app.documentos.ver');
+            Route::post('/documentos/{documento}/validar', [DocumentosController::class, 'validar'])->middleware('puede:documentos.gestionar')->name('api.v1.app.documentos.validar');
 
             // Formularios dinámicos: el admin define formularios/campos; miembros e
             // instructores responden (validación dinámica). Tenant-local.
-            Route::get('/formularios', [FormulariosController::class, 'index'])->name('api.v1.app.formularios.index');
-            Route::post('/formularios', [FormulariosController::class, 'store'])->name('api.v1.app.formularios.store');
-            Route::post('/formularios/{formulario}/campos', [FormulariosController::class, 'agregarCampo'])->name('api.v1.app.formularios.campos');
-            Route::get('/formularios/{formulario}/respuestas', [RespuestasFormularioController::class, 'index'])->name('api.v1.app.formularios.respuestas.index');
-            Route::post('/formularios/{formulario}/respuestas', [RespuestasFormularioController::class, 'store'])->name('api.v1.app.formularios.respuestas.store');
+            Route::get('/formularios', [FormulariosController::class, 'index'])->middleware('puede:formularios.responder')->name('api.v1.app.formularios.index');
+            Route::post('/formularios', [FormulariosController::class, 'store'])->middleware('puede:formularios.gestionar')->name('api.v1.app.formularios.store');
+            Route::post('/formularios/{formulario}/campos', [FormulariosController::class, 'agregarCampo'])->middleware('puede:formularios.gestionar')->name('api.v1.app.formularios.campos');
+            Route::get('/formularios/{formulario}/respuestas', [RespuestasFormularioController::class, 'index'])->middleware('puede:formularios.gestionar')->name('api.v1.app.formularios.respuestas.index');
+            Route::post('/formularios/{formulario}/respuestas', [RespuestasFormularioController::class, 'store'])->middleware('puede:formularios.responder')->name('api.v1.app.formularios.respuestas.store');
         });
     });
 

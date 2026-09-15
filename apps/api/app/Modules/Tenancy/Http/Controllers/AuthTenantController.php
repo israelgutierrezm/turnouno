@@ -106,7 +106,7 @@ class AuthTenantController
      */
     private function presentarUsuario(Usuario $usuario): array
     {
-        return ['ulid' => $usuario->ulid, 'nombre' => $usuario->name, 'email' => $usuario->email];
+        return ['ulid' => $usuario->ulid, 'nombre' => $usuario->name, 'email' => $usuario->email, 'rol' => $usuario->rol];
     }
 
     /**
