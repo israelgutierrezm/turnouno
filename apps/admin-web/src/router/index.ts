@@ -70,6 +70,11 @@ const router = createRouter({
       component: () => import('@/views/AgendaView.vue'),
     },
     {
+      path: '/mi-agenda',
+      name: 'mi-agenda',
+      component: () => import('@/views/MiAgendaView.vue'),
+    },
+    {
       path: '/pasarelas',
       name: 'pasarelas',
       component: () => import('@/views/PasarelasView.vue'),

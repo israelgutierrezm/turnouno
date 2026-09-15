@@ -55,6 +55,9 @@ async function salir(): Promise<void> {
         <RouterLink to="/agenda" class="text-sm text-slate-600 hover:text-slate-900">
           {{ t('nav.agenda') }}
         </RouterLink>
+        <RouterLink to="/mi-agenda" class="text-sm text-slate-600 hover:text-slate-900">
+          {{ t('nav.miAgenda') }}
+        </RouterLink>
         <RouterLink to="/pasarelas" class="text-sm text-slate-600 hover:text-slate-900">
           {{ t('nav.pasarelas') }}
         </RouterLink>
