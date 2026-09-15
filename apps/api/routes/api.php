@@ -52,6 +52,7 @@ use App\Modules\Tenancy\Http\Controllers\FacturacionController;
 use App\Modules\Tenancy\Http\Controllers\FormulariosController;
 use App\Modules\Tenancy\Http\Controllers\MiembrosTenantController;
 use App\Modules\Tenancy\Http\Controllers\OnboardingController;
+use App\Modules\Tenancy\Http\Controllers\OrganizacionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
 use App\Modules\Tenancy\Http\Controllers\RespuestasFormularioController;
 use App\Modules\Tenancy\Http\Controllers\TiposDocumentoController;
@@ -136,6 +137,12 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/actividades/{actividad}/niveles', [CatalogoTenantController::class, 'crearNivel'])->middleware('puede:catalogo.gestionar')->name('api.v1.app.niveles.store');
             Route::post('/actividades/{actividad}/ofertas', [CatalogoTenantController::class, 'crearOferta'])->middleware('puede:catalogo.gestionar')->name('api.v1.app.ofertas.store');
             Route::get('/ofertas', [CatalogoTenantController::class, 'ofertas'])->middleware('puede:catalogo.ver')->name('api.v1.app.ofertas.index');
+
+            // Estructura del estudio (data plane del tenant): Organización → Sucursal.
+            Route::get('/organizaciones', [OrganizacionesTenantController::class, 'organizaciones'])->middleware('puede:organizaciones.ver')->name('api.v1.app.organizaciones.index');
+            Route::post('/organizaciones', [OrganizacionesTenantController::class, 'crearOrganizacion'])->middleware('puede:organizaciones.gestionar')->name('api.v1.app.organizaciones.store');
+            Route::post('/organizaciones/{organizacion}/sucursales', [OrganizacionesTenantController::class, 'crearSucursal'])->middleware('puede:sucursales.gestionar')->name('api.v1.app.sucursales.store');
+            Route::get('/sucursales', [OrganizacionesTenantController::class, 'sucursales'])->middleware('puede:sucursales.ver')->name('api.v1.app.sucursales.index');
         });
     });
 
