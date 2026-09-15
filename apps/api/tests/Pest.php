@@ -131,6 +131,14 @@ function crearSesion(Tenant $tenant, Sucursal $sucursal, Oferta $oferta, ?int $c
 }
 
 /**
+ * Devuelve la Persona vinculada a un usuario (su perfil de miembro).
+ */
+function personaDe(User $usuario): Persona
+{
+    return Persona::query()->withoutGlobalScope('tenant')->where('user_id', $usuario->id)->firstOrFail();
+}
+
+/**
  * Crea un tenant con su usuario propietario autenticable.
  *
  * @return array{tenant: Tenant, owner: User}

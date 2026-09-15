@@ -33,11 +33,6 @@ function ventanillaPendiente(User $owner, Persona $personaMiembro): array
     return ['pago' => $pago, 'persona' => $personaMiembro->ulid];
 }
 
-function personaDe(User $usuario): Persona
-{
-    return Persona::query()->withoutGlobalScope('tenant')->where('user_id', $usuario->id)->firstOrFail();
-}
-
 it('ventanilla: el miembro sube comprobante y el staff aprueba y concede el derecho', function (): void {
     Storage::fake('local');
     ['tenant' => $tenant, 'owner' => $owner] = tenantConDueno();

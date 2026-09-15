@@ -37,6 +37,10 @@ use App\Modules\Personas\Http\Controllers\DependientePersonaController;
 use App\Modules\Personas\Http\Controllers\PerfilPersonaController;
 use App\Modules\Personas\Http\Controllers\PersonaController;
 use App\Modules\Platform\Http\Controllers\HealthController;
+use App\Modules\Portal\Http\Controllers\AgendaController as PortalAgendaController;
+use App\Modules\Portal\Http\Controllers\CompraController as PortalCompraController;
+use App\Modules\Portal\Http\Controllers\PasarelaPublicaController;
+use App\Modules\Portal\Http\Controllers\PerfilController as PortalPerfilController;
 use App\Modules\Recursos\Http\Controllers\InstalacionController;
 use App\Modules\Recursos\Http\Controllers\RecursoController;
 use App\Modules\Reservas\Http\Controllers\ReservaController;
@@ -136,6 +140,15 @@ Route::prefix('v1')->group(function (): void {
                 Route::get('/sesiones/{sesion}/reservas', [ReservaController::class, 'index'])->name('api.v1.sesiones.reservas.index');
                 Route::post('/sesiones/{sesion}/reservas', [ReservaController::class, 'store'])->name('api.v1.sesiones.reservas.store');
                 Route::post('/reservas/{reserva}/cancelar', [ReservaController::class, 'cancelar'])->name('api.v1.reservas.cancelar');
+
+                // Portal del miembro (self-service): opera sobre la persona del usuario.
+                Route::get('/mi/perfil', [PortalPerfilController::class, 'show'])->name('api.v1.mi.perfil');
+                Route::get('/mi/agenda', [PortalAgendaController::class, 'index'])->name('api.v1.mi.agenda');
+                Route::post('/mi/reservas', [PortalAgendaController::class, 'reservar'])->name('api.v1.mi.reservas.store');
+                Route::get('/mi/productos', [PortalCompraController::class, 'productos'])->name('api.v1.mi.productos');
+                Route::post('/mi/ordenes', [PortalCompraController::class, 'crearOrden'])->name('api.v1.mi.ordenes.store');
+                Route::post('/mi/ordenes/{orden}/pagos', [PortalCompraController::class, 'pagar'])->name('api.v1.mi.ordenes.pagos.store');
+                Route::get('/mi/pasarelas', [PasarelaPublicaController::class, 'index'])->name('api.v1.mi.pasarelas');
                 Route::post('/reservas/{reserva}/asistencia', [AsistenciaController::class, 'store'])->name('api.v1.reservas.asistencia.store');
 
                 // Recursos: Sucursal → Instalación → Recurso (jerárquico).
