@@ -44,6 +44,7 @@ use App\Modules\Portal\Http\Controllers\PerfilController as PortalPerfilControll
 use App\Modules\Recursos\Http\Controllers\InstalacionController;
 use App\Modules\Recursos\Http\Controllers\RecursoController;
 use App\Modules\Reservas\Http\Controllers\ReservaController;
+use App\Modules\Tenancy\Http\Controllers\AgendaTenantController;
 use App\Modules\Tenancy\Http\Controllers\AuthTenantController;
 use App\Modules\Tenancy\Http\Controllers\CatalogoTenantController;
 use App\Modules\Tenancy\Http\Controllers\DirectorioController;
@@ -143,6 +144,13 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/organizaciones', [OrganizacionesTenantController::class, 'crearOrganizacion'])->middleware('puede:organizaciones.gestionar')->name('api.v1.app.organizaciones.store');
             Route::post('/organizaciones/{organizacion}/sucursales', [OrganizacionesTenantController::class, 'crearSucursal'])->middleware('puede:sucursales.gestionar')->name('api.v1.app.sucursales.store');
             Route::get('/sucursales', [OrganizacionesTenantController::class, 'sucursales'])->middleware('puede:sucursales.ver')->name('api.v1.app.sucursales.index');
+
+            // Agenda (data plane del tenant): materializa una Oferta en una Sucursal
+            // a una hora concreta. La hora local (zona de la sucursal) se guarda en UTC
+            // con snapshot de zona.
+            Route::get('/sesiones', [AgendaTenantController::class, 'sesiones'])->middleware('puede:agenda.ver')->name('api.v1.app.sesiones.index');
+            Route::post('/sesiones', [AgendaTenantController::class, 'crearSesion'])->middleware('puede:agenda.gestionar')->name('api.v1.app.sesiones.store');
+            Route::post('/sesiones/{sesion}/cancelar', [AgendaTenantController::class, 'cancelar'])->middleware('puede:agenda.gestionar')->name('api.v1.app.sesiones.cancelar');
         });
     });
 

@@ -25,15 +25,16 @@ class CatalogoDePermisosTenant
                 'catalogo.ver', 'catalogo.gestionar',
                 'organizaciones.ver', 'organizaciones.gestionar',
                 'sucursales.ver', 'sucursales.gestionar',
+                'agenda.ver', 'agenda.gestionar',
                 'facturacion.ver', 'usuarios.invitar',
             ],
             'recepcionista' => [
                 'miembros.gestionar', 'miembros.ver', 'documentos.subir', 'formularios.responder',
-                'catalogo.ver', 'organizaciones.ver', 'sucursales.ver',
+                'catalogo.ver', 'organizaciones.ver', 'sucursales.ver', 'agenda.ver',
             ],
             'instructor' => [
                 'miembros.ver', 'documentos.subir', 'formularios.responder', 'catalogo.ver',
-                'sucursales.ver',
+                'sucursales.ver', 'agenda.ver',
             ],
             'miembro' => [
                 'formularios.responder',
