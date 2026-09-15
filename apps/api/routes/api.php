@@ -28,6 +28,8 @@ use App\Modules\Organizaciones\Http\Controllers\SucursalController;
 use App\Modules\Pagos\Http\Controllers\ConfiguracionPasarelaController;
 use App\Modules\Pagos\Http\Controllers\PagoController;
 use App\Modules\Pagos\Http\Controllers\VentanillaController;
+use App\Modules\Pagos\Http\Controllers\WebhookMercadoPagoController;
+use App\Modules\Pagos\Http\Controllers\WebhookOpenPayController;
 use App\Modules\Pagos\Http\Controllers\WebhookPagoController;
 use App\Modules\Pagos\Http\Controllers\WebhookStripeController;
 use App\Modules\Personas\Http\Controllers\DependientePersonaController;
@@ -55,6 +57,8 @@ Route::prefix('v1')->group(function (): void {
     // proveedor debe verificarse antes de producción.
     Route::post('/webhooks/pagos/{proveedor}', WebhookPagoController::class)->name('api.v1.webhooks.pagos');
     Route::post('/webhooks/stripe', WebhookStripeController::class)->name('api.v1.webhooks.stripe');
+    Route::post('/webhooks/openpay', WebhookOpenPayController::class)->name('api.v1.webhooks.openpay');
+    Route::post('/webhooks/mercadopago/{tenant}', WebhookMercadoPagoController::class)->name('api.v1.webhooks.mercadopago');
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::delete('/auth/token', [TokenController::class, 'destroy'])->name('api.v1.auth.token.destroy');

@@ -43,4 +43,15 @@ enum ProveedorPasarela: string
     {
         return in_array($this->value, self::enLinea(), true);
     }
+
+    /**
+     * Proveedores con webhook firmado propio: NO se confirman por el webhook
+     * genérico (obligaría a saltarse la verificación).
+     *
+     * @return list<string>
+     */
+    public static function conWebhookFirmado(): array
+    {
+        return [self::Stripe->value, self::OpenPay->value, self::MercadoPago->value];
+    }
 }

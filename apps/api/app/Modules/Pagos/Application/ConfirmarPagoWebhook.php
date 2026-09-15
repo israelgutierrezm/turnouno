@@ -7,7 +7,9 @@ namespace App\Modules\Pagos\Application;
 use App\Modules\Ordenes\EstadoOrden;
 use App\Modules\Ordenes\Models\Orden;
 use App\Modules\Pagos\EstadoPago;
+use App\Modules\Pagos\Models\ConfiguracionPasarela;
 use App\Modules\Pagos\Models\Pago;
+use App\Modules\Pagos\ProveedorPasarela;
 use App\Modules\Tenancy\Context\TenantContext;
 use App\Modules\Tenancy\Models\Tenant;
 use Illuminate\Support\Facades\DB;
@@ -42,17 +44,21 @@ class ConfirmarPagoWebhook
             return; // Referencia desconocida: se ignora.
         }
 
-        // Stripe tiene su propio webhook con verificación de firma: NO puede
-        // confirmarse por este endpoint genérico (sería saltarse la firma).
-        if ($pago->proveedor === 'stripe') {
-            return;
-        }
-
         $tenant = Tenant::query()->find($pago->tenant_id);
         if ($tenant === null) {
             return;
         }
         $this->contexto->set($tenant);
+
+        // Un proveedor con webhook firmado propio, si está configurado con llaves
+        // reales, NO se confirma por este endpoint genérico (sería saltarse la
+        // firma). Sin llaves (demo/simulado) sí se permite.
+        if (in_array($pago->proveedor, ProveedorPasarela::conWebhookFirmado(), true)) {
+            $config = ConfiguracionPasarela::query()->where('proveedor', $pago->proveedor)->first();
+            if ($config !== null && $config->llaves() !== []) {
+                return;
+            }
+        }
 
         DB::transaction(function () use ($pago, $referencia, $estado): void {
             $bloqueado = Pago::query()->whereKey($pago->getKey())->lockForUpdate()->firstOrFail();
