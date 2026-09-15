@@ -13,6 +13,26 @@ interface Miembro {
   perfiles: string[]
 }
 
+interface Relacion {
+  id: string
+  nombre: string
+}
+
+interface PersonaDetalle extends Miembro {
+  fecha_nacimiento: string | null
+  hogar: Relacion | null
+  tutores: Relacion[]
+  dependientes: Relacion[]
+}
+
+interface DerechoItem {
+  id: string
+  producto: string
+  ilimitado: boolean
+  saldo_creditos: number
+  disponible_creditos: number
+}
+
 const { t } = useI18n()
 const auth = useAuthStore()
 
@@ -23,7 +43,12 @@ const email = ref('')
 const cargando = ref(false)
 const error = ref<string | null>(null)
 
+const detalle = ref<PersonaDetalle | null>(null)
+const derechos = ref<DerechoItem[]>([])
+const cargandoDetalle = ref(false)
+
 const puedeCrear = computed(() => auth.puede('miembros.crear'))
+const puedeVerDerechos = computed(() => auth.puede('membresias.ver'))
 
 async function cargar(): Promise<void> {
   cargando.value = true
@@ -51,6 +76,28 @@ async function crear(): Promise<void> {
   } catch {
     error.value = t('miembros.errorCrear')
   }
+}
+
+async function verDetalle(id: string): Promise<void> {
+  cargandoDetalle.value = true
+  derechos.value = []
+  try {
+    const { data } = await api.get<{ data: PersonaDetalle }>(`/api/v1/personas/${id}`)
+    detalle.value = data.data
+    if (puedeVerDerechos.value) {
+      const resp = await api.get<{ data: DerechoItem[] }>(`/api/v1/personas/${id}/derechos`)
+      derechos.value = resp.data.data
+    }
+  } catch {
+    error.value = t('miembros.errorDetalle')
+  } finally {
+    cargandoDetalle.value = false
+  }
+}
+
+function cerrarDetalle(): void {
+  detalle.value = null
+  derechos.value = []
 }
 
 onMounted(() => void cargar())
@@ -87,17 +134,78 @@ onMounted(() => void cargar())
 
     <p v-if="error" class="text-sm text-red-700">{{ error }}</p>
 
-    <div v-if="cargando" class="text-sm text-slate-500">{{ t('comun.cargando') }}</div>
-    <p v-else-if="miembros.length === 0" class="text-sm text-slate-500">{{ t('miembros.vacio') }}</p>
-    <ul v-else class="divide-y rounded-lg border border-slate-200 bg-white">
-      <li
-        v-for="miembro in miembros"
-        :key="miembro.id"
-        class="flex items-center justify-between px-4 py-3 text-sm"
-      >
-        <span class="font-medium">{{ miembro.nombre }} {{ miembro.apellidos }}</span>
-        <span class="text-slate-500">{{ miembro.email }}</span>
-      </li>
-    </ul>
+    <div class="grid gap-6 lg:grid-cols-2">
+      <!-- Lista -->
+      <div>
+        <div v-if="cargando" class="text-sm text-slate-500">{{ t('comun.cargando') }}</div>
+        <p v-else-if="miembros.length === 0" class="text-sm text-slate-500">{{ t('miembros.vacio') }}</p>
+        <ul v-else class="divide-y rounded-lg border border-slate-200 bg-white">
+          <li v-for="miembro in miembros" :key="miembro.id">
+            <button
+              class="flex w-full items-center justify-between px-4 py-3 text-left text-sm hover:bg-slate-50"
+              :class="detalle?.id === miembro.id ? 'bg-slate-50' : ''"
+              @click="verDetalle(miembro.id)"
+            >
+              <span class="font-medium">{{ miembro.nombre }} {{ miembro.apellidos }}</span>
+              <span class="text-slate-500">{{ miembro.email }}</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Detalle -->
+      <div v-if="detalle" class="space-y-3 rounded-lg border border-slate-200 bg-white p-4 text-sm">
+        <div class="flex items-start justify-between">
+          <h3 class="text-base font-semibold">{{ detalle.nombre }} {{ detalle.apellidos }}</h3>
+          <button class="text-xs text-slate-500 hover:text-slate-800" @click="cerrarDetalle">
+            {{ t('miembros.cerrar') }}
+          </button>
+        </div>
+        <p v-if="cargandoDetalle" class="text-slate-500">{{ t('comun.cargando') }}</p>
+        <template v-else>
+          <dl class="space-y-1">
+            <div class="flex justify-between gap-2">
+              <dt class="text-slate-500">{{ t('miembros.email') }}</dt>
+              <dd>{{ detalle.email ?? '—' }}</dd>
+            </div>
+            <div class="flex justify-between gap-2">
+              <dt class="text-slate-500">{{ t('miembros.fechaNacimiento') }}</dt>
+              <dd>{{ detalle.fecha_nacimiento ?? '—' }}</dd>
+            </div>
+            <div class="flex justify-between gap-2">
+              <dt class="text-slate-500">{{ t('miembros.perfiles') }}</dt>
+              <dd>{{ detalle.perfiles.join(', ') || '—' }}</dd>
+            </div>
+            <div class="flex justify-between gap-2">
+              <dt class="text-slate-500">{{ t('miembros.hogar') }}</dt>
+              <dd>{{ detalle.hogar?.nombre ?? '—' }}</dd>
+            </div>
+          </dl>
+
+          <div v-if="detalle.tutores.length > 0">
+            <p class="text-xs font-medium text-slate-500">{{ t('miembros.tutores') }}</p>
+            <p>{{ detalle.tutores.map((x) => x.nombre).join(', ') }}</p>
+          </div>
+          <div v-if="detalle.dependientes.length > 0">
+            <p class="text-xs font-medium text-slate-500">{{ t('miembros.dependientes') }}</p>
+            <p>{{ detalle.dependientes.map((x) => x.nombre).join(', ') }}</p>
+          </div>
+
+          <div v-if="puedeVerDerechos" class="border-t border-slate-100 pt-2">
+            <p class="text-xs font-medium text-slate-500">{{ t('miembros.derechos') }}</p>
+            <p v-if="derechos.length === 0" class="text-xs text-slate-400">{{ t('miembros.sinDerechos') }}</p>
+            <ul v-else class="mt-1 space-y-1">
+              <li v-for="derecho in derechos" :key="derecho.id" class="flex justify-between gap-2">
+                <span>{{ derecho.producto }}</span>
+                <span class="text-slate-500">
+                  <template v-if="derecho.ilimitado">{{ t('miembros.ilimitado') }}</template>
+                  <template v-else>{{ t('miembros.disponible') }}: {{ derecho.disponible_creditos }}</template>
+                </span>
+              </li>
+            </ul>
+          </div>
+        </template>
+      </div>
+    </div>
   </section>
 </template>
