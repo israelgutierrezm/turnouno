@@ -30,10 +30,13 @@ class DerechoController
             ->orderBy('id')
             ->get();
 
+        // Saldos en 2 consultas agregadas en vez de 3 por derecho (F-17).
+        $proyeccion = $this->libro->proyeccion($derechos->pluck('id')->all());
+
         return response()->json([
-            'data' => $derechos->map(function (Derecho $derecho): array {
-                $saldo = $this->libro->saldo($derecho);
-                $disponible = $this->libro->disponible($derecho);
+            'data' => $derechos->map(function (Derecho $derecho) use ($proyeccion): array {
+                $saldo = $proyeccion[$derecho->id]['saldo'] ?? 0;
+                $disponible = $proyeccion[$derecho->id]['disponible'] ?? 0;
 
                 return [
                     'id' => $derecho->ulid,

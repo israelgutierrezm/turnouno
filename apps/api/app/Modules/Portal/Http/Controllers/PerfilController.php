@@ -40,14 +40,17 @@ class PerfilController
             ->orderBy('id', 'desc')
             ->get();
 
+        // Saldos en 2 consultas agregadas en vez de 3 por derecho (F-17).
+        $proyeccion = $this->libro->proyeccion($derechos->pluck('id')->all());
+
         return response()->json([
             'data' => [
                 'persona' => ['nombre' => trim($persona->nombre.' '.($persona->apellidos ?? ''))],
                 'derechos' => $derechos->map(fn (Derecho $derecho): array => [
                     'producto' => $derecho->acuerdo->producto->nombre,
                     'ilimitado' => $derecho->ilimitado,
-                    'saldo_creditos' => round($this->libro->saldo($derecho) / 1000, 3),
-                    'disponible_creditos' => round($this->libro->disponible($derecho) / 1000, 3),
+                    'saldo_creditos' => round(($proyeccion[$derecho->id]['saldo'] ?? 0) / 1000, 3),
+                    'disponible_creditos' => round(($proyeccion[$derecho->id]['disponible'] ?? 0) / 1000, 3),
                 ])->all(),
                 'reservas' => $reservas->map(fn (Reserva $reserva): array => [
                     'id' => $reserva->ulid,
