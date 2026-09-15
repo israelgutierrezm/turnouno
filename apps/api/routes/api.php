@@ -56,6 +56,7 @@ use App\Modules\Tenancy\Http\Controllers\FormulariosController;
 use App\Modules\Tenancy\Http\Controllers\MembresiasTenantController;
 use App\Modules\Tenancy\Http\Controllers\MiembrosTenantController;
 use App\Modules\Tenancy\Http\Controllers\OnboardingController;
+use App\Modules\Tenancy\Http\Controllers\OrdenesTenantController;
 use App\Modules\Tenancy\Http\Controllers\OrganizacionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
 use App\Modules\Tenancy\Http\Controllers\ReservasTenantController;
@@ -180,6 +181,14 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/sesiones/{sesion}/reservas', [ReservasTenantController::class, 'reservar'])->middleware('puede:reservas.gestionar')->name('api.v1.app.sesiones.reservas.store');
             Route::post('/reservas/{reserva}/cancelar', [ReservasTenantController::class, 'cancelar'])->middleware('puede:reservas.gestionar')->name('api.v1.app.reservas.cancelar');
             Route::post('/reservas/{reserva}/asistencia', [AsistenciaTenantController::class, 'marcar'])->middleware('puede:asistencia.marcar')->name('api.v1.app.reservas.asistencia.store');
+
+            // Ordenes (comercio del tenant): orden pendiente (precio congelado) →
+            // liquidacion manual/ventanilla → fulfillment (concesion de derechos). El
+            // cobro con pasarela real es un modulo posterior (cuando haya llaves).
+            Route::get('/ordenes', [OrdenesTenantController::class, 'index'])->middleware('puede:ordenes.ver')->name('api.v1.app.ordenes.index');
+            Route::post('/ordenes', [OrdenesTenantController::class, 'crear'])->middleware('puede:ordenes.gestionar')->name('api.v1.app.ordenes.store');
+            Route::get('/ordenes/{orden}', [OrdenesTenantController::class, 'show'])->middleware('puede:ordenes.ver')->name('api.v1.app.ordenes.show');
+            Route::post('/ordenes/{orden}/liquidar', [OrdenesTenantController::class, 'liquidar'])->middleware('puede:ordenes.gestionar')->name('api.v1.app.ordenes.liquidar');
         });
     });
 

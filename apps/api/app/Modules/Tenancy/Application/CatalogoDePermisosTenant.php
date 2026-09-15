@@ -29,6 +29,7 @@ class CatalogoDePermisosTenant
                 'productos.ver', 'productos.gestionar',
                 'membresias.gestionar', 'creditos.gestionar', 'derechos.ver',
                 'reservas.ver', 'reservas.gestionar', 'asistencia.marcar',
+                'ordenes.ver', 'ordenes.gestionar',
                 'facturacion.ver', 'usuarios.invitar',
             ],
             'recepcionista' => [
@@ -36,6 +37,7 @@ class CatalogoDePermisosTenant
                 'catalogo.ver', 'organizaciones.ver', 'sucursales.ver', 'agenda.ver',
                 'productos.ver', 'membresias.gestionar', 'creditos.gestionar', 'derechos.ver',
                 'reservas.ver', 'reservas.gestionar', 'asistencia.marcar',
+                'ordenes.ver', 'ordenes.gestionar',
             ],
             'instructor' => [
                 'miembros.ver', 'documentos.subir', 'formularios.responder', 'catalogo.ver',
