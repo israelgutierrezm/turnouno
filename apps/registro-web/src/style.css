@@ -179,3 +179,21 @@ body {
 .tu-enlace:hover {
   text-decoration: underline;
 }
+
+.tu-nav-link {
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.6rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--texto-suave);
+  white-space: nowrap;
+  text-decoration: none;
+}
+.tu-nav-link:hover {
+  background: var(--superficie-2);
+  color: var(--texto);
+}
+.tu-nav-link.router-link-active {
+  background: var(--primario-suave);
+  color: var(--primario-fuerte);
+}

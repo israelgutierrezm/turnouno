@@ -1,30 +1,74 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import { computed } from 'vue'
+import { RouterLink, RouterView, useRouter } from 'vue-router'
 
+import { useSesionTenantStore } from '@/stores/sesionTenant'
 import { useTemaStore } from '@/stores/tema'
 
 const tema = useTemaStore()
+const sesion = useSesionTenantStore()
+const router = useRouter()
 
 // Aplica el tema y la densidad guardados (contexto con Pinia ya activo).
 tema.inicializar()
+
+interface Enlace {
+  nombre: string
+  etiqueta: string
+  permiso?: string
+}
+
+const ENLACES: Enlace[] = [
+  { nombre: 'panel', etiqueta: 'nav.panel' },
+  { nombre: 'miembros', etiqueta: 'nav.miembros', permiso: 'miembros.ver' },
+]
+
+const enlaces = computed(() =>
+  ENLACES.filter((e) => e.permiso === undefined || sesion.puede(e.permiso)),
+)
+
+async function salir(): Promise<void> {
+  await sesion.cerrarSesion()
+  void router.push({ name: 'inicio' })
+}
 </script>
 
 <template>
   <div class="min-h-screen flex flex-col">
     <header class="border-b" :style="{ borderColor: 'var(--borde)', background: 'var(--superficie)' }">
       <div class="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between gap-4">
-        <RouterLink :to="{ name: 'inicio' }" class="flex items-center gap-2 font-bold text-lg">
-          <span
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-white"
-            :style="{ background: 'var(--primario)' }"
-            aria-hidden="true"
-            >T</span
+        <div class="flex items-center gap-4 min-w-0">
+          <RouterLink
+            :to="sesion.autenticado ? { name: 'panel' } : { name: 'inicio' }"
+            class="flex items-center gap-2 font-bold text-lg shrink-0"
           >
-          <span>{{ $t('marca') }}</span>
-        </RouterLink>
+            <span
+              class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-white"
+              :style="{ background: 'var(--primario)' }"
+              aria-hidden="true"
+              >T</span
+            >
+            <span class="hidden sm:inline">{{ $t('marca') }}</span>
+          </RouterLink>
 
-        <nav class="flex items-center gap-1 sm:gap-2">
-          <RouterLink class="tu-btn tu-btn-fantasma hidden sm:inline-flex" :to="{ name: 'directorio' }">
+          <nav v-if="sesion.autenticado" class="flex items-center gap-1 overflow-x-auto">
+            <RouterLink
+              v-for="e in enlaces"
+              :key="e.nombre"
+              class="tu-nav-link"
+              :to="{ name: e.nombre }"
+            >
+              {{ $t(e.etiqueta) }}
+            </RouterLink>
+          </nav>
+        </div>
+
+        <nav class="flex items-center gap-1 sm:gap-2 shrink-0">
+          <RouterLink
+            v-if="!sesion.autenticado"
+            class="tu-btn tu-btn-fantasma hidden sm:inline-flex"
+            :to="{ name: 'directorio' }"
+          >
             {{ $t('nav.directorio') }}
           </RouterLink>
 
@@ -65,7 +109,10 @@ tema.inicializar()
             <span aria-hidden="true">{{ tema.esOscuro ? '☀' : '☾' }}</span>
           </button>
 
-          <RouterLink class="tu-btn tu-btn-primario" :to="{ name: 'registro' }">
+          <button v-if="sesion.autenticado" type="button" class="tu-btn tu-btn-fantasma" @click="salir">
+            {{ $t('panel.salir') }}
+          </button>
+          <RouterLink v-else class="tu-btn tu-btn-primario" :to="{ name: 'registro' }">
             {{ $t('nav.registrar') }}
           </RouterLink>
         </nav>

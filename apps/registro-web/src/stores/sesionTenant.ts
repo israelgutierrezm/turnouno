@@ -8,6 +8,7 @@ export interface UsuarioTenant {
   nombre: string
   email: string
   rol: string
+  permisos?: string[]
 }
 
 export interface EstudioSesion {
@@ -42,6 +43,12 @@ export const useSesionTenantStore = defineStore('sesionTenant', () => {
   const verificado = ref(false)
 
   const autenticado = computed(() => usuario.value !== null && bearer.value !== null)
+
+  /** RBAC de UI: el propietario (`*`) puede todo. El backend es la barrera real. */
+  function puede(permiso: string): boolean {
+    const permisos = usuario.value?.permisos ?? []
+    return permisos.includes('*') || permisos.includes(permiso)
+  }
 
   fijarBearer(bearer.value)
 
@@ -148,6 +155,7 @@ export const useSesionTenantStore = defineStore('sesionTenant', () => {
     cargando,
     error,
     autenticado,
+    puede,
     iniciarSesion,
     activar,
     cargarYo,

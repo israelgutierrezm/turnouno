@@ -6,6 +6,7 @@ namespace App\Modules\Tenancy\Http\Controllers;
 
 use App\Modules\Tenancy\Application\ActivacionPropietario;
 use App\Modules\Tenancy\Application\AutenticacionTenant;
+use App\Modules\Tenancy\Application\CatalogoDePermisosTenant;
 use App\Modules\Tenancy\Http\Requests\ActivarTenantRequest;
 use App\Modules\Tenancy\Http\Requests\LoginTenantRequest;
 use App\Modules\Tenancy\Models\Estudio;
@@ -106,7 +107,13 @@ class AuthTenantController
      */
     private function presentarUsuario(Usuario $usuario): array
     {
-        return ['ulid' => $usuario->ulid, 'nombre' => $usuario->name, 'email' => $usuario->email, 'rol' => $usuario->rol];
+        return [
+            'ulid' => $usuario->ulid,
+            'nombre' => $usuario->name,
+            'email' => $usuario->email,
+            'rol' => $usuario->rol,
+            'permisos' => CatalogoDePermisosTenant::roles()[(string) $usuario->rol] ?? [],
+        ];
     }
 
     /**
