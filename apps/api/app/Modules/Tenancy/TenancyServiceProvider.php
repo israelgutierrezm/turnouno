@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Tenancy;
 
+use App\Modules\Tenancy\Application\PoliticaAlumnosActivos;
+use App\Modules\Tenancy\Application\PoliticaAlumnosActivosV1;
 use App\Modules\Tenancy\Context\TenantContext;
 use App\Modules\Tenancy\Database\GestorDeConexionTenant;
 use App\Modules\Tenancy\Models\Tenant;
@@ -25,6 +27,10 @@ class TenancyServiceProvider extends ServiceProvider
         // Gestor de conexión del data plane: un estado activo por request/job para
         // que no se filtre la conexión de un tenant a otro (control plane nuevo).
         $this->app->scoped(GestorDeConexionTenant::class);
+
+        // Definición de "alumno activo" (versionada); intercambiable sin reescribir
+        // mediciones históricas.
+        $this->app->bind(PoliticaAlumnosActivos::class, PoliticaAlumnosActivosV1::class);
     }
 
     public function boot(): void

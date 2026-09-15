@@ -46,6 +46,8 @@ use App\Modules\Recursos\Http\Controllers\RecursoController;
 use App\Modules\Reservas\Http\Controllers\ReservaController;
 use App\Modules\Tenancy\Http\Controllers\AuthTenantController;
 use App\Modules\Tenancy\Http\Controllers\DirectorioController;
+use App\Modules\Tenancy\Http\Controllers\FacturacionController;
+use App\Modules\Tenancy\Http\Controllers\MiembrosTenantController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
 use Illuminate\Support\Facades\Route;
 
@@ -85,6 +87,13 @@ Route::prefix('v1')->group(function (): void {
         Route::middleware('estudio.auth')->group(function (): void {
             Route::get('/yo', [AuthTenantController::class, 'yo'])->name('api.v1.app.yo');
             Route::post('/logout', [AuthTenantController::class, 'destroy'])->name('api.v1.app.logout');
+
+            // Operación tenant-local: alta de alumnos (data plane del estudio).
+            Route::get('/miembros', [MiembrosTenantController::class, 'index'])->name('api.v1.app.miembros.index');
+            Route::post('/miembros', [MiembrosTenantController::class, 'store'])->name('api.v1.app.miembros.store');
+
+            // Facturación SaaS del estudio (control plane; separada de pagos de alumnos).
+            Route::get('/facturacion', [FacturacionController::class, 'show'])->name('api.v1.app.facturacion');
         });
     });
 
