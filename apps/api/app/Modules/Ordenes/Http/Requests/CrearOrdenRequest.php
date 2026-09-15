@@ -20,9 +20,10 @@ class CrearOrdenRequest extends FormRequest
     {
         return [
             'persona_id' => ['required', 'string'],
-            'items' => ['required', 'array', 'min:1'],
+            // F-18: límites de tamaño server-side para evitar fulfillment masivo.
+            'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.producto_id' => ['required', 'string'],
-            'items.*.cantidad' => ['nullable', 'integer', 'min:1'],
+            'items.*.cantidad' => ['nullable', 'integer', 'min:1', 'max:100'],
             'items.*.beneficiario_id' => ['nullable', 'string'],
         ];
     }

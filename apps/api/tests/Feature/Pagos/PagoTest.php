@@ -34,6 +34,36 @@ it('crea una orden pendiente con el total correcto', function (): void {
         ->assertJsonPath('data.moneda', 'MXN');
 });
 
+it('rechaza una orden que mezcla monedas (F-18)', function (): void {
+    ['owner' => $owner] = tenantConDueno();
+    Sanctum::actingAs($owner);
+
+    $mxn = crearProductoPack(); // MXN
+    $usd = $this->postJson('/api/v1/productos', [
+        'nombre' => 'Pase USD', 'tipo' => 'paquete', 'precio_minor' => 1000, 'moneda' => 'USD',
+        'ilimitado' => false, 'creditos_incluidos' => 1000,
+    ])->assertCreated()->json('data.id');
+    $persona = $this->postJson('/api/v1/personas', ['nombre' => 'Ana'])->assertCreated()->json('data.id');
+
+    $this->postJson('/api/v1/ordenes', [
+        'persona_id' => $persona,
+        'items' => [['producto_id' => $mxn], ['producto_id' => $usd]],
+    ])->assertStatus(422)->assertJsonPath('code', 'MIXED_CURRENCY');
+});
+
+it('limita la cantidad por item de una orden (F-18)', function (): void {
+    ['owner' => $owner] = tenantConDueno();
+    Sanctum::actingAs($owner);
+
+    $producto = crearProductoPack();
+    $persona = $this->postJson('/api/v1/personas', ['nombre' => 'Ana'])->assertCreated()->json('data.id');
+
+    $this->postJson('/api/v1/ordenes', [
+        'persona_id' => $persona,
+        'items' => [['producto_id' => $producto, 'cantidad' => 9999]],
+    ])->assertStatus(422);
+});
+
 it('cobra una orden (manual) y concede el derecho al comprador', function (): void {
     ['owner' => $owner] = tenantConDueno();
     Sanctum::actingAs($owner);

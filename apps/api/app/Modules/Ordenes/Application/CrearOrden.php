@@ -6,6 +6,7 @@ namespace App\Modules\Ordenes\Application;
 
 use App\Modules\Membresias\Models\ProductoComercial;
 use App\Modules\Ordenes\EstadoOrden;
+use App\Modules\Ordenes\Exceptions\MonedaMixta;
 use App\Modules\Ordenes\Models\Orden;
 use App\Modules\Pagos\Application\CobrarOrden;
 use App\Modules\Personas\Models\Persona;
@@ -23,8 +24,16 @@ class CrearOrden
      */
     public function ejecutar(Persona $comprador, array $items): Orden
     {
-        return DB::transaction(function () use ($comprador, $items): Orden {
-            $moneda = $items[0]['producto']->moneda; // MVP: una sola moneda por orden.
+        $moneda = $items[0]['producto']->moneda; // Una sola moneda por orden.
+
+        // F-18: rechazar mezcla de monedas antes de sumar importes incomparables.
+        foreach ($items as $item) {
+            if ($item['producto']->moneda !== $moneda) {
+                throw new MonedaMixta('Una orden no puede mezclar monedas.');
+            }
+        }
+
+        return DB::transaction(function () use ($comprador, $items, $moneda): Orden {
             $total = 0;
 
             $orden = Orden::create([
