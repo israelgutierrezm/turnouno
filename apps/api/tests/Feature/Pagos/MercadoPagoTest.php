@@ -46,6 +46,7 @@ function cobroMercadoPagoPendiente(): array
         'persona' => $persona,
         'pago' => $respuesta->json('data.id'),
         'referencia' => $respuesta->json('data.referencia'),
+        'url' => $respuesta->json('data.checkout.url'),
     ];
 }
 
@@ -67,9 +68,11 @@ function webhookMercadoPago(Tenant $tenant, string $dataId, string $secreto, ?st
 it('crea una preferencia real de Mercado Pago con el token del tenant', function (): void {
     configurarMercadoPago();
 
-    ['pago' => $pagoUlid, 'referencia' => $referencia] = cobroMercadoPagoPendiente();
+    ['pago' => $pagoUlid, 'referencia' => $referencia, 'url' => $url] = cobroMercadoPagoPendiente();
 
     expect($referencia)->toBe('pref_1');
+    // El cobro devuelve el init_point para redirigir al cliente.
+    expect($url)->toBe('http://mp/pay');
 
     Http::assertSent(function (Request $request) use ($pagoUlid): bool {
         return str_contains($request->url(), '/checkout/preferences')

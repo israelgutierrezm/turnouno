@@ -33,6 +33,9 @@ class PasarelaStripe extends PasarelaEnLinea
             $pago->metodo?->value,
         );
 
-        return ResultadoPago::pendiente($intent['id']);
+        return ResultadoPago::pendiente($intent['id'], [
+            'tipo' => 'client_secret',
+            'client_secret' => $intent['client_secret'],
+        ]);
     }
 }

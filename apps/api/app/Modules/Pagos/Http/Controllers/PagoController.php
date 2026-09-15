@@ -29,11 +29,17 @@ class PagoController
         $metodoValor = $request->validated('metodo');
         $metodo = is_string($metodoValor) && $metodoValor !== '' ? MetodoPago::from($metodoValor) : null;
 
+        $datosCliente = array_filter([
+            'card_token' => $request->validated('card_token'),
+            'device_session_id' => $request->validated('device_session_id'),
+        ], static fn ($valor): bool => is_string($valor) && $valor !== '');
+
         $pago = $cobrar->ejecutar(
             $orden,
             $pasarela,
             is_string($idempotencyKey) && $idempotencyKey !== '' ? $idempotencyKey : null,
             $metodo,
+            $datosCliente,
         );
 
         return response()->json([
@@ -43,6 +49,7 @@ class PagoController
                 'proveedor' => $pago->proveedor,
                 'referencia' => $pago->referencia_externa,
                 'orden_estado' => $orden->refresh()->estado->value,
+                'checkout' => $pago->checkout,
             ],
         ], 201);
     }

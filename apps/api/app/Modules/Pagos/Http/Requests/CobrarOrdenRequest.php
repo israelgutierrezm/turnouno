@@ -25,6 +25,9 @@ class CobrarOrdenRequest extends FormRequest
             'proveedor' => ['required', 'string', Rule::in(app(RegistroDePasarelas::class)->disponibles())],
             'metodo' => ['nullable', Rule::enum(MetodoPago::class)],
             'idempotency_key' => ['nullable', 'string', 'max:255'],
+            // Datos del cliente para tarjeta (tokenizada en el navegador).
+            'card_token' => ['nullable', 'string', 'max:255'],
+            'device_session_id' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

@@ -30,7 +30,7 @@ function stripeConfigurado(string $secret = 'sk_test_x', string $webhook = 'whse
 function cobroStripePendiente(string $intentId): array
 {
     Http::fake([
-        'api.stripe.com/*' => Http::response(['id' => $intentId, 'status' => 'requires_payment_method'], 200),
+        'api.stripe.com/*' => Http::response(['id' => $intentId, 'status' => 'requires_payment_method', 'client_secret' => $intentId.'_secret'], 200),
     ]);
 
     $producto = crearProductoPack();
@@ -40,12 +40,15 @@ function cobroStripePendiente(string $intentId): array
         'items' => [['producto_id' => $producto]],
     ])->assertCreated()->json('data.id');
 
-    $referencia = test()->postJson("/api/v1/ordenes/{$orden}/pagos", ['proveedor' => 'stripe', 'metodo' => 'tarjeta'])
+    $respuesta = test()->postJson("/api/v1/ordenes/{$orden}/pagos", ['proveedor' => 'stripe', 'metodo' => 'tarjeta'])
         ->assertCreated()
-        ->assertJsonPath('data.estado', 'pendiente')
-        ->json('data.referencia');
+        ->assertJsonPath('data.estado', 'pendiente');
 
-    return ['persona' => $persona, 'referencia' => $referencia];
+    return [
+        'persona' => $persona,
+        'referencia' => $respuesta->json('data.referencia'),
+        'clientSecret' => $respuesta->json('data.checkout.client_secret'),
+    ];
 }
 
 function firmaStripe(string $cuerpo, string $secreto): string
@@ -58,9 +61,11 @@ function firmaStripe(string $cuerpo, string $secreto): string
 it('crea un PaymentIntent real de Stripe con la llave del tenant', function (): void {
     stripeConfigurado('sk_test_abc');
 
-    ['referencia' => $referencia] = cobroStripePendiente('pi_test_123');
+    ['referencia' => $referencia, 'clientSecret' => $clientSecret] = cobroStripePendiente('pi_test_123');
 
     expect($referencia)->toBe('pi_test_123');
+    // El cobro devuelve el client_secret para que el cliente confirme con Stripe.js.
+    expect($clientSecret)->toBe('pi_test_123_secret');
 
     Http::assertSent(function (Request $request): bool {
         return str_contains($request->url(), 'api.stripe.com/v1/payment_intents')

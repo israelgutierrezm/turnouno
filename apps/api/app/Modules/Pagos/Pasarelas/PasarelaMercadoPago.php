@@ -40,6 +40,9 @@ class PasarelaMercadoPago extends PasarelaEnLinea
             $notificationUrl,
         );
 
-        return ResultadoPago::pendiente($preferencia['id']);
+        return ResultadoPago::pendiente($preferencia['id'], [
+            'tipo' => 'redirect',
+            'url' => $preferencia['init_point'],
+        ]);
     }
 }

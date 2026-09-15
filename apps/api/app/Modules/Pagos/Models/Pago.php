@@ -22,6 +22,22 @@ class Pago extends Model
 
     protected $table = 'pagos';
 
+    /**
+     * Datos de checkout para el cliente (client_secret, init_point, voucher…).
+     * Transitorio: NO se persiste, solo viaja en la respuesta del cobro.
+     *
+     * @var array<string, mixed>
+     */
+    public array $checkout = [];
+
+    /**
+     * Datos que aporta el cliente para el cobro (card_token, device_session_id…).
+     * Transitorio.
+     *
+     * @var array<string, mixed>
+     */
+    public array $datosCliente = [];
+
     protected $fillable = [
         'orden_id',
         'proveedor',

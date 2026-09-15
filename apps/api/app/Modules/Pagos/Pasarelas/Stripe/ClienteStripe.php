@@ -17,9 +17,10 @@ class ClienteStripe
     public function __construct(private readonly string $secretKey) {}
 
     /**
-     * Crea un PaymentIntent y devuelve su id y estado.
+     * Crea un PaymentIntent y devuelve su id, estado y client_secret (que el
+     * cliente usa con Stripe.js para confirmar el pago).
      *
-     * @return array{id: string, status: string}
+     * @return array{id: string, status: string, client_secret: string}
      */
     public function crearPaymentIntent(int $montoMinor, string $moneda, ?string $metodo): array
     {
@@ -34,12 +35,13 @@ class ClienteStripe
             ])
             ->throw();
 
-        /** @var array{id?: string, status?: string} $json */
+        /** @var array{id?: string, status?: string, client_secret?: string} $json */
         $json = $respuesta->json();
 
         return [
             'id' => (string) ($json['id'] ?? ''),
             'status' => (string) ($json['status'] ?? ''),
+            'client_secret' => (string) ($json['client_secret'] ?? ''),
         ];
     }
 }

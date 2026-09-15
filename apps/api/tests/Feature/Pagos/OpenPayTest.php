@@ -33,7 +33,11 @@ function openpayConfigurado(): void
 function cobroOpenPayPendiente(string $cargoId): array
 {
     Http::fake([
-        '*openpay.mx/*' => Http::response(['id' => $cargoId, 'status' => 'in_progress'], 200),
+        '*openpay.mx/*' => Http::response([
+            'id' => $cargoId,
+            'status' => 'in_progress',
+            'payment_method' => ['type' => 'store', 'reference' => '930000123456', 'barcode_url' => 'https://openpay.mx/barcode'],
+        ], 200),
     ]);
 
     $producto = crearProductoPack();
@@ -43,12 +47,15 @@ function cobroOpenPayPendiente(string $cargoId): array
         'items' => [['producto_id' => $producto]],
     ])->assertCreated()->json('data.id');
 
-    $referencia = test()->postJson("/api/v1/ordenes/{$orden}/pagos", ['proveedor' => 'openpay', 'metodo' => 'oxxo'])
+    $respuesta = test()->postJson("/api/v1/ordenes/{$orden}/pagos", ['proveedor' => 'openpay', 'metodo' => 'oxxo'])
         ->assertCreated()
-        ->assertJsonPath('data.estado', 'pendiente')
-        ->json('data.referencia');
+        ->assertJsonPath('data.estado', 'pendiente');
 
-    return ['persona' => $persona, 'referencia' => $referencia];
+    return [
+        'persona' => $persona,
+        'referencia' => $respuesta->json('data.referencia'),
+        'checkout' => $respuesta->json('data.checkout'),
+    ];
 }
 
 function basicAuth(string $usuario, string $password): string
@@ -59,9 +66,12 @@ function basicAuth(string $usuario, string $password): string
 it('crea un cargo real de OpenPay con la private key del tenant', function (): void {
     openpayConfigurado();
 
-    ['referencia' => $referencia] = cobroOpenPayPendiente('tr_openpay_1');
+    ['referencia' => $referencia, 'checkout' => $checkout] = cobroOpenPayPendiente('tr_openpay_1');
 
     expect($referencia)->toBe('tr_openpay_1');
+    // El cobro devuelve la referencia de la tienda para el cliente.
+    expect($checkout['tipo'])->toBe('voucher');
+    expect($checkout['reference'])->toBe('930000123456');
 
     Http::assertSent(function (Request $request): bool {
         return str_contains($request->url(), 'openpay.mx')

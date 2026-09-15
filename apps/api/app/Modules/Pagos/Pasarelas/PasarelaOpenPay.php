@@ -29,8 +29,12 @@ class PasarelaOpenPay extends PasarelaEnLinea
         }
 
         $cargo = (new ClienteOpenPay($merchantId, $privateKey, $this->config->modo !== 'live'))
-            ->crearCargo($pago->monto_minor, $pago->moneda, $pago->metodo?->value, 'Orden '.$pago->orden_id);
+            ->crearCargo($pago->monto_minor, $pago->moneda, $pago->metodo?->value, 'Orden '.$pago->orden_id, $pago->datosCliente);
 
-        return ResultadoPago::pendiente($cargo['id']);
+        $checkout = $cargo['payment_method'] === []
+            ? []
+            : array_merge(['tipo' => 'voucher'], $cargo['payment_method']);
+
+        return ResultadoPago::pendiente($cargo['id'], $checkout);
     }
 }

@@ -27,7 +27,10 @@ class CobrarOrden
 {
     public function __construct(private readonly AprobarPago $aprobar) {}
 
-    public function ejecutar(Orden $orden, PasarelaDePago $pasarela, ?string $idempotencyKey = null, ?MetodoPago $metodo = null): Pago
+    /**
+     * @param  array<string, mixed>  $datosCliente
+     */
+    public function ejecutar(Orden $orden, PasarelaDePago $pasarela, ?string $idempotencyKey = null, ?MetodoPago $metodo = null, array $datosCliente = []): Pago
     {
         if ($idempotencyKey !== null) {
             $previo = Pago::query()->where('idempotency_key', $idempotencyKey)->first();
@@ -36,7 +39,7 @@ class CobrarOrden
             }
         }
 
-        return DB::transaction(function () use ($orden, $pasarela, $idempotencyKey, $metodo): Pago {
+        return DB::transaction(function () use ($orden, $pasarela, $idempotencyKey, $metodo, $datosCliente): Pago {
             $bloqueada = Orden::query()->whereKey($orden->getKey())->lockForUpdate()->firstOrFail();
 
             if ($bloqueada->estado === EstadoOrden::Pagada) {
@@ -60,7 +63,9 @@ class CobrarOrden
                 'idempotency_key' => $idempotencyKey,
             ]);
 
+            $pago->datosCliente = $datosCliente;
             $resultado = $pasarela->cobrar($pago);
+            $pago->checkout = $resultado->datos;
 
             // Pago en línea asíncrono: queda pendiente; el webhook lo confirmará.
             if ($resultado->esPendiente()) {
