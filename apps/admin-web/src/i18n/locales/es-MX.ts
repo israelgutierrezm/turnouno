@@ -24,6 +24,7 @@ export default {
     membresias: 'Membresías',
     agenda: 'Agenda',
     pasarelas: 'Pasarelas',
+    comprobantes: 'Comprobantes',
     salir: 'Salir',
   },
   inicio: {
@@ -232,6 +233,19 @@ export default {
         ausente: 'No asistió',
       },
     },
+  },
+  comprobantes: {
+    titulo: 'Comprobantes de ventanilla',
+    sinPermiso: 'No tienes permiso para revisar comprobantes.',
+    vacio: 'No hay depósitos pendientes de revisión.',
+    subido: 'Comprobante subido',
+    sinSubir: 'Sin comprobante',
+    ver: 'Ver',
+    aprobar: 'Aprobar',
+    rechazar: 'Rechazar',
+    errorVer: 'No se pudo abrir el comprobante.',
+    errorAprobar: 'No se pudo aprobar (¿falta el comprobante?).',
+    errorGenerico: 'No se pudo completar la operación.',
   },
   pasarelas: {
     titulo: 'Pasarelas de pago',

@@ -103,6 +103,7 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('/pagos/{pago}/reembolso', [PagoController::class, 'reembolsar'])->name('api.v1.pagos.reembolso');
 
                 // Ventanilla: el miembro sube comprobante; el staff aprueba/rechaza.
+                Route::get('/pagos/ventanilla/pendientes', [VentanillaController::class, 'pendientes'])->name('api.v1.pagos.ventanilla.pendientes');
                 Route::post('/pagos/{pago}/comprobante', [VentanillaController::class, 'subir'])->name('api.v1.pagos.comprobante.subir');
                 Route::get('/pagos/{pago}/comprobante', [VentanillaController::class, 'ver'])->name('api.v1.pagos.comprobante.ver');
                 Route::post('/pagos/{pago}/aprobar', [VentanillaController::class, 'aprobar'])->name('api.v1.pagos.aprobar');

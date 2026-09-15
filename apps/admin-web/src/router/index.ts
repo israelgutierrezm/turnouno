@@ -69,6 +69,11 @@ const router = createRouter({
       name: 'pasarelas',
       component: () => import('@/views/PasarelasView.vue'),
     },
+    {
+      path: '/comprobantes',
+      name: 'comprobantes',
+      component: () => import('@/views/ComprobantesView.vue'),
+    },
     { path: '/health', name: 'health', component: () => import('@/views/HealthView.vue') },
   ],
 })

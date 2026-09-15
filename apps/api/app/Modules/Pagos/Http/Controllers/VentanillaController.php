@@ -22,6 +22,32 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class VentanillaController
 {
+    /**
+     * Bandeja: pagos de ventanilla pendientes de revisión del staff.
+     */
+    public function pendientes(): JsonResponse
+    {
+        Gate::authorize('pagos.crear');
+
+        $pagos = Pago::query()
+            ->where('proveedor', ProveedorPasarela::Ventanilla->value)
+            ->where('estado', EstadoPago::Pendiente->value)
+            ->with('orden.persona')
+            ->orderBy('id')
+            ->get();
+
+        return response()->json([
+            'data' => $pagos->map(static fn (Pago $pago): array => [
+                'id' => $pago->ulid,
+                'persona' => trim($pago->orden->persona->nombre.' '.($pago->orden->persona->apellidos ?? '')),
+                'total_minor' => $pago->monto_minor,
+                'moneda' => $pago->moneda,
+                'comprobante' => $pago->comprobante_ruta !== null,
+                'subido_en' => $pago->comprobante_subido_en?->toIso8601String(),
+            ])->all(),
+        ]);
+    }
+
     public function subir(SubirComprobanteRequest $request, Pago $pago): JsonResponse
     {
         $this->autorizarAcceso($pago);

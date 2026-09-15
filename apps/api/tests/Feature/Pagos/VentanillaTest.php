@@ -96,6 +96,25 @@ it('rechazar ventanilla deja el pago rechazado sin conceder', function (): void 
     $this->getJson("/api/v1/personas/{$persona}/derechos")->assertOk()->assertJsonCount(0, 'data');
 });
 
+it('lista los comprobantes de ventanilla pendientes para el staff', function (): void {
+    Storage::fake('local');
+    ['tenant' => $tenant, 'owner' => $owner] = tenantConDueno();
+    $miembro = User::factory()->create();
+    vincularUsuario($tenant, $miembro, ['miembro']);
+
+    ['pago' => $pago] = ventanillaPendiente($owner, personaDe($miembro));
+
+    Sanctum::actingAs($miembro);
+    $this->post("/api/v1/pagos/{$pago}/comprobante", ['comprobante' => UploadedFile::fake()->image('recibo.jpg')], ['Accept' => 'application/json'])
+        ->assertCreated();
+
+    Sanctum::actingAs($owner);
+    $this->getJson('/api/v1/pagos/ventanilla/pendientes')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.comprobante', true);
+});
+
 it('un miembro ajeno no puede subir el comprobante', function (): void {
     Storage::fake('local');
     ['tenant' => $tenant, 'owner' => $owner] = tenantConDueno();
