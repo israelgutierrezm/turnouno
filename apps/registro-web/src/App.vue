@@ -21,6 +21,7 @@ interface Enlace {
 const ENLACES: Enlace[] = [
   { nombre: 'panel', etiqueta: 'nav.panel' },
   { nombre: 'miembros', etiqueta: 'nav.miembros', permiso: 'miembros.ver' },
+  { nombre: 'ventas', etiqueta: 'nav.ventas', permiso: 'productos.ver' },
 ]
 
 const enlaces = computed(() =>

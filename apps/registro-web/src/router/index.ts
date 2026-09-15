@@ -51,6 +51,12 @@ const router = createRouter({
       component: () => import('@/views/MiembrosView.vue'),
       meta: { requiereSesion: true },
     },
+    {
+      path: '/ventas',
+      name: 'ventas',
+      component: () => import('@/views/VentasView.vue'),
+      meta: { requiereSesion: true },
+    },
     { path: '/:pathMatch(.*)*', redirect: { name: 'inicio' } },
   ],
 })
