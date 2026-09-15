@@ -260,3 +260,108 @@ function personalConSesion(string $slug, string $ownerBearer, string $email, str
         'email' => $email, 'password' => 'secreto123',
     ])->assertOk()->json('data.token');
 }
+
+/**
+ * Crea (via API) un miembro/instructor tenant-local y devuelve su ulid.
+ *
+ * @param  array{slug: string, bearer: string}  $e
+ */
+function crearMiembroTenant(array $e, string $nombre = 'Ana', string $tipo = 'miembro'): string
+{
+    return (string) test()->postJson("/api/v1/app/{$e['slug']}/miembros", [
+        'nombre' => $nombre, 'tipo' => $tipo,
+    ], conBearer($e['bearer']))->assertCreated()->json('data.id');
+}
+
+/**
+ * Crea (via API) un pack de creditos tenant-local y devuelve su ulid.
+ *
+ * @param  array{slug: string, bearer: string}  $e
+ */
+function crearPackTenant(array $e, int $creditos = 8000): string
+{
+    return (string) test()->postJson("/api/v1/app/{$e['slug']}/productos", [
+        'nombre' => 'Pack 8 clases', 'tipo' => 'paquete', 'precio_minor' => 89900,
+        'moneda' => 'MXN', 'ilimitado' => false, 'creditos_incluidos' => $creditos,
+    ], conBearer($e['bearer']))->assertCreated()->json('data.id');
+}
+
+/**
+ * Vende un pack a un miembro nuevo y devuelve el ulid del derecho.
+ *
+ * @param  array{slug: string, bearer: string}  $e
+ */
+function venderPackTenant(array $e, int $creditos = 8000): string
+{
+    $persona = crearMiembroTenant($e);
+    $producto = crearPackTenant($e, $creditos);
+
+    return (string) test()->postJson("/api/v1/app/{$e['slug']}/acuerdos", [
+        'persona_id' => $persona, 'producto_id' => $producto,
+    ], conBearer($e['bearer']))->assertCreated()->json('data.derecho.id');
+}
+
+/**
+ * Vende un pack a un miembro nuevo; devuelve persona y derecho (ulids).
+ *
+ * @param  array{slug: string, bearer: string}  $e
+ * @return array{persona: string, derecho: string}
+ */
+function venderPackAMiembroTenant(array $e, int $creditos = 8000, string $nombre = 'Ana'): array
+{
+    $persona = crearMiembroTenant($e, $nombre);
+    $producto = crearPackTenant($e, $creditos);
+    $derecho = (string) test()->postJson("/api/v1/app/{$e['slug']}/acuerdos", [
+        'persona_id' => $persona, 'producto_id' => $producto,
+    ], conBearer($e['bearer']))->assertCreated()->json('data.derecho.id');
+
+    return ['persona' => $persona, 'derecho' => $derecho];
+}
+
+/**
+ * Prepara oferta + sucursal (zona America/Mexico_City) en la BD del estudio y
+ * devuelve sus ulids.
+ *
+ * @param  array{slug: string, bearer: string}  $e
+ * @return array{oferta: string, sucursal: string}
+ */
+function agendaSemilla(array $e): array
+{
+    $programa = (string) test()->postJson("/api/v1/app/{$e['slug']}/programas", ['nombre' => 'Pole'], conBearer($e['bearer']))
+        ->assertCreated()->json('data.id');
+    $actividad = (string) test()->postJson("/api/v1/app/{$e['slug']}/programas/{$programa}/actividades", ['nombre' => 'Pole Sport'], conBearer($e['bearer']))
+        ->assertCreated()->json('data.id');
+    $oferta = (string) test()->postJson("/api/v1/app/{$e['slug']}/actividades/{$actividad}/ofertas", [
+        'nombre' => 'Nivel 1', 'modalidad' => 'grupal', 'capacidad' => 12,
+    ], conBearer($e['bearer']))->assertCreated()->json('data.id');
+
+    $org = (string) test()->postJson("/api/v1/app/{$e['slug']}/organizaciones", ['nombre' => 'Org'], conBearer($e['bearer']))
+        ->assertCreated()->json('data.id');
+    $sucursal = (string) test()->postJson("/api/v1/app/{$e['slug']}/organizaciones/{$org}/sucursales", [
+        'nombre' => 'Roma Norte', 'zona_horaria' => 'America/Mexico_City',
+    ], conBearer($e['bearer']))->assertCreated()->json('data.id');
+
+    return ['oferta' => $oferta, 'sucursal' => $sucursal];
+}
+
+/**
+ * Crea (via API) una sesion de agenda tenant-local y devuelve su ulid.
+ *
+ * @param  array{slug: string, bearer: string}  $e
+ * @param  array{oferta: string, sucursal: string}  $semilla
+ */
+function crearSesionTenant(array $e, array $semilla, ?int $capacidad = null, string $cuando = '2026-10-01 08:00:00'): string
+{
+    $carga = [
+        'oferta_id' => $semilla['oferta'],
+        'sucursal_id' => $semilla['sucursal'],
+        'inicia_en_local' => $cuando,
+        'duracion_minutos' => 60,
+    ];
+    if ($capacidad !== null) {
+        $carga['capacidad'] = $capacidad;
+    }
+
+    return (string) test()->postJson("/api/v1/app/{$e['slug']}/sesiones", $carga, conBearer($e['bearer']))
+        ->assertCreated()->json('data.id');
+}

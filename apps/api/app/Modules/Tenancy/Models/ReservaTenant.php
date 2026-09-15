@@ -1,0 +1,77 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Tenancy\Models;
+
+use App\Modules\Reservas\EstadoReserva;
+use App\Support\Concerns\HasPublicId;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
+/**
+ * Reserva tenant-local de una persona en una sesion, respaldada por un derecho y
+ * (si es limitado) una retencion de credito.
+ */
+class ReservaTenant extends Model
+{
+    use HasPublicId;
+
+    protected $connection = 'tenant';
+
+    protected $table = 'reservas';
+
+    protected $fillable = [
+        'sesion_id', 'persona_id', 'derecho_id', 'retencion_id',
+        'estado', 'unidades', 'idempotency_key',
+    ];
+
+    /**
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'estado' => EstadoReserva::class,
+        'unidades' => 'integer',
+    ];
+
+    /**
+     * @return BelongsTo<SesionTenant, $this>
+     */
+    public function sesion(): BelongsTo
+    {
+        return $this->belongsTo(SesionTenant::class, 'sesion_id');
+    }
+
+    /**
+     * @return BelongsTo<PersonaTenant, $this>
+     */
+    public function persona(): BelongsTo
+    {
+        return $this->belongsTo(PersonaTenant::class, 'persona_id');
+    }
+
+    /**
+     * @return BelongsTo<DerechoTenant, $this>
+     */
+    public function derecho(): BelongsTo
+    {
+        return $this->belongsTo(DerechoTenant::class, 'derecho_id');
+    }
+
+    /**
+     * @return BelongsTo<RetencionCreditoTenant, $this>
+     */
+    public function retencion(): BelongsTo
+    {
+        return $this->belongsTo(RetencionCreditoTenant::class, 'retencion_id');
+    }
+
+    /**
+     * @return HasOne<AsistenciaTenant, $this>
+     */
+    public function asistencia(): HasOne
+    {
+        return $this->hasOne(AsistenciaTenant::class, 'reserva_id');
+    }
+}

@@ -45,6 +45,7 @@ use App\Modules\Recursos\Http\Controllers\InstalacionController;
 use App\Modules\Recursos\Http\Controllers\RecursoController;
 use App\Modules\Reservas\Http\Controllers\ReservaController;
 use App\Modules\Tenancy\Http\Controllers\AgendaTenantController;
+use App\Modules\Tenancy\Http\Controllers\AsistenciaTenantController;
 use App\Modules\Tenancy\Http\Controllers\AuthTenantController;
 use App\Modules\Tenancy\Http\Controllers\CatalogoTenantController;
 use App\Modules\Tenancy\Http\Controllers\CreditosTenantController;
@@ -57,6 +58,7 @@ use App\Modules\Tenancy\Http\Controllers\MiembrosTenantController;
 use App\Modules\Tenancy\Http\Controllers\OnboardingController;
 use App\Modules\Tenancy\Http\Controllers\OrganizacionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
+use App\Modules\Tenancy\Http\Controllers\ReservasTenantController;
 use App\Modules\Tenancy\Http\Controllers\RespuestasFormularioController;
 use App\Modules\Tenancy\Http\Controllers\TiposDocumentoController;
 use App\Modules\Tenancy\Http\Controllers\UsuariosTenantController;
@@ -170,6 +172,14 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/retenciones/{retencion}/confirmar', [CreditosTenantController::class, 'confirmar'])->middleware('puede:creditos.gestionar')->name('api.v1.app.retenciones.confirmar');
             Route::post('/retenciones/{retencion}/liberar', [CreditosTenantController::class, 'liberar'])->middleware('puede:creditos.gestionar')->name('api.v1.app.retenciones.liberar');
             Route::post('/retenciones/{retencion}/perder', [CreditosTenantController::class, 'perder'])->middleware('puede:creditos.gestionar')->name('api.v1.app.retenciones.perder');
+
+            // Reservas (booking) del tenant: motor transaccional sobre una sesion,
+            // con lista de espera y politica de cancelacion por hold. La asistencia
+            // liquida la retencion (presente consume, ausente pierde).
+            Route::get('/sesiones/{sesion}/reservas', [ReservasTenantController::class, 'index'])->middleware('puede:reservas.ver')->name('api.v1.app.sesiones.reservas.index');
+            Route::post('/sesiones/{sesion}/reservas', [ReservasTenantController::class, 'reservar'])->middleware('puede:reservas.gestionar')->name('api.v1.app.sesiones.reservas.store');
+            Route::post('/reservas/{reserva}/cancelar', [ReservasTenantController::class, 'cancelar'])->middleware('puede:reservas.gestionar')->name('api.v1.app.reservas.cancelar');
+            Route::post('/reservas/{reserva}/asistencia', [AsistenciaTenantController::class, 'marcar'])->middleware('puede:asistencia.marcar')->name('api.v1.app.reservas.asistencia.store');
         });
     });
 

@@ -14,32 +14,6 @@ afterEach(function (): void {
     File::deleteDirectory(storage_path('tenants'));
 });
 
-/**
- * Prepara oferta + sucursal (zona America/Mexico_City) en la BD del estudio y
- * devuelve sus ulids.
- *
- * @param  array{slug: string, bearer: string}  $e
- * @return array{oferta: string, sucursal: string}
- */
-function agendaSemilla(array $e): array
-{
-    $programa = (string) test()->postJson("/api/v1/app/{$e['slug']}/programas", ['nombre' => 'Pole'], conBearer($e['bearer']))
-        ->assertCreated()->json('data.id');
-    $actividad = (string) test()->postJson("/api/v1/app/{$e['slug']}/programas/{$programa}/actividades", ['nombre' => 'Pole Sport'], conBearer($e['bearer']))
-        ->assertCreated()->json('data.id');
-    $oferta = (string) test()->postJson("/api/v1/app/{$e['slug']}/actividades/{$actividad}/ofertas", [
-        'nombre' => 'Nivel 1', 'modalidad' => 'grupal', 'capacidad' => 12,
-    ], conBearer($e['bearer']))->assertCreated()->json('data.id');
-
-    $org = (string) test()->postJson("/api/v1/app/{$e['slug']}/organizaciones", ['nombre' => 'Org'], conBearer($e['bearer']))
-        ->assertCreated()->json('data.id');
-    $sucursal = (string) test()->postJson("/api/v1/app/{$e['slug']}/organizaciones/{$org}/sucursales", [
-        'nombre' => 'Roma Norte', 'zona_horaria' => 'America/Mexico_City',
-    ], conBearer($e['bearer']))->assertCreated()->json('data.id');
-
-    return ['oferta' => $oferta, 'sucursal' => $sucursal];
-}
-
 it('crea una sesion convirtiendo la hora local de la sucursal a UTC (con snapshot de zona)', function (): void {
     $e = estudioConSesion('estudio-a', 'a@correo.mx');
     $semilla = agendaSemilla($e);

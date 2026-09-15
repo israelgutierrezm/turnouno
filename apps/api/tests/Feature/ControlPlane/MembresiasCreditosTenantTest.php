@@ -14,42 +14,6 @@ afterEach(function (): void {
     File::deleteDirectory(storage_path('tenants'));
 });
 
-/**
- * @param  array{slug: string, bearer: string}  $e
- */
-function crearMiembroTenant(array $e, string $nombre = 'Ana'): string
-{
-    return (string) test()->postJson("/api/v1/app/{$e['slug']}/miembros", [
-        'nombre' => $nombre, 'tipo' => 'miembro',
-    ], conBearer($e['bearer']))->assertCreated()->json('data.id');
-}
-
-/**
- * @param  array{slug: string, bearer: string}  $e
- */
-function crearPackTenant(array $e, int $creditos = 8000): string
-{
-    return (string) test()->postJson("/api/v1/app/{$e['slug']}/productos", [
-        'nombre' => 'Pack 8 clases', 'tipo' => 'paquete', 'precio_minor' => 89900,
-        'moneda' => 'MXN', 'ilimitado' => false, 'creditos_incluidos' => $creditos,
-    ], conBearer($e['bearer']))->assertCreated()->json('data.id');
-}
-
-/**
- * Vende un pack a un miembro nuevo y devuelve el ulid del derecho.
- *
- * @param  array{slug: string, bearer: string}  $e
- */
-function venderPackTenant(array $e, int $creditos = 8000): string
-{
-    $persona = crearMiembroTenant($e);
-    $producto = crearPackTenant($e, $creditos);
-
-    return (string) test()->postJson("/api/v1/app/{$e['slug']}/acuerdos", [
-        'persona_id' => $persona, 'producto_id' => $producto,
-    ], conBearer($e['bearer']))->assertCreated()->json('data.derecho.id');
-}
-
 it('vende un pack y concede sus creditos en el ledger (saldo derivado)', function (): void {
     $e = estudioConSesion('estudio-a', 'a@correo.mx');
     $persona = crearMiembroTenant($e);
