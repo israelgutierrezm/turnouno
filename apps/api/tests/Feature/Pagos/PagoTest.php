@@ -227,6 +227,28 @@ it('reembolsa un pago aprobado revirtiendo el derecho intacto', function (): voi
         ->assertJsonPath('data.0.saldo_creditos', 0);
 });
 
+it('lista las ordenes con comprador y sus pagos, y reembolsa desde el listado', function (): void {
+    ['owner' => $owner] = tenantConDueno();
+    Sanctum::actingAs($owner);
+
+    cobrarOrdenNueva();
+
+    $listado = $this->getJson('/api/v1/ordenes')->assertOk();
+
+    $listado
+        ->assertJsonPath('data.0.estado', 'pagada')
+        ->assertJsonPath('data.0.comprador', 'Ana')
+        ->assertJsonPath('data.0.pagos.0.estado', 'aprobado')
+        ->assertJsonPath('data.0.pagos.0.proveedor', 'manual');
+
+    $pagoUlid = $listado->json('data.0.pagos.0.id');
+
+    $this->postJson("/api/v1/pagos/{$pagoUlid}/reembolso")
+        ->assertOk()
+        ->assertJsonPath('data.estado', 'reembolsado')
+        ->assertJsonPath('data.orden_estado', 'cancelada');
+});
+
 it('bloquea el reembolso si el derecho ya tuvo consumo', function (): void {
     ['owner' => $owner] = tenantConDueno();
     Sanctum::actingAs($owner);

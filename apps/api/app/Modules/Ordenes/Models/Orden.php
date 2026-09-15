@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Ordenes\Models;
 
 use App\Modules\Ordenes\EstadoOrden;
+use App\Modules\Pagos\Models\Pago;
 use App\Modules\Personas\Models\Persona;
 use App\Modules\Tenancy\Concerns\BelongsToTenant;
 use App\Support\Concerns\HasPublicId;
@@ -46,5 +47,13 @@ class Orden extends Model
     public function lineas(): HasMany
     {
         return $this->hasMany(LineaOrden::class);
+    }
+
+    /**
+     * @return HasMany<Pago, $this>
+     */
+    public function pagos(): HasMany
+    {
+        return $this->hasMany(Pago::class);
     }
 }

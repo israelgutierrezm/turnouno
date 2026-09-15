@@ -104,6 +104,7 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('/derechos/{derecho}/topups', [TopUpController::class, 'store'])->name('api.v1.derechos.topups.store');
 
                 // Órdenes y pagos: orden pendiente → cobro (pasarela) → fulfillment (derechos).
+                Route::get('/ordenes', [OrdenController::class, 'index'])->name('api.v1.ordenes.index');
                 Route::post('/ordenes', [OrdenController::class, 'store'])->name('api.v1.ordenes.store');
                 Route::get('/ordenes/{orden}', [OrdenController::class, 'show'])->name('api.v1.ordenes.show');
                 Route::post('/ordenes/{orden}/pagos', [PagoController::class, 'store'])->name('api.v1.ordenes.pagos.store');

@@ -60,6 +60,11 @@ const router = createRouter({
       component: () => import('@/views/MembresiasView.vue'),
     },
     {
+      path: '/ordenes',
+      name: 'ordenes',
+      component: () => import('@/views/OrdenesView.vue'),
+    },
+    {
       path: '/agenda',
       name: 'agenda',
       component: () => import('@/views/AgendaView.vue'),

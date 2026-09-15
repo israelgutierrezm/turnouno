@@ -9,6 +9,7 @@ use App\Modules\Ordenes\Application\CrearOrden;
 use App\Modules\Ordenes\Http\Requests\CrearOrdenRequest;
 use App\Modules\Ordenes\Models\LineaOrden;
 use App\Modules\Ordenes\Models\Orden;
+use App\Modules\Pagos\Models\Pago;
 use App\Modules\Personas\Models\Persona;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
@@ -18,6 +19,20 @@ use Illuminate\Support\Facades\Gate;
  */
 class OrdenController
 {
+    public function index(): JsonResponse
+    {
+        Gate::authorize('membresias.ver');
+
+        $ordenes = Orden::query()
+            ->with(['persona', 'lineas.producto', 'pagos'])
+            ->orderByDesc('id')
+            ->get();
+
+        return response()->json([
+            'data' => $ordenes->map(fn (Orden $orden): array => $this->datos($orden))->all(),
+        ]);
+    }
+
     public function store(CrearOrdenRequest $request, CrearOrden $crearOrden): JsonResponse
     {
         Gate::authorize('membresias.gestionar');
@@ -65,17 +80,28 @@ class OrdenController
      */
     private function datos(Orden $orden): array
     {
-        $orden->loadMissing('lineas.producto');
+        $orden->loadMissing('lineas.producto', 'persona', 'pagos');
+
+        $persona = $orden->persona;
+        $comprador = trim($persona->nombre.' '.($persona->apellidos ?? ''));
 
         return [
             'id' => $orden->ulid,
             'estado' => $orden->estado->value,
             'total_minor' => $orden->total_minor,
             'moneda' => $orden->moneda,
+            'comprador' => $comprador,
+            'creada_en' => $orden->created_at?->toIso8601String(),
             'lineas' => $orden->lineas->map(static fn (LineaOrden $linea): array => [
                 'producto' => $linea->producto->nombre,
                 'cantidad' => $linea->cantidad,
                 'subtotal_minor' => $linea->subtotal_minor,
+            ])->all(),
+            'pagos' => $orden->pagos->map(static fn (Pago $pago): array => [
+                'id' => $pago->ulid,
+                'estado' => $pago->estado->value,
+                'proveedor' => $pago->proveedor,
+                'metodo' => $pago->metodo?->value,
             ])->all(),
         ];
     }
