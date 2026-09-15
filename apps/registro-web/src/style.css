@@ -1,0 +1,181 @@
+@import 'tailwindcss';
+
+/* Modo oscuro por clase en <html> (lo controla el store de tema). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+| Sistema de diseno tenant-local (original). Paleta por variables CSS: un tema
+| claro por defecto y su equivalente oscuro bajo `.dark`. La densidad ajusta la
+| escala base (botones +/-).
+*/
+:root {
+  --fondo: #f5f6fb;
+  --superficie: #ffffff;
+  --superficie-2: #eef1f8;
+  --texto: #1c2033;
+  --texto-suave: #5b6178;
+  --borde: #e3e7f1;
+  --primario: #4f46e5;
+  --primario-fuerte: #4338ca;
+  --primario-contraste: #ffffff;
+  --primario-suave: #ecedfe;
+  --exito: #15803d;
+  --exito-suave: #dcfce7;
+  --error: #dc2626;
+  --error-suave: #fee2e2;
+  --aviso: #b45309;
+  --aviso-suave: #fef3c7;
+  --sombra: 0 1px 2px rgba(16, 20, 40, 0.06), 0 8px 24px rgba(16, 20, 40, 0.06);
+  color-scheme: light;
+}
+
+.dark {
+  --fondo: #0d0f16;
+  --superficie: #161925;
+  --superficie-2: #1f2331;
+  --texto: #e8eaf3;
+  --texto-suave: #a3a9be;
+  --borde: #2a3042;
+  --primario: #6366f1;
+  --primario-fuerte: #818cf8;
+  --primario-contraste: #0d0f16;
+  --primario-suave: #1e2238;
+  --exito: #4ade80;
+  --exito-suave: #10261a;
+  --error: #f87171;
+  --error-suave: #2a1414;
+  --aviso: #fbbf24;
+  --aviso-suave: #2a2110;
+  --sombra: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
+html {
+  font-size: 16px;
+}
+html[data-densidad='compacta'] {
+  font-size: 14px;
+}
+html[data-densidad='comoda'] {
+  font-size: 18px;
+}
+
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family:
+    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/* Componentes reutilizables (referencian las variables del tema). */
+.tu-card {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 1rem;
+  box-shadow: var(--sombra);
+}
+
+.tu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0.7rem;
+  border: 1px solid transparent;
+  padding: 0.6rem 1.1rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease,
+    transform 0.05s ease;
+}
+.tu-btn:active {
+  transform: translateY(1px);
+}
+.tu-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.tu-btn-primario {
+  background: var(--primario);
+  color: var(--primario-contraste);
+}
+.tu-btn-primario:hover:not(:disabled) {
+  background: var(--primario-fuerte);
+}
+.tu-btn-fantasma {
+  background: transparent;
+  color: var(--texto);
+  border-color: var(--borde);
+}
+.tu-btn-fantasma:hover:not(:disabled) {
+  background: var(--superficie-2);
+}
+
+.tu-input {
+  width: 100%;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 0.7rem;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.95rem;
+  color: var(--texto);
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.tu-input:focus {
+  border-color: var(--primario);
+  box-shadow: 0 0 0 3px var(--primario-suave);
+}
+.tu-input::placeholder {
+  color: var(--texto-suave);
+}
+
+.tu-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--texto-suave);
+  margin-bottom: 0.3rem;
+}
+
+.tu-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--superficie-2);
+  color: var(--texto-suave);
+}
+.tu-badge-exito {
+  background: var(--exito-suave);
+  color: var(--exito);
+}
+.tu-badge-aviso {
+  background: var(--aviso-suave);
+  color: var(--aviso);
+}
+
+.tu-enlace {
+  color: var(--primario);
+  font-weight: 600;
+  text-decoration: none;
+}
+.tu-enlace:hover {
+  text-decoration: underline;
+}

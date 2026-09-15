@@ -15,6 +15,9 @@ return [
     'allowed_origins' => array_values(array_filter([
         env('FRONTEND_ADMIN_URL', 'http://localhost:5173'),
         env('FRONTEND_PORTAL_URL', 'http://localhost:5174'),
+        // Flujo multi-tenant (registro/directorio/login por estudio). Autenticacion
+        // por bearer token, no por cookie, por lo que no necesita dominio stateful.
+        env('FRONTEND_REGISTRO_URL', 'http://localhost:5175'),
     ])),
 
     'allowed_origins_patterns' => [],
