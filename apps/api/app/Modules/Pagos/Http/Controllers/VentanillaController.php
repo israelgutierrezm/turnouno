@@ -14,6 +14,7 @@ use App\Modules\Pagos\ProveedorPasarela;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -54,11 +55,12 @@ class VentanillaController
         $this->exigirVentanillaPendiente($pago);
 
         $archivo = $request->file('comprobante');
-        $ruta = $archivo->storeAs(
-            "comprobantes/{$pago->tenant_id}",
-            $pago->ulid.'.'.$archivo->getClientOriginalExtension(),
-            'local',
-        );
+
+        // Extensión derivada del MIME real (no de la extensión que envía el cliente)
+        // y nombre aleatorio no enumerable (SEC-11).
+        $extension = $archivo->extension() !== '' ? $archivo->extension() : 'bin';
+        $nombre = Str::random(40).'.'.$extension;
+        $ruta = $archivo->storeAs("comprobantes/{$pago->tenant_id}", $nombre, 'local');
 
         $pago->update([
             'comprobante_ruta' => $ruta,

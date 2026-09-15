@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use App\Modules\Pagos\Models\Pago;
 use App\Modules\Personas\Models\Persona;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -46,6 +47,14 @@ it('ventanilla: el miembro sube comprobante y el staff aprueba y concede el dere
     $this->post("/api/v1/pagos/{$pago}/comprobante", ['comprobante' => UploadedFile::fake()->image('recibo.jpg')], ['Accept' => 'application/json'])
         ->assertCreated()
         ->assertJsonPath('data.comprobante', true);
+
+    // SEC-11: el nombre almacenado es aleatorio (no enumerable por ulid ni por el
+    // nombre que envía el cliente) y la extensión deriva del MIME real.
+    $ruta = (string) Pago::query()
+        ->withoutGlobalScope('tenant')->where('ulid', $pago)->value('comprobante_ruta');
+    expect($ruta)->not->toContain($pago);
+    expect($ruta)->not->toContain('recibo');
+    expect($ruta)->toEndWith('.jpg');
 
     // El staff revisa y aprueba → fulfillment.
     Sanctum::actingAs($owner);
