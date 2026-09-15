@@ -159,6 +159,30 @@ it('no permite reservar una sesion cancelada', function (): void {
         ->assertJsonPath('code', 'SESSION_NOT_BOOKABLE');
 });
 
+it('cancelar la sesion cancela sus reservas y libera los holds (F-06)', function (): void {
+    $e = escenarioReserva(capacidad: 1);
+    Sanctum::actingAs($e['owner']);
+
+    // Confirmada (con hold) + otra en lista de espera (sin hold).
+    $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $e['persona']->ulid])
+        ->assertCreated();
+    ['persona' => $otra, 'derecho' => $derechoOtra] = participanteConDerecho($e['tenant']);
+    $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas", ['persona_id' => $otra->ulid, 'esperar' => true])
+        ->assertCreated();
+
+    $libro = app(LibroMayor::class);
+    expect($libro->disponible($e['derecho']))->toBe(7000); // hold activo antes de cancelar
+
+    $this->postJson("/api/v1/sesiones/{$e['sesion']->ulid}/cancelar")->assertOk();
+
+    // El crédito retenido volvió (cancelación del negocio no penaliza).
+    expect($libro->disponible($e['derecho']))->toBe(8000);
+    expect($libro->disponible($derechoOtra))->toBe(8000);
+
+    // No quedan reservas confirmadas ni en espera sobre la sesión cancelada.
+    $this->getJson("/api/v1/sesiones/{$e['sesion']->ulid}/reservas")->assertOk()->assertJsonCount(0, 'data');
+});
+
 it('reserva con derecho ilimitado sin retener credito', function (): void {
     $e = escenarioReserva(ilimitado: true);
     Sanctum::actingAs($e['owner']);
