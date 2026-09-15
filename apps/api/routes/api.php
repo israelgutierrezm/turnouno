@@ -46,10 +46,12 @@ use App\Modules\Recursos\Http\Controllers\RecursoController;
 use App\Modules\Reservas\Http\Controllers\ReservaController;
 use App\Modules\Tenancy\Http\Controllers\AuthTenantController;
 use App\Modules\Tenancy\Http\Controllers\DirectorioController;
+use App\Modules\Tenancy\Http\Controllers\DocumentosController;
 use App\Modules\Tenancy\Http\Controllers\FacturacionController;
 use App\Modules\Tenancy\Http\Controllers\MiembrosTenantController;
 use App\Modules\Tenancy\Http\Controllers\OnboardingController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
+use App\Modules\Tenancy\Http\Controllers\TiposDocumentoController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -100,6 +102,16 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/onboarding', [OnboardingController::class, 'show'])->name('api.v1.app.onboarding.show');
             Route::put('/onboarding', [OnboardingController::class, 'guardar'])->name('api.v1.app.onboarding.guardar');
             Route::put('/publicacion', [OnboardingController::class, 'publicacion'])->name('api.v1.app.publicacion');
+
+            // Documentos: el admin define tipos requeridos; se cargan por persona y
+            // el staff los valida (tenant-local, aislado).
+            Route::get('/tipos-documento', [TiposDocumentoController::class, 'index'])->name('api.v1.app.tipos-documento.index');
+            Route::post('/tipos-documento', [TiposDocumentoController::class, 'store'])->name('api.v1.app.tipos-documento.store');
+            Route::put('/tipos-documento/{tipo}', [TiposDocumentoController::class, 'update'])->name('api.v1.app.tipos-documento.update');
+            Route::get('/documentos', [DocumentosController::class, 'index'])->name('api.v1.app.documentos.index');
+            Route::post('/documentos', [DocumentosController::class, 'subir'])->name('api.v1.app.documentos.subir');
+            Route::get('/documentos/{documento}', [DocumentosController::class, 'ver'])->name('api.v1.app.documentos.ver');
+            Route::post('/documentos/{documento}/validar', [DocumentosController::class, 'validar'])->name('api.v1.app.documentos.validar');
         });
     });
 
