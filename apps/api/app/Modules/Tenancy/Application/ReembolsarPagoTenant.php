@@ -48,6 +48,7 @@ class ReembolsarPagoTenant
     public function __construct(
         private readonly LibroMayorTenant $libro,
         private readonly RegistroDePasarelasTenant $registro,
+        private readonly RegistrarEventoTenant $eventos,
     ) {}
 
     /**
@@ -122,6 +123,16 @@ class ReembolsarPagoTenant
                 if ($esTotal && $revertirCreditos && $orden !== null) {
                     $orden->update(['estado' => EstadoOrden::Cancelada->value]);
                 }
+
+                // Evento de dominio (outbox, R39): dispara conciliacion contable,
+                // notificacion al cliente, webhooks salientes, etc. (consumidores P1).
+                $this->eventos->registrar('pago.reembolsado', 'pago', $bloqueado->ulid, [
+                    'reembolso_id' => $reembolso->ulid,
+                    'monto_minor' => $monto,
+                    'moneda' => $bloqueado->moneda,
+                    'total' => $esTotal,
+                    'revirtio_creditos' => $revertirCreditos,
+                ]);
             }
 
             return $reembolso;

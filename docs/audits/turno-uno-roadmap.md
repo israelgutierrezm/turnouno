@@ -38,7 +38,7 @@ Deriva de `turno-uno-competitive-audit.md`. Regla rectora del documento de produ
 
 ## P1 — OPERACIÓN
 
-**Habilitador primero:** **Events + Outbox (R39)** — desbloquea comunicaciones, webhooks salientes, analítica y automatización.
+**Habilitador primero:** **Events + Outbox (R39)** — desbloquea comunicaciones, webhooks salientes, analítica y automatización. ✅ **HECHO**: outbox transaccional tenant (`eventos_outbox` + `RegistrarEventoTenant`, se escribe en la misma transacción que el cambio de estado), relay `turnouno:despachar-outbox` (at-least-once, reintentos, agendado cada minuto `withoutOverlapping`) que dispara `EventoDeDominioTenant` (costura de desacople para los consumidores). Primeros eventos cableados: `reserva.creada` y `pago.reembolsado`. Pendiente al construir cada consumidor: sumar más tipos (venta, asistencia, ciclo…) y una tabla `inbox`/dedupe por consumidor.
 
 - **Scheduling/recurrence en tenant (R5):** portar plantillas/reglas + `serie_id` + excepciones/feriados + override por instancia.
 - **Resource Engine en tenant (R3):** portar `Instalacion/Recurso` + `recurso_id`/pool en sesión; enum `TipoRecurso`; modo de uso de la oferta (CAPACITY/ASSIGNED/POOL/OPEN/APPOINTMENT/COURT/GROUP).

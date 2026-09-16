@@ -36,6 +36,7 @@ class ReservasTenant
         private readonly ResolverDerechoTenant $resolver,
         private readonly CreditosTenant $creditos,
         private readonly ResolverPoliticaCancelacionTenant $politicas,
+        private readonly RegistrarEventoTenant $eventos,
     ) {}
 
     public function crear(SesionTenant $sesion, PersonaTenant $persona, ?string $idempotencyKey = null, bool $permitirEspera = false, ?int $unidades = null): ReservaTenant
@@ -97,7 +98,7 @@ class ReservasTenant
                         throw new CupoLleno('La sesion esta llena.');
                     }
 
-                    return ReservaTenant::query()->create([
+                    $enEspera = ReservaTenant::query()->create([
                         'sesion_id' => $bloqueada->getKey(),
                         'persona_id' => $persona->getKey(),
                         'derecho_id' => $derecho->getKey(),
@@ -108,6 +109,10 @@ class ReservasTenant
                         'idempotency_key' => $idempotencyKey,
                         ...$snapshot,
                     ]);
+
+                    $this->emitirCreada($enEspera, $bloqueada, $persona);
+
+                    return $enEspera;
                 }
 
                 $retencion = null;
@@ -118,7 +123,7 @@ class ReservasTenant
                     $unidadesReservadas = $costo;
                 }
 
-                return ReservaTenant::query()->create([
+                $reserva = ReservaTenant::query()->create([
                     'sesion_id' => $bloqueada->getKey(),
                     'persona_id' => $persona->getKey(),
                     'derecho_id' => $derecho->getKey(),
@@ -129,6 +134,10 @@ class ReservasTenant
                     'idempotency_key' => $idempotencyKey,
                     ...$snapshot,
                 ]);
+
+                $this->emitirCreada($reserva, $bloqueada, $persona);
+
+                return $reserva;
             });
         } catch (QueryException $e) {
             // Carrera de idempotencia: otra peticion concurrente ya creo la reserva
@@ -356,6 +365,20 @@ class ReservasTenant
 
             $bloqueada->update(['estado' => EstadoSesionTenant::Cancelada->value]);
         });
+    }
+
+    /**
+     * Asienta en el outbox el evento `reserva.creada` (dentro de la transaccion de
+     * creacion, para que evento y reserva sean atomicos). R39.
+     */
+    private function emitirCreada(ReservaTenant $reserva, SesionTenant $sesion, PersonaTenant $persona): void
+    {
+        $this->eventos->registrar('reserva.creada', 'reserva', $reserva->ulid, [
+            'sesion_id' => $sesion->ulid,
+            'persona_id' => $persona->ulid,
+            'estado' => $reserva->estado->value,
+            'costo_unidades' => $reserva->costo_unidades,
+        ]);
     }
 
     private function confirmadas(SesionTenant $sesion): int

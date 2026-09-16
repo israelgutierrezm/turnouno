@@ -12,3 +12,7 @@ Artisan::command('inspire', function () {
 
 // Reinicia/renueva a diario los ciclos vencidos de los derechos recurrentes.
 Schedule::command('entitlements:generar-ciclos')->dailyAt('00:15');
+
+// Publica los eventos de dominio pendientes del outbox de cada estudio (R39).
+// Frecuente para baja latencia; withoutOverlapping evita relays solapados.
+Schedule::command('turnouno:despachar-outbox')->everyMinute()->withoutOverlapping();
