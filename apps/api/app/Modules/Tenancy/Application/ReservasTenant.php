@@ -8,6 +8,7 @@ use App\Modules\Creditos\Exceptions\SaldoInsuficiente;
 use App\Modules\Reservas\EstadoReserva;
 use App\Modules\Reservas\Exceptions\CupoLleno;
 use App\Modules\Reservas\Exceptions\FueraDeVentana;
+use App\Modules\Reservas\Exceptions\ReservaException;
 use App\Modules\Reservas\Exceptions\SesionNoReservable;
 use App\Modules\Reservas\Exceptions\SinDerechoDisponible;
 use App\Modules\Reservas\Exceptions\YaReservado;
@@ -47,12 +48,12 @@ class ReservasTenant
             }
         }
 
-        if ($sesion->estado !== EstadoSesionTenant::Programada) {
-            throw new SesionNoReservable('La sesion no admite reservas.');
-        }
-
-        if ($sesion->inicia_en->isPast()) {
-            throw new FueraDeVentana('La sesion ya inicio.');
+        // Pre-check con el motor: decision estructurada + fail-fast. Traduce el codigo
+        // estable a la excepcion de dominio. La transaccion re-valida lo critico bajo
+        // lock (concurrencia). Ver evaluar() y docs/BOOKING_ENGINE.md.
+        $decision = $this->evaluar($sesion, $persona, $costo, $permitirEspera);
+        if (! $decision->permitida) {
+            throw $this->excepcionDe((string) $decision->codigo, (string) $decision->mensaje);
         }
 
         try {
@@ -128,6 +129,77 @@ class ReservasTenant
 
             throw $e;
         }
+    }
+
+    /**
+     * Evalua (SIN crear ni bloquear) si una persona puede reservar una sesion y
+     * devuelve una DECISION estructurada y explicable (para el endpoint de preview y
+     * la salida del motor). `crear()` la reutiliza como pre-check y luego re-valida lo
+     * critico bajo lock. Ver docs/BOOKING_ENGINE.md.
+     *
+     * @param  int|null  $unidades  costo en unidades escaladas (por defecto 1 credito)
+     */
+    public function evaluar(SesionTenant $sesion, PersonaTenant $persona, ?int $unidades = null, bool $permitirEspera = false): DecisionReserva
+    {
+        $costo = $unidades ?? self::UNIDADES_POR_SESION;
+        $reglas = [];
+
+        $reglas['sesion_programada'] = $programada = $sesion->estado === EstadoSesionTenant::Programada;
+        if (! $programada) {
+            return DecisionReserva::rechazar('SESSION_NOT_BOOKABLE', 'La sesion no admite reservas.', $reglas);
+        }
+
+        $reglas['dentro_de_ventana'] = $enVentana = ! $sesion->inicia_en->isPast();
+        if (! $enVentana) {
+            return DecisionReserva::rechazar('BOOKING_NOT_OPEN', 'La sesion ya inicio.', $reglas);
+        }
+
+        $duplicada = ReservaTenant::query()
+            ->where('sesion_id', $sesion->getKey())
+            ->where('persona_id', $persona->getKey())
+            ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::EnEspera->value])
+            ->exists();
+        $reglas['sin_reserva_previa'] = ! $duplicada;
+        if ($duplicada) {
+            return DecisionReserva::rechazar('ALREADY_BOOKED', 'Ya existe una reserva para esta sesion.', $reglas);
+        }
+
+        $derecho = $this->resolver->paraSesion($persona, $sesion, $costo);
+        $reglas['derecho_disponible'] = $derecho !== null;
+        if ($derecho === null) {
+            return DecisionReserva::rechazar('ENTITLEMENT_REQUIRED', 'No hay un derecho con saldo para esta sesion.', $reglas);
+        }
+
+        $llena = $sesion->capacidad !== null && $this->confirmadas($sesion) >= $sesion->capacidad;
+        $reglas['con_cupo'] = ! $llena;
+        $advertencias = [];
+        if ($llena) {
+            if (! $permitirEspera) {
+                return DecisionReserva::rechazar('CAPACITY_FULL', 'La sesion esta llena.', $reglas);
+            }
+            $advertencias[] = 'WAITLIST';
+        }
+
+        // El hold solo se toma para un derecho limitado y con cupo (la lista de espera
+        // no retiene credito hasta que se promueve).
+        $costoCreditos = ($derecho->ilimitado || $llena) ? 0 : $costo;
+
+        return DecisionReserva::permitir($reglas, $costoCreditos, $derecho->ulid, $advertencias);
+    }
+
+    /**
+     * Traduce el codigo estable de una decision rechazada a su excepcion de dominio
+     * (que `ApiExceptionRenderer` mapea al contrato de error de la API).
+     */
+    private function excepcionDe(string $codigo, string $mensaje): ReservaException
+    {
+        return match ($codigo) {
+            'BOOKING_NOT_OPEN' => new FueraDeVentana($mensaje),
+            'ALREADY_BOOKED' => new YaReservado($mensaje),
+            'ENTITLEMENT_REQUIRED' => new SinDerechoDisponible($mensaje),
+            'CAPACITY_FULL' => new CupoLleno($mensaje),
+            default => new SesionNoReservable($mensaje),
+        };
     }
 
     /**

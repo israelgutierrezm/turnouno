@@ -70,6 +70,27 @@ class ReservasTenantController
         return response()->json(['data' => $this->presentar($reserva)], 201);
     }
 
+    /**
+     * Evalua una reserva SIN crearla y devuelve la decision estructurada del motor
+     * (permitida, reason_code, reglas evaluadas, costo en creditos, derecho a usar,
+     * advertencias). Util para mostrar al cliente por que puede/no puede reservar.
+     */
+    public function preview(Request $request): JsonResponse
+    {
+        $sesion = SesionTenant::query()->where('ulid', (string) $request->route('sesion'))->firstOrFail();
+
+        $validado = $request->validate([
+            'persona_id' => ['required', 'string'],
+            'esperar' => ['boolean'],
+        ]);
+
+        $persona = PersonaTenant::query()->where('ulid', $validado['persona_id'])->firstOrFail();
+
+        $decision = $this->reservas->evaluar($sesion, $persona, null, (bool) ($validado['esperar'] ?? false));
+
+        return response()->json(['data' => $decision->aArreglo()]);
+    }
+
     public function cancelar(Request $request): JsonResponse
     {
         $reserva = ReservaTenant::query()->where('ulid', (string) $request->route('reserva'))->firstOrFail();
