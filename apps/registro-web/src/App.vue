@@ -23,6 +23,7 @@ const ENLACES: Enlace[] = [
   { nombre: 'miembros', etiqueta: 'nav.miembros', permiso: 'miembros.ver' },
   { nombre: 'agenda', etiqueta: 'nav.agenda', permiso: 'agenda.ver' },
   { nombre: 'ventas', etiqueta: 'nav.ventas', permiso: 'productos.ver' },
+  { nombre: 'documentos', etiqueta: 'nav.documentos', permiso: 'documentos.subir' },
   { nombre: 'pasarelas', etiqueta: 'nav.pasarelas', permiso: 'pagos.configurar' },
 ]
 
