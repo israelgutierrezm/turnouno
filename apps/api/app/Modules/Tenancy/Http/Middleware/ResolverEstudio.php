@@ -8,6 +8,7 @@ use App\Modules\Tenancy\Database\GestorDeConexionTenant;
 use App\Modules\Tenancy\Models\Estudio;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -32,6 +33,10 @@ class ResolverEstudio
 
         $this->gestor->conectar($estudio);
         $request->attributes->set('estudio', $estudio);
+
+        // Aislamiento de logs: cada linea de esta request queda etiquetada con el
+        // estudio (junto al X-Correlation-ID) para trazabilidad por tenant.
+        Log::withContext(['estudio' => $estudio->slug]);
 
         try {
             return $next($request);
