@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import CampoContrasena from '@/components/CampoContrasena.vue'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
 
 const route = useRoute()
@@ -52,17 +53,16 @@ async function enviar(): Promise<void> {
       </div>
       <div>
         <label class="tu-label" for="pass">{{ $t('activacion.password') }}</label>
-        <input id="pass" v-model="password" class="tu-input" type="password" required minlength="8" />
+        <CampoContrasena id="pass" v-model="password" autocomplete="new-password" :required="true" :minlength="8" />
       </div>
       <div>
         <label class="tu-label" for="pass2">{{ $t('activacion.passwordConfirm') }}</label>
-        <input
+        <CampoContrasena
           id="pass2"
           v-model="passwordConfirm"
-          class="tu-input"
-          type="password"
-          required
-          minlength="8"
+          autocomplete="new-password"
+          :required="true"
+          :minlength="8"
         />
       </div>
 

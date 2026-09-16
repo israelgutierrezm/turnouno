@@ -76,6 +76,12 @@ const router = createRouter({
       meta: { requiereSesion: true },
     },
     {
+      path: '/configuracion',
+      name: 'configuracion',
+      component: () => import('@/views/ConfiguracionView.vue'),
+      meta: { requiereSesion: true },
+    },
+    {
       path: '/documentos',
       name: 'documentos',
       component: () => import('@/views/DocumentosView.vue'),

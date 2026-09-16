@@ -8,10 +8,21 @@ export default {
     guardar: 'Guardar',
     cerrar: 'Cerrar',
     reintentar: 'Reintentar',
+    verPassword: 'Mostrar contrasena',
+    ocultarPassword: 'Ocultar contrasena',
+  },
+  tabla: {
+    buscar: 'Buscar…',
+    vacio: 'Sin resultados.',
+    anterior: 'Anterior',
+    siguiente: 'Siguiente',
+    pagina: 'Pagina {n} de {total}',
+    mostrando: '{desde}–{hasta} de {total}',
   },
   nav: {
     inicio: 'Inicio',
-    directorio: 'Directorio',
+    menu: 'Menu',
+    directorio: 'Comunidad',
     registrar: 'Registrar estudio',
     entrar: 'Entrar',
     panel: 'Panel',
@@ -23,6 +34,7 @@ export default {
     formularios: 'Formularios',
     pasarelas: 'Pagos',
     integraciones: 'Integraciones',
+    configuracion: 'Configuracion',
   },
   tema: {
     claro: 'Tema claro',
@@ -35,7 +47,7 @@ export default {
     subtitulo:
       'Membresias, clases, reservas y pagos en un solo lugar. Cada estudio con su propia base de datos aislada.',
     ctaRegistrar: 'Crea tu estudio gratis',
-    ctaDirectorio: 'Explorar el directorio',
+    ctaDirectorio: 'Explorar la comunidad',
     puntos: {
       aislado: 'Datos aislados por estudio',
       aisladoDesc: 'Cada estudio vive en su propia base de datos. Tu informacion nunca se mezcla con la de otro.',
@@ -80,9 +92,9 @@ export default {
     irEntrar: 'Entrar',
   },
   directorio: {
-    titulo: 'Directorio de estudios',
-    subtitulo: 'Estudios publicos en TurnoUno.',
-    vacio: 'Aun no hay estudios publicados.',
+    titulo: 'Comunidad TurnoUno',
+    subtitulo: 'Descubre estudios, gimnasios y escuelas en TurnoUno.',
+    vacio: 'Aun no hay estudios en la comunidad.',
     buscar: 'Buscar por nombre o ciudad',
     entrar: 'Entrar',
     sinResultados: 'Sin resultados para “{q}”.',
@@ -234,6 +246,11 @@ export default {
     filtroInstructores: 'Instructores',
     creado: 'Miembro agregado.',
     sinApellidos: '—',
+    colNombre: 'Nombre',
+    colCorreo: 'Correo',
+    colEstado: 'Estado',
+    activo: 'Activo',
+    inactivo: 'Inactivo',
   },
   ventas: {
     titulo: 'Ventas',
@@ -475,6 +492,18 @@ export default {
     vacio: 'Sin check-ins de bienestar.',
     ok: 'Check-in registrado.',
     validado: 'Validado',
+  },
+  configuracion: {
+    titulo: 'Configuracion',
+    subtitulo: 'Ajustes del estudio.',
+    directorioTitulo: 'Aparecer en la Comunidad de TurnoUno',
+    directorioDesc:
+      'Si esta activo, cualquier persona puede descubrir tu estudio en la pagina publica de la Comunidad. Si lo desactivas, tu estudio solo sera accesible con el enlace directo (compartelo en tu sitio o redes).',
+    directorioActivo: 'Tu estudio aparece en la Comunidad.',
+    directorioInactivo: 'Tu estudio NO aparece en la Comunidad (solo por enlace directo).',
+    enlaceDirecto: 'Tu enlace directo',
+    copiar: 'Copiar',
+    guardado: 'Guardado.',
   },
   errores: {
     generico: 'Ocurrio un error. Intenta de nuevo.',

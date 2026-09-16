@@ -17,6 +17,8 @@ export interface EstudioSesion {
   estado: string
   estado_facturacion?: string
   trial_termina_en?: string | null
+  publicado?: boolean
+  en_directorio?: boolean
 }
 
 interface RespuestaAuth {
