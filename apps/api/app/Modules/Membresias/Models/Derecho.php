@@ -19,6 +19,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * Derecho (entitlement) otorgado por un acuerdo. El saldo NO se guarda aquí:
  * se deriva del ledger (`movimientos`). Puede ser ilimitado.
+ *
+ * `tenant_id` lo aporta el trait BelongsToTenant (columna real en la tabla legacy
+ * `derechos`); se declara aquí porque el análisis estático no puede inferirla del
+ * esquema (la tabla `derechos` también existe, sin esa columna, en el plano tenant).
+ *
+ * @property int $tenant_id
  */
 class Derecho extends Model
 {
