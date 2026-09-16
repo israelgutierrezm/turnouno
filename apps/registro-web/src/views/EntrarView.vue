@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import CampoContrasena from '@/components/CampoContrasena.vue'
+import LogoTurnoUno from '@/components/LogoTurnoUno.vue'
+import { api } from '@/lib/api'
 import { clientIdGoogle, renderizarBotonGoogle } from '@/lib/google'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
+
+interface Marca {
+  nombre: string
+  logo_url: string | null
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +21,7 @@ const slug = ref(String(route.query.estudio ?? ''))
 const email = ref('')
 const password = ref('')
 const avisoGoogle = ref(false)
+const marca = ref<Marca | null>(null)
 
 const hayGoogle = clientIdGoogle() !== undefined
 const contenedorGoogle = ref<HTMLElement | null>(null)
@@ -22,6 +30,28 @@ const contenedorGoogle = ref<HTMLElement | null>(null)
 function destino(): { name: string } {
   return sesion.usuario?.rol === 'miembro' ? { name: 'mi-cuenta' } : { name: 'panel' }
 }
+
+// Marca (branding) publica del estudio: para mostrar su logo antes de entrar.
+async function cargarMarca(valor: string): Promise<void> {
+  const s = valor.trim()
+  if (s === '') {
+    marca.value = null
+    return
+  }
+  try {
+    const { data } = await api.get<{ data: Marca }>(`/api/v1/app/${s}/marca`)
+    marca.value = data.data
+  } catch {
+    // Estudio inexistente o no operativo: se muestra el logo de TurnoUno.
+    marca.value = null
+  }
+}
+
+let temporizador: ReturnType<typeof setTimeout> | undefined
+watch(slug, (valor) => {
+  clearTimeout(temporizador)
+  temporizador = setTimeout(() => void cargarMarca(valor), 400)
+})
 
 async function enviar(): Promise<void> {
   try {
@@ -46,6 +76,9 @@ async function entrarConGoogle(credential: string): Promise<void> {
 }
 
 onMounted(() => {
+  if (slug.value.trim() !== '') {
+    void cargarMarca(slug.value)
+  }
   if (hayGoogle && contenedorGoogle.value !== null) {
     void renderizarBotonGoogle(contenedorGoogle.value, (c) => void entrarConGoogle(c))
   }
@@ -53,11 +86,23 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="mx-auto max-w-md px-4 py-10">
-    <h1 class="text-3xl font-extrabold">{{ $t('entrar.titulo') }}</h1>
-    <p class="mt-1" :style="{ color: 'var(--texto-suave)' }">{{ $t('entrar.subtitulo') }}</p>
+  <section class="mx-auto flex max-w-md flex-col items-center px-4 py-14">
+    <!-- Branding: logo del estudio si lo tiene; si no, el de TurnoUno -->
+    <img
+      v-if="marca?.logo_url"
+      :src="marca.logo_url"
+      :alt="marca.nombre"
+      class="h-16 w-16 rounded-2xl object-cover"
+      :style="{ boxShadow: 'var(--sombra)' }"
+    />
+    <LogoTurnoUno v-else :tam="64" />
 
-    <form class="mt-6 tu-card p-6 space-y-4" @submit.prevent="enviar">
+    <h1 class="mt-4 text-2xl font-extrabold text-center">
+      {{ marca?.nombre ? $t('entrar.tituloEstudio', { nombre: marca.nombre }) : $t('entrar.titulo') }}
+    </h1>
+    <p class="mt-1 text-center" :style="{ color: 'var(--texto-suave)' }">{{ $t('entrar.subtitulo') }}</p>
+
+    <form class="mt-6 w-full tu-card p-6 space-y-4" @submit.prevent="enviar">
       <div>
         <label class="tu-label" for="slug">{{ $t('entrar.slug') }}</label>
         <input

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
+import LogoTurnoUno from '@/components/LogoTurnoUno.vue'
 import { api, mensajeDeError } from '@/lib/api'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
 
@@ -15,6 +16,11 @@ const guardado = ref(false)
 const error = ref<string | null>(null)
 const copiado = ref(false)
 
+// Logo (branding).
+const logoUrl = ref<string | null>(null)
+const subiendoLogo = ref(false)
+const archivo = ref<HTMLInputElement | null>(null)
+
 const enlaceDirecto = computed(() => `${window.location.origin}/entrar?estudio=${sesion.slug ?? ''}`)
 
 async function cargar(): Promise<void> {
@@ -22,10 +28,47 @@ async function cargar(): Promise<void> {
   try {
     await sesion.cargarYo()
     aparece.value = sesion.estudio?.publicado ?? true
+    const { data } = await api.get<{ data: { logo_url: string | null } }>(`${base.value}/marca`)
+    logoUrl.value = data.data.logo_url
   } catch (e) {
     error.value = mensajeDeError(e)
   } finally {
     cargando.value = false
+  }
+}
+
+async function subirLogo(evento: Event): Promise<void> {
+  const archivos = (evento.target as HTMLInputElement).files
+  if (archivos === null || archivos.length === 0) {
+    return
+  }
+  subiendoLogo.value = true
+  error.value = null
+  try {
+    const cuerpo = new FormData()
+    cuerpo.append('logo', archivos[0])
+    const { data } = await api.post<{ data: { logo_url: string } }>(`${base.value}/marca/logo`, cuerpo)
+    logoUrl.value = data.data.logo_url
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    subiendoLogo.value = false
+    if (archivo.value) {
+      archivo.value.value = ''
+    }
+  }
+}
+
+async function quitarLogo(): Promise<void> {
+  subiendoLogo.value = true
+  error.value = null
+  try {
+    await api.delete(`${base.value}/marca/logo`)
+    logoUrl.value = null
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    subiendoLogo.value = false
   }
 }
 
@@ -76,47 +119,93 @@ onMounted(cargar)
     <p v-if="cargando" class="mt-8" :style="{ color: 'var(--texto-suave)' }">{{ $t('comun.cargando') }}</p>
     <p v-if="error" class="mt-4 text-sm" style="color: var(--error)">{{ error }}</p>
 
-    <div v-if="!cargando" class="mt-6 tu-card p-6">
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <h2 class="font-bold text-lg">{{ $t('configuracion.directorioTitulo') }}</h2>
-          <p class="mt-1 text-sm" :style="{ color: 'var(--texto-suave)' }">
-            {{ $t('configuracion.directorioDesc') }}
-          </p>
-        </div>
+    <template v-if="!cargando">
+      <!-- Logo del estudio -->
+      <div class="mt-6 tu-card p-6">
+        <h2 class="font-bold text-lg">{{ $t('configuracion.logoTitulo') }}</h2>
+        <p class="mt-1 text-sm" :style="{ color: 'var(--texto-suave)' }">
+          {{ $t('configuracion.logoDesc') }}
+        </p>
 
-        <button
-          type="button"
-          role="switch"
-          :aria-checked="aparece"
-          :disabled="!puedeGestionar || guardando"
-          class="relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors"
-          :style="{ background: aparece ? 'var(--primario)' : 'var(--superficie-2)', opacity: puedeGestionar ? 1 : 0.5 }"
-          @click="alternar"
-        >
-          <span
-            class="inline-block h-5 w-5 rounded-full bg-white transition-transform"
-            :style="{ transform: aparece ? 'translateX(1.5rem)' : 'translateX(0.25rem)' }"
+        <div class="mt-4 flex items-center gap-4">
+          <img
+            v-if="logoUrl"
+            :src="logoUrl"
+            :alt="sesion.estudio?.nombre"
+            class="h-16 w-16 rounded-2xl object-cover"
+            :style="{ boxShadow: 'var(--sombra)' }"
           />
-        </button>
+          <LogoTurnoUno v-else :tam="64" />
+
+          <div class="flex flex-wrap gap-2">
+            <label class="tu-btn tu-btn-primario cursor-pointer" :class="{ 'opacity-60': subiendoLogo || !puedeGestionar }">
+              {{ subiendoLogo ? $t('configuracion.logoSubiendo') : $t('configuracion.logoSubir') }}
+              <input
+                ref="archivo"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                class="hidden"
+                :disabled="subiendoLogo || !puedeGestionar"
+                @change="subirLogo"
+              />
+            </label>
+            <button
+              v-if="logoUrl"
+              type="button"
+              class="tu-btn tu-btn-fantasma"
+              :disabled="subiendoLogo || !puedeGestionar"
+              @click="quitarLogo"
+            >
+              {{ $t('configuracion.logoQuitar') }}
+            </button>
+          </div>
+        </div>
+        <p class="mt-3 text-xs" :style="{ color: 'var(--texto-suave)' }">{{ $t('configuracion.logoAyuda') }}</p>
       </div>
 
-      <p class="mt-4 text-sm font-semibold" :style="{ color: aparece ? 'var(--exito)' : 'var(--texto-suave)' }">
-        {{ aparece ? $t('configuracion.directorioActivo') : $t('configuracion.directorioInactivo') }}
-      </p>
-      <p v-if="guardado" class="mt-1 text-sm" :style="{ color: 'var(--exito)' }">
-        {{ $t('configuracion.guardado') }}
-      </p>
+      <!-- Visibilidad en la Comunidad -->
+      <div class="mt-6 tu-card p-6">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 class="font-bold text-lg">{{ $t('configuracion.directorioTitulo') }}</h2>
+            <p class="mt-1 text-sm" :style="{ color: 'var(--texto-suave)' }">
+              {{ $t('configuracion.directorioDesc') }}
+            </p>
+          </div>
 
-      <div class="mt-6 border-t pt-4" :style="{ borderColor: 'var(--borde)' }">
-        <label class="tu-label">{{ $t('configuracion.enlaceDirecto') }}</label>
-        <div class="flex gap-2">
-          <input class="tu-input font-mono text-sm" :value="enlaceDirecto" readonly @focus="($event.target as HTMLInputElement).select()" />
-          <button class="tu-btn tu-btn-fantasma shrink-0" type="button" @click="copiar">
-            {{ copiado ? '✓' : $t('configuracion.copiar') }}
+          <button
+            type="button"
+            role="switch"
+            :aria-checked="aparece"
+            :disabled="!puedeGestionar || guardando"
+            class="relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors"
+            :style="{ background: aparece ? 'var(--primario)' : 'var(--superficie-2)', opacity: puedeGestionar ? 1 : 0.5 }"
+            @click="alternar"
+          >
+            <span
+              class="inline-block h-5 w-5 rounded-full bg-white transition-transform"
+              :style="{ transform: aparece ? 'translateX(1.5rem)' : 'translateX(0.25rem)' }"
+            />
           </button>
         </div>
+
+        <p class="mt-4 text-sm font-semibold" :style="{ color: aparece ? 'var(--exito)' : 'var(--texto-suave)' }">
+          {{ aparece ? $t('configuracion.directorioActivo') : $t('configuracion.directorioInactivo') }}
+        </p>
+        <p v-if="guardado" class="mt-1 text-sm" :style="{ color: 'var(--exito)' }">
+          {{ $t('configuracion.guardado') }}
+        </p>
+
+        <div class="mt-6 border-t pt-4" :style="{ borderColor: 'var(--borde)' }">
+          <label class="tu-label">{{ $t('configuracion.enlaceDirecto') }}</label>
+          <div class="flex gap-2">
+            <input class="tu-input font-mono text-sm" :value="enlaceDirecto" readonly @focus="($event.target as HTMLInputElement).select()" />
+            <button class="tu-btn tu-btn-fantasma shrink-0" type="button" @click="copiar">
+              {{ copiado ? '✓' : $t('configuracion.copiar') }}
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
+    </template>
   </section>
 </template>

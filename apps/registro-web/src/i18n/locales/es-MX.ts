@@ -101,6 +101,7 @@ export default {
   },
   entrar: {
     titulo: 'Entrar a tu estudio',
+    tituloEstudio: 'Entrar a {nombre}',
     subtitulo: 'Escribe la direccion de tu estudio y tus datos.',
     slug: 'Direccion del estudio',
     slugPh: 'mi-estudio',
@@ -496,6 +497,12 @@ export default {
   configuracion: {
     titulo: 'Configuracion',
     subtitulo: 'Ajustes del estudio.',
+    logoTitulo: 'Logo del estudio',
+    logoDesc: 'Se muestra en la pantalla de acceso de tu estudio. Si no subes uno, se usa el logo de TurnoUno.',
+    logoSubir: 'Subir logo',
+    logoSubiendo: 'Subiendo…',
+    logoQuitar: 'Quitar',
+    logoAyuda: 'PNG, JPG o WEBP, hasta 2 MB. Idealmente cuadrado.',
     directorioTitulo: 'Aparecer en la Comunidad de TurnoUno',
     directorioDesc:
       'Si esta activo, cualquier persona puede descubrir tu estudio en la pagina publica de la Comunidad. Si lo desactivas, tu estudio solo sera accesible con el enlace directo (compartelo en tu sitio o redes).',

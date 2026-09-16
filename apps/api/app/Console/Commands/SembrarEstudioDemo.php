@@ -25,6 +25,7 @@ use App\Modules\Tenancy\Models\Usuario;
 use App\Modules\Tenancy\TipoPersonaTenant;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * (Re)aprovisiona y siembra un estudio "demo" en el data plane por tenant para
@@ -84,6 +85,12 @@ class SembrarEstudioDemo extends Command
             'publicado' => true,
             'privado' => false,
         ]);
+
+        // 3b. Logo de muestra (para ver el branding en la pantalla de acceso). Solo
+        // si el estudio aun no tiene logo, para no pisar uno que el usuario haya subido.
+        if ($estudio->logo_url === null) {
+            $this->generarLogoDemo($estudio);
+        }
 
         // 4. Datos operativos dentro de la BD del tenant.
         $gestor->ejecutarEn($estudio, function () use ($password, $ownerEmail, $instructorEmail, $miembroEmail): void {
@@ -207,6 +214,41 @@ class SembrarEstudioDemo extends Command
                 'estado' => EstadoSesionTenant::Programada->value,
             ]);
         }
+    }
+
+    /**
+     * Genera un logo PNG sencillo (anillo sobre fondo indigo) con GD y lo guarda en
+     * el disco publico del estudio. Solo para el demo: da algo que mostrar en la
+     * pantalla de acceso. Si GD no esta disponible, se omite sin fallar.
+     */
+    private function generarLogoDemo(Estudio $estudio): void
+    {
+        if (! function_exists('imagecreatetruecolor')) {
+            return;
+        }
+
+        $tam = 256;
+        $img = imagecreatetruecolor($tam, $tam);
+
+        $indigo = (int) imagecolorallocate($img, 79, 70, 229);   // #4f46e5
+        $blanco = (int) imagecolorallocate($img, 255, 255, 255);
+        imagefilledrectangle($img, 0, 0, $tam, $tam, $indigo);
+
+        // Anillo blanco + punto central (marca abstracta, sin depender de fuentes).
+        imagefilledellipse($img, 128, 128, 156, 156, $blanco);
+        imagefilledellipse($img, 128, 128, 92, 92, $indigo);
+        imagefilledellipse($img, 128, 128, 40, 40, $blanco);
+
+        ob_start();
+        imagepng($img);
+        $png = (string) ob_get_clean();
+        imagedestroy($img);
+
+        Storage::disk('public')->deleteDirectory('estudios/'.$estudio->getKey());
+        $ruta = 'estudios/'.$estudio->getKey().'/logo.png';
+        Storage::disk('public')->put($ruta, $png);
+
+        $estudio->update(['logo_url' => Storage::disk('public')->url($ruta)]);
     }
 
     private function componentInfo(Estudio $estudio, string $slug, string $password, string $ownerEmail, string $instructorEmail, string $miembroEmail): void
