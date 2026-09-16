@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Modules\Tenancy\Models\Usuario;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -35,6 +36,15 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinute(5)->by($email.'|'.$ip),
                 Limit::perMinute(20)->by($ip),
             ];
+        });
+
+        // Rate limit de las rutas tenant AUTENTICADAS: por usuario tenant (o IP si no
+        // se resolvio), para frenar abuso/enumeracion sin castigar a todo el estudio.
+        RateLimiter::for('tenant', function (Request $request): Limit {
+            $usuario = $request->attributes->get('usuario_tenant');
+            $clave = $usuario instanceof Usuario ? 'u:'.$usuario->getKey() : 'ip:'.$request->ip();
+
+            return Limit::perMinute(120)->by($clave);
         });
     }
 }

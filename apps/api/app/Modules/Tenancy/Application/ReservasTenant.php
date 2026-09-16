@@ -15,6 +15,7 @@ use App\Modules\Tenancy\EstadoSesionTenant;
 use App\Modules\Tenancy\Models\PersonaTenant;
 use App\Modules\Tenancy\Models\ReservaTenant;
 use App\Modules\Tenancy\Models\SesionTenant;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -54,64 +55,79 @@ class ReservasTenant
             throw new FueraDeVentana('La sesion ya inicio.');
         }
 
-        return DB::connection('tenant')->transaction(function () use ($sesion, $persona, $idempotencyKey, $permitirEspera, $costo): ReservaTenant {
-            $bloqueada = SesionTenant::query()->whereKey($sesion->getKey())->lockForUpdate()->firstOrFail();
+        try {
+            return DB::connection('tenant')->transaction(function () use ($sesion, $persona, $idempotencyKey, $permitirEspera, $costo): ReservaTenant {
+                $bloqueada = SesionTenant::query()->whereKey($sesion->getKey())->lockForUpdate()->firstOrFail();
 
-            if ($bloqueada->estado !== EstadoSesionTenant::Programada) {
-                throw new SesionNoReservable('La sesion no admite reservas.');
-            }
+                if ($bloqueada->estado !== EstadoSesionTenant::Programada) {
+                    throw new SesionNoReservable('La sesion no admite reservas.');
+                }
 
-            $activa = ReservaTenant::query()
-                ->where('sesion_id', $bloqueada->getKey())
-                ->where('persona_id', $persona->getKey())
-                ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::EnEspera->value])
-                ->exists();
+                $activa = ReservaTenant::query()
+                    ->where('sesion_id', $bloqueada->getKey())
+                    ->where('persona_id', $persona->getKey())
+                    ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::EnEspera->value])
+                    ->exists();
 
-            if ($activa) {
-                throw new YaReservado('Ya existe una reserva para esta sesion.');
-            }
+                if ($activa) {
+                    throw new YaReservado('Ya existe una reserva para esta sesion.');
+                }
 
-            $derecho = $this->resolver->paraSesion($persona, $bloqueada, $costo);
+                $derecho = $this->resolver->paraSesion($persona, $bloqueada, $costo);
 
-            if ($derecho === null) {
-                throw new SinDerechoDisponible('No hay un derecho con saldo para esta sesion.');
-            }
+                if ($derecho === null) {
+                    throw new SinDerechoDisponible('No hay un derecho con saldo para esta sesion.');
+                }
 
-            // Si hay cupo definido y esta lleno: lista de espera (sin hold) o rechazo.
-            if ($bloqueada->capacidad !== null && $this->confirmadas($bloqueada) >= $bloqueada->capacidad) {
-                if (! $permitirEspera) {
-                    throw new CupoLleno('La sesion esta llena.');
+                // Si hay cupo definido y esta lleno: lista de espera (sin hold) o rechazo.
+                if ($bloqueada->capacidad !== null && $this->confirmadas($bloqueada) >= $bloqueada->capacidad) {
+                    if (! $permitirEspera) {
+                        throw new CupoLleno('La sesion esta llena.');
+                    }
+
+                    return ReservaTenant::query()->create([
+                        'sesion_id' => $bloqueada->getKey(),
+                        'persona_id' => $persona->getKey(),
+                        'derecho_id' => $derecho->getKey(),
+                        'retencion_id' => null,
+                        'estado' => EstadoReserva::EnEspera->value,
+                        'unidades' => 0,
+                        'costo_unidades' => $costo,
+                        'idempotency_key' => $idempotencyKey,
+                    ]);
+                }
+
+                $retencion = null;
+                $unidadesReservadas = 0;
+
+                if (! $derecho->ilimitado) {
+                    $retencion = $this->creditos->retener($derecho, $costo, 'Reserva de sesion');
+                    $unidadesReservadas = $costo;
                 }
 
                 return ReservaTenant::query()->create([
                     'sesion_id' => $bloqueada->getKey(),
                     'persona_id' => $persona->getKey(),
                     'derecho_id' => $derecho->getKey(),
-                    'retencion_id' => null,
-                    'estado' => EstadoReserva::EnEspera->value,
-                    'unidades' => 0,
+                    'retencion_id' => $retencion?->getKey(),
+                    'estado' => EstadoReserva::Confirmada->value,
+                    'unidades' => $unidadesReservadas,
+                    'costo_unidades' => $costo,
                     'idempotency_key' => $idempotencyKey,
                 ]);
+            });
+        } catch (QueryException $e) {
+            // Carrera de idempotencia: otra peticion concurrente ya creo la reserva
+            // con la misma clave (viola el unique). Se devuelve la existente, no un 500.
+            if ($idempotencyKey !== null) {
+                $previa = ReservaTenant::query()->where('idempotency_key', $idempotencyKey)->first();
+                if ($previa !== null) {
+                    return $previa;
+                }
             }
 
-            $retencion = null;
-            $unidadesReservadas = 0;
-
-            if (! $derecho->ilimitado) {
-                $retencion = $this->creditos->retener($derecho, $costo, 'Reserva de sesion');
-                $unidadesReservadas = $costo;
-            }
-
-            return ReservaTenant::query()->create([
-                'sesion_id' => $bloqueada->getKey(),
-                'persona_id' => $persona->getKey(),
-                'derecho_id' => $derecho->getKey(),
-                'retencion_id' => $retencion?->getKey(),
-                'estado' => EstadoReserva::Confirmada->value,
-                'unidades' => $unidadesReservadas,
-                'idempotency_key' => $idempotencyKey,
-            ]);
-        });
+            throw $e;
+        }
     }
 
     /**
@@ -186,11 +202,13 @@ class ReservasTenant
         $derecho = $siguiente->derecho;
         $retencion = null;
         $unidadesReservadas = 0;
+        // Consume el costo REAL con el que se creo la reserva (no un valor fijo).
+        $costo = $siguiente->costo_unidades ?? self::UNIDADES_POR_SESION;
 
         if ($derecho !== null && ! $derecho->ilimitado) {
             try {
-                $retencion = $this->creditos->retener($derecho, self::UNIDADES_POR_SESION, 'Promocion de lista de espera');
-                $unidadesReservadas = self::UNIDADES_POR_SESION;
+                $retencion = $this->creditos->retener($derecho, $costo, 'Promocion de lista de espera');
+                $unidadesReservadas = $costo;
             } catch (SaldoInsuficiente) {
                 // Sin credito al promover: se queda en espera para intentar luego.
                 return null;
@@ -204,6 +222,40 @@ class ReservasTenant
         ]);
 
         return $siguiente;
+    }
+
+    /**
+     * Cancela una sesion (cancelacion del NEGOCIO): marca la sesion como cancelada y
+     * cancela TODAS sus reservas activas (confirmadas + en espera) liberando sus holds
+     * — el credito retenido vuelve al miembro, sin penalizarlo. Atomico (bloquea la
+     * sesion) e idempotente. No promueve lista de espera: la sesion no ocurrira.
+     */
+    public function cancelarSesion(SesionTenant $sesion): void
+    {
+        DB::connection('tenant')->transaction(function () use ($sesion): void {
+            $bloqueada = SesionTenant::query()->whereKey($sesion->getKey())->lockForUpdate()->firstOrFail();
+
+            if ($bloqueada->estado === EstadoSesionTenant::Cancelada) {
+                return;
+            }
+
+            $reservas = ReservaTenant::query()
+                ->where('sesion_id', $bloqueada->getKey())
+                ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::EnEspera->value])
+                ->with('retencion')
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($reservas as $reserva) {
+                if ($reserva->retencion !== null) {
+                    $this->creditos->liberar($reserva->retencion);
+                }
+
+                $reserva->update(['estado' => EstadoReserva::Cancelada->value]);
+            }
+
+            $bloqueada->update(['estado' => EstadoSesionTenant::Cancelada->value]);
+        });
     }
 
     private function confirmadas(SesionTenant $sesion): int

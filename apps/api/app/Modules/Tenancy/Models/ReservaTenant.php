@@ -24,7 +24,7 @@ class ReservaTenant extends Model
 
     protected $fillable = [
         'sesion_id', 'persona_id', 'derecho_id', 'retencion_id',
-        'estado', 'unidades', 'idempotency_key',
+        'estado', 'unidades', 'costo_unidades', 'idempotency_key',
     ];
 
     /**
@@ -33,6 +33,7 @@ class ReservaTenant extends Model
     protected $casts = [
         'estado' => EstadoReserva::class,
         'unidades' => 'integer',
+        'costo_unidades' => 'integer',
     ];
 
     /**

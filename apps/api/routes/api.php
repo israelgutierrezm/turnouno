@@ -120,7 +120,7 @@ Route::prefix('v1')->group(function (): void {
         // acceso (sin auth). Con throttle para mitigar sondeo de slugs.
         Route::get('/marca', [MarcaEstudioController::class, 'mostrar'])->middleware('throttle:60,1')->name('marca');
 
-        Route::middleware('estudio.auth')->group(function (): void {
+        Route::middleware(['estudio.auth', 'throttle:tenant'])->group(function (): void {
             Route::get('/yo', [AuthTenantController::class, 'yo'])->name('yo');
             Route::post('/logout', [AuthTenantController::class, 'destroy'])->name('logout');
 

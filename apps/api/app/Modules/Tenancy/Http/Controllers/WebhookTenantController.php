@@ -31,8 +31,14 @@ class WebhookTenantController
             return $this->stripe($request);
         }
 
-        // Otros proveedores: confirmacion por referencia explicita (sim/pruebas hasta
-        // conectar su webhook firmado real).
+        // Otros proveedores aun no tienen verificacion de firma dedicada en el plano
+        // tenant. En PRODUCCION no se acepta una confirmacion sin firma: evita que
+        // quien conozca/adivine una `referencia_externa` dispare pago+fulfillment. En
+        // dev/test se permite la confirmacion por referencia (simulacion/pruebas).
+        if (app()->environment('production')) {
+            abort(400, 'Webhook no verificado para este proveedor.');
+        }
+
         $referencia = (string) $request->input('referencia', '');
         if ($referencia !== '') {
             $this->confirmar->porReferencia($referencia);
@@ -45,9 +51,13 @@ class WebhookTenantController
     {
         $secret = $this->registro->llaves('stripe')['webhook_secret'] ?? '';
 
-        // Con llave configurada, la firma es obligatoria; sin llave (aun no activo)
-        // se procesa igual para no bloquear pruebas/simulacion.
-        if ($secret !== '' && ! VerificarFirmaStripe::valida($request->getContent(), $request->header('Stripe-Signature'), $secret)) {
+        if ($secret === '') {
+            // Sin webhook_secret no se puede verificar la firma: en PRODUCCION se
+            // rechaza; en dev/test se permite para pruebas/simulacion.
+            if (app()->environment('production')) {
+                abort(400, 'Webhook sin secreto configurado.');
+            }
+        } elseif (! VerificarFirmaStripe::valida($request->getContent(), $request->header('Stripe-Signature'), $secret)) {
             abort(400, 'Firma invalida.');
         }
 

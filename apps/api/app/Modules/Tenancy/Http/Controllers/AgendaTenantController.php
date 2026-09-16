@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Tenancy\Http\Controllers;
 
+use App\Modules\Tenancy\Application\ReservasTenant;
 use App\Modules\Tenancy\EstadoSesionTenant;
 use App\Modules\Tenancy\Models\OfertaTenant;
 use App\Modules\Tenancy\Models\SesionTenant;
@@ -23,7 +24,10 @@ class AgendaTenantController
 {
     private const LIMITE = 200;
 
-    public function __construct(private readonly AccesoSesionTenant $acceso) {}
+    public function __construct(
+        private readonly AccesoSesionTenant $acceso,
+        private readonly ReservasTenant $reservas,
+    ) {}
 
     public function crearSesion(Request $request): JsonResponse
     {
@@ -111,7 +115,9 @@ class AgendaTenantController
     public function cancelar(Request $request): JsonResponse
     {
         $sesion = SesionTenant::query()->where('ulid', (string) $request->route('sesion'))->firstOrFail();
-        $sesion->update(['estado' => EstadoSesionTenant::Cancelada->value]);
+        // Cancela la sesion Y sus reservas activas, liberando los holds (el credito
+        // retenido vuelve al miembro). Antes solo marcaba la sesion y dejaba holds colgados.
+        $this->reservas->cancelarSesion($sesion);
 
         return response()->json(['data' => $this->presentar($sesion->refresh()->load('oferta'))]);
     }
