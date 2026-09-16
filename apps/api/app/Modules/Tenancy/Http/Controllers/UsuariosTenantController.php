@@ -20,6 +20,25 @@ use Illuminate\Validation\ValidationException;
  */
 class UsuariosTenantController
 {
+    /**
+     * Lista los instructores del estudio (usuarios con rol instructor) para poder
+     * asignarlos a sesiones. Solo ulid + nombre; nunca datos sensibles.
+     */
+    public function instructores(): JsonResponse
+    {
+        $instructores = Usuario::query()
+            ->where('rol', 'instructor')
+            ->orderBy('name')
+            ->get(['ulid', 'name']);
+
+        return response()->json([
+            'data' => $instructores->map(static fn (Usuario $u): array => [
+                'id' => $u->ulid,
+                'nombre' => $u->name,
+            ])->all(),
+        ]);
+    }
+
     public function invitar(Request $request): JsonResponse
     {
         $validado = $request->validate([

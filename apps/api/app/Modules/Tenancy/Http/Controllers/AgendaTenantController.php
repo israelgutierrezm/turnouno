@@ -8,6 +8,8 @@ use App\Modules\Tenancy\EstadoSesionTenant;
 use App\Modules\Tenancy\Models\OfertaTenant;
 use App\Modules\Tenancy\Models\SesionTenant;
 use App\Modules\Tenancy\Models\SucursalTenant;
+use App\Modules\Tenancy\Models\Usuario;
+use App\Modules\Tenancy\Support\AccesoSesionTenant;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,11 +23,14 @@ class AgendaTenantController
 {
     private const LIMITE = 200;
 
+    public function __construct(private readonly AccesoSesionTenant $acceso) {}
+
     public function crearSesion(Request $request): JsonResponse
     {
         $validado = $request->validate([
             'oferta_id' => ['required', 'string'],
             'sucursal_id' => ['required', 'string'],
+            'instructor_id' => ['nullable', 'string'],
             'inicia_en_local' => ['required', 'date'],
             'duracion_minutos' => ['required', 'integer', 'min:1', 'max:1440'],
             'capacidad' => ['nullable', 'integer', 'min:1'],
@@ -41,6 +46,7 @@ class AgendaTenantController
         $sesion = SesionTenant::query()->create([
             'oferta_id' => $oferta->id,
             'sucursal_id' => $sucursal->id,
+            'instructor_id' => $this->resolverInstructor($validado['instructor_id'] ?? null),
             'inicia_en' => $inicia,
             'termina_en' => $termina,
             'zona_horaria' => $sucursal->zona_horaria,
@@ -48,12 +54,40 @@ class AgendaTenantController
             'estado' => EstadoSesionTenant::Programada->value,
         ]);
 
-        return response()->json(['data' => $this->presentar($sesion->load('oferta'))], 201);
+        return response()->json(['data' => $this->presentar($sesion->load(['oferta', 'instructor']))], 201);
+    }
+
+    public function asignarInstructor(Request $request): JsonResponse
+    {
+        $sesion = SesionTenant::query()->where('ulid', (string) $request->route('sesion'))->firstOrFail();
+        $validado = $request->validate(['instructor_id' => ['nullable', 'string']]);
+
+        $sesion->update(['instructor_id' => $this->resolverInstructor($validado['instructor_id'] ?? null)]);
+
+        return response()->json(['data' => $this->presentar($sesion->refresh()->load(['oferta', 'instructor']))]);
+    }
+
+    private function resolverInstructor(?string $ulid): ?int
+    {
+        if ($ulid === null || $ulid === '') {
+            return null;
+        }
+
+        $usuario = Usuario::query()->where('ulid', $ulid)->first();
+
+        return $usuario instanceof Usuario ? (int) $usuario->getKey() : null;
     }
 
     public function sesiones(Request $request): JsonResponse
     {
-        $consulta = SesionTenant::query()->with(['oferta', 'sucursal'])->orderBy('inicia_en');
+        $consulta = SesionTenant::query()->with(['oferta', 'sucursal', 'instructor'])->orderBy('inicia_en');
+
+        // Un instructor solo ve SUS sesiones asignadas.
+        $usuario = $request->attributes->get('usuario_tenant');
+        $usuario = $usuario instanceof Usuario ? $usuario : null;
+        if ($this->acceso->esInstructorAcotado($usuario)) {
+            $consulta->where('instructor_id', $usuario?->getKey());
+        }
 
         if (is_string($request->query('sucursal_id')) && $request->query('sucursal_id') !== '') {
             $sucursal = SucursalTenant::query()->where('ulid', $request->query('sucursal_id'))->first();
@@ -90,6 +124,7 @@ class AgendaTenantController
         return [
             'id' => $sesion->ulid,
             'oferta' => $sesion->oferta?->nombre,
+            'instructor' => $sesion->instructor?->name,
             'inicia_en' => $sesion->inicia_en->toIso8601String(),
             'termina_en' => $sesion->termina_en->toIso8601String(),
             'zona_horaria' => $sesion->zona_horaria,

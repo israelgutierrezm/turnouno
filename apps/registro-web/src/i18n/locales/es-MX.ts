@@ -290,6 +290,8 @@ export default {
       fecha: 'Fecha y hora',
       duracion: 'Duracion (min)',
       capacidad: 'Cupo (opcional)',
+      instructor: 'Instructor (opcional)',
+      sinInstructor: 'Sin asignar',
       crear: 'Programar clase',
       creando: 'Programando…',
       sinOfertas: 'Primero crea una oferta (en Configurar mi estudio).',

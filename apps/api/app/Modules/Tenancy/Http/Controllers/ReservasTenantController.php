@@ -9,6 +9,8 @@ use App\Modules\Tenancy\Application\ReservasTenant;
 use App\Modules\Tenancy\Models\PersonaTenant;
 use App\Modules\Tenancy\Models\ReservaTenant;
 use App\Modules\Tenancy\Models\SesionTenant;
+use App\Modules\Tenancy\Models\Usuario;
+use App\Modules\Tenancy\Support\AccesoSesionTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -20,11 +22,18 @@ use Illuminate\Http\Request;
  */
 class ReservasTenantController
 {
-    public function __construct(private readonly ReservasTenant $reservas) {}
+    public function __construct(
+        private readonly ReservasTenant $reservas,
+        private readonly AccesoSesionTenant $acceso,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
         $sesion = SesionTenant::query()->where('ulid', (string) $request->route('sesion'))->firstOrFail();
+
+        // Un instructor solo ve el roster de SUS sesiones asignadas.
+        $usuario = $request->attributes->get('usuario_tenant');
+        abort_unless($this->acceso->puedeOperar($sesion, $usuario instanceof Usuario ? $usuario : null), 403);
 
         $reservas = ReservaTenant::query()
             ->where('sesion_id', $sesion->getKey())

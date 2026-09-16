@@ -16,6 +16,7 @@ interface Sucursal {
 interface Sesion {
   id: string
   oferta: string | null
+  instructor: string | null
   inicia_en: string
   termina_en: string
   zona_horaria: string
@@ -45,10 +46,11 @@ const ofertas = ref<Oferta[]>([])
 const sucursales = ref<Sucursal[]>([])
 const sesiones = ref<Sesion[]>([])
 const miembros = ref<Miembro[]>([])
+const instructores = ref<{ id: string; nombre: string }[]>([])
 const cargando = ref(true)
 const error = ref<string | null>(null)
 
-const form = ref({ ofertaId: '', sucursalId: '', fecha: '', duracion: '60', capacidad: '' })
+const form = ref({ ofertaId: '', sucursalId: '', instructorId: '', fecha: '', duracion: '60', capacidad: '' })
 const creando = ref(false)
 
 const expandidaId = ref<string | null>(null)
@@ -82,6 +84,11 @@ async function cargar(): Promise<void> {
     sucursales.value = s.data.data
     sesiones.value = se.data.data
     miembros.value = m.data.data
+    // Solo el staff que gestiona la agenda puede listar/asignar instructores.
+    if (puedeGestionar.value) {
+      const i = await api.get<{ data: { id: string; nombre: string }[] }>(`${base.value}/instructores`)
+      instructores.value = i.data.data
+    }
   } catch (e) {
     error.value = mensajeDeError(e)
   } finally {
@@ -96,6 +103,7 @@ async function crearSesion(): Promise<void> {
     await api.post(`${base.value}/sesiones`, {
       oferta_id: form.value.ofertaId,
       sucursal_id: form.value.sucursalId,
+      instructor_id: form.value.instructorId !== '' ? form.value.instructorId : null,
       inicia_en_local: form.value.fecha.replace('T', ' ') + ':00',
       duracion_minutos: Number(form.value.duracion),
       capacidad: form.value.capacidad !== '' ? Number(form.value.capacidad) : null,
@@ -239,6 +247,13 @@ onMounted(cargar)
               <input id="ac" v-model="form.capacidad" class="tu-input" type="number" min="1" />
             </div>
           </div>
+          <div v-if="instructores.length > 0">
+            <label class="tu-label" for="ai">{{ $t('agenda.nueva.instructor') }}</label>
+            <select id="ai" v-model="form.instructorId" class="tu-input">
+              <option value="">{{ $t('agenda.nueva.sinInstructor') }}</option>
+              <option v-for="i in instructores" :key="i.id" :value="i.id">{{ i.nombre }}</option>
+            </select>
+          </div>
           <div class="sm:col-span-2">
             <button
               class="tu-btn tu-btn-primario"
@@ -267,6 +282,7 @@ onMounted(cargar)
               <p class="font-semibold">{{ s.oferta ?? '—' }}</p>
               <p class="text-sm" :style="{ color: 'var(--texto-suave)' }">
                 {{ horaLocal(s.inicia_en, s.zona_horaria) }}
+                <span v-if="s.instructor"> · {{ s.instructor }}</span>
               </p>
             </div>
             <div class="flex items-center gap-2">

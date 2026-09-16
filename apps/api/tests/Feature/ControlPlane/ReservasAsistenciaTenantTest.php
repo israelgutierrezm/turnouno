@@ -165,7 +165,7 @@ it('las reservas son tenant-local: un estudio no puede resolver la sesion de otr
     $this->getJson("/api/v1/app/{$b['slug']}/sesiones/{$sesion}/reservas", conBearer($b['bearer']))->assertNotFound();
 });
 
-it('un instructor ve el roster y marca asistencia, pero no reserva (RBAC tenant-local)', function (): void {
+it('un instructor asignado ve el roster y marca asistencia, pero no reserva (RBAC tenant-local)', function (): void {
     $e = estudioConSesion('estudio-a', 'a@correo.mx');
     $semilla = agendaSemilla($e);
     $vp = venderPackAMiembroTenant($e, 8000);
@@ -174,8 +174,11 @@ it('un instructor ve el roster y marca asistencia, pero no reserva (RBAC tenant-
         ->assertCreated()->json('data.id');
 
     $coach = personalConSesion($e['slug'], $e['bearer'], 'coach@correo.mx', 'instructor');
+    // El instructor solo opera SUS sesiones: el staff se lo asigna.
+    $coachUlid = (string) $this->getJson("/api/v1/app/{$e['slug']}/yo", conBearer($coach))->json('data.usuario.ulid');
+    $this->putJson("/api/v1/app/{$e['slug']}/sesiones/{$sesion}/instructor", ['instructor_id' => $coachUlid], conBearer($e['bearer']))->assertOk();
 
-    // Ver roster: permitido.
+    // Ver roster de su sesion: permitido.
     $this->getJson("/api/v1/app/{$e['slug']}/sesiones/{$sesion}/reservas", conBearer($coach))->assertOk();
     // Marcar asistencia: permitido.
     $this->postJson("/api/v1/app/{$e['slug']}/reservas/{$reserva}/asistencia", ['estado' => 'presente'], conBearer($coach))->assertCreated();

@@ -120,6 +120,7 @@ Route::prefix('v1')->group(function (): void {
 
             // Invitación de personal (crea usuario tenant-local con rol + activación).
             Route::post('/usuarios/invitar', [UsuariosTenantController::class, 'invitar'])->middleware('puede:usuarios.invitar')->name('usuarios.invitar');
+            Route::get('/instructores', [UsuariosTenantController::class, 'instructores'])->middleware('puede:agenda.gestionar')->name('instructores.index');
 
             // Operación tenant-local: alta de alumnos (data plane del estudio).
             Route::get('/miembros', [MiembrosTenantController::class, 'index'])->middleware('puede:miembros.ver')->name('miembros.index');
@@ -172,6 +173,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/sesiones', [AgendaTenantController::class, 'sesiones'])->middleware('puede:agenda.ver')->name('sesiones.index');
             Route::post('/sesiones', [AgendaTenantController::class, 'crearSesion'])->middleware('puede:agenda.gestionar')->name('sesiones.store');
             Route::post('/sesiones/{sesion}/cancelar', [AgendaTenantController::class, 'cancelar'])->middleware('puede:agenda.gestionar')->name('sesiones.cancelar');
+            Route::put('/sesiones/{sesion}/instructor', [AgendaTenantController::class, 'asignarInstructor'])->middleware('puede:agenda.gestionar')->name('sesiones.instructor');
 
             // Membresias (data plane del tenant): producto comercial → acuerdo →
             // derecho (entitlement) + ledger de creditos. El saldo se deriva del

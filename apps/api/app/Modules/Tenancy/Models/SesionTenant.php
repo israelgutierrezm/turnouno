@@ -21,7 +21,7 @@ class SesionTenant extends Model
 
     protected $table = 'sesiones';
 
-    protected $fillable = ['oferta_id', 'sucursal_id', 'inicia_en', 'termina_en', 'zona_horaria', 'capacidad', 'estado'];
+    protected $fillable = ['oferta_id', 'sucursal_id', 'instructor_id', 'inicia_en', 'termina_en', 'zona_horaria', 'capacidad', 'estado'];
 
     /**
      * @var array<string, string>
@@ -47,5 +47,15 @@ class SesionTenant extends Model
     public function sucursal(): BelongsTo
     {
         return $this->belongsTo(SucursalTenant::class, 'sucursal_id');
+    }
+
+    /**
+     * Instructor asignado (usuario tenant-local), opcional.
+     *
+     * @return BelongsTo<Usuario, $this>
+     */
+    public function instructor(): BelongsTo
+    {
+        return $this->belongsTo(Usuario::class, 'instructor_id');
     }
 }

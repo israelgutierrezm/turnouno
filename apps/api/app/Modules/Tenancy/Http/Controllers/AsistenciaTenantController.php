@@ -7,6 +7,8 @@ namespace App\Modules\Tenancy\Http\Controllers;
 use App\Modules\Asistencia\EstadoAsistencia;
 use App\Modules\Tenancy\Application\AsistenciaTenant;
 use App\Modules\Tenancy\Models\ReservaTenant;
+use App\Modules\Tenancy\Models\Usuario;
+use App\Modules\Tenancy\Support\AccesoSesionTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -18,11 +20,20 @@ use Illuminate\Validation\Rule;
  */
 class AsistenciaTenantController
 {
-    public function __construct(private readonly AsistenciaTenant $asistencia) {}
+    public function __construct(
+        private readonly AsistenciaTenant $asistencia,
+        private readonly AccesoSesionTenant $acceso,
+    ) {}
 
     public function marcar(Request $request): JsonResponse
     {
-        $reserva = ReservaTenant::query()->where('ulid', (string) $request->route('reserva'))->firstOrFail();
+        $reserva = ReservaTenant::query()->with('sesion')->where('ulid', (string) $request->route('reserva'))->firstOrFail();
+
+        // Un instructor solo marca asistencia en SUS sesiones asignadas.
+        $usuario = $request->attributes->get('usuario_tenant');
+        if ($reserva->sesion !== null) {
+            abort_unless($this->acceso->puedeOperar($reserva->sesion, $usuario instanceof Usuario ? $usuario : null), 403);
+        }
 
         $validado = $request->validate([
             'estado' => ['required', Rule::enum(EstadoAsistencia::class)],
