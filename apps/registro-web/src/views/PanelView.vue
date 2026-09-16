@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isAxiosError } from 'axios'
 import { onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
@@ -42,7 +43,13 @@ async function cargar(): Promise<void> {
     )
     facturacion.value = data.data
   } catch (e) {
-    error.value = mensajeDeError(e)
+    // La facturacion es solo para quien tiene facturacion.ver; el resto del staff
+    // ve el panel sin ese bloque (no es un error para ellos).
+    if (isAxiosError(e) && e.response?.status === 403) {
+      facturacion.value = null
+    } else {
+      error.value = mensajeDeError(e)
+    }
   } finally {
     cargando.value = false
   }

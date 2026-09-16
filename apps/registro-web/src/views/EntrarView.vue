@@ -17,10 +17,15 @@ const avisoGoogle = ref(false)
 const hayGoogle = clientIdGoogle() !== undefined
 const contenedorGoogle = ref<HTMLElement | null>(null)
 
+// El miembro entra a su cuenta; el staff al panel.
+function destino(): { name: string } {
+  return sesion.usuario?.rol === 'miembro' ? { name: 'mi-cuenta' } : { name: 'panel' }
+}
+
 async function enviar(): Promise<void> {
   try {
     await sesion.iniciarSesion(slug.value.trim(), email.value, password.value)
-    void router.push({ name: 'panel' })
+    void router.push(destino())
   } catch {
     // El error queda en sesion.error.
   }
@@ -33,7 +38,7 @@ async function entrarConGoogle(credential: string): Promise<void> {
   }
   try {
     await sesion.iniciarSesionConGoogle(slug.value.trim(), credential)
-    void router.push({ name: 'panel' })
+    void router.push(destino())
   } catch {
     // El error queda en sesion.error.
   }

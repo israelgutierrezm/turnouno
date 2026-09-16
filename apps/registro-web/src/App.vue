@@ -16,10 +16,12 @@ interface Enlace {
   nombre: string
   etiqueta: string
   permiso?: string
+  soloMiembro?: boolean
 }
 
 const ENLACES: Enlace[] = [
-  { nombre: 'panel', etiqueta: 'nav.panel' },
+  { nombre: 'mi-cuenta', etiqueta: 'nav.miCuenta', soloMiembro: true },
+  { nombre: 'panel', etiqueta: 'nav.panel', permiso: 'facturacion.ver' },
   { nombre: 'miembros', etiqueta: 'nav.miembros', permiso: 'miembros.ver' },
   { nombre: 'agenda', etiqueta: 'nav.agenda', permiso: 'agenda.ver' },
   { nombre: 'ventas', etiqueta: 'nav.ventas', permiso: 'productos.ver' },
@@ -29,7 +31,17 @@ const ENLACES: Enlace[] = [
 ]
 
 const enlaces = computed(() =>
-  ENLACES.filter((e) => e.permiso === undefined || sesion.puede(e.permiso)),
+  ENLACES.filter((e) => {
+    if (e.soloMiembro === true) {
+      return sesion.usuario?.rol === 'miembro'
+    }
+    return e.permiso === undefined || sesion.puede(e.permiso)
+  }),
+)
+
+// Inicio segun rol: el miembro va a su cuenta; el staff al panel.
+const hogar = computed(() =>
+  sesion.usuario?.rol === 'miembro' ? { name: 'mi-cuenta' } : { name: 'panel' },
 )
 
 async function salir(): Promise<void> {
@@ -44,7 +56,7 @@ async function salir(): Promise<void> {
       <div class="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between gap-4">
         <div class="flex items-center gap-4 min-w-0">
           <RouterLink
-            :to="sesion.autenticado ? { name: 'panel' } : { name: 'inicio' }"
+            :to="sesion.autenticado ? hogar : { name: 'inicio' }"
             class="flex items-center gap-2 font-bold text-lg shrink-0"
           >
             <span

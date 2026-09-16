@@ -55,6 +55,7 @@ use App\Modules\Tenancy\Http\Controllers\FacturacionController;
 use App\Modules\Tenancy\Http\Controllers\FormulariosController;
 use App\Modules\Tenancy\Http\Controllers\MembresiasTenantController;
 use App\Modules\Tenancy\Http\Controllers\MiembrosTenantController;
+use App\Modules\Tenancy\Http\Controllers\MiTenantController;
 use App\Modules\Tenancy\Http\Controllers\OnboardingController;
 use App\Modules\Tenancy\Http\Controllers\OrdenesTenantController;
 use App\Modules\Tenancy\Http\Controllers\OrganizacionesTenantController;
@@ -109,6 +110,13 @@ Route::prefix('v1')->group(function (): void {
         Route::middleware('estudio.auth')->group(function (): void {
             Route::get('/yo', [AuthTenantController::class, 'yo'])->name('yo');
             Route::post('/logout', [AuthTenantController::class, 'destroy'])->name('logout');
+
+            // Autoservicio del miembro: opera solo sobre su propia persona (sin
+            // permisos de staff). Resuelve la persona del usuario autenticado.
+            Route::get('/mi/perfil', [MiTenantController::class, 'perfil'])->name('mi.perfil');
+            Route::get('/mi/agenda', [MiTenantController::class, 'agenda'])->name('mi.agenda');
+            Route::post('/mi/reservas', [MiTenantController::class, 'reservar'])->name('mi.reservas.store');
+            Route::post('/mi/reservas/{reserva}/cancelar', [MiTenantController::class, 'cancelar'])->name('mi.reservas.cancelar');
 
             // Invitación de personal (crea usuario tenant-local con rol + activación).
             Route::post('/usuarios/invitar', [UsuariosTenantController::class, 'invitar'])->middleware('puede:usuarios.invitar')->name('usuarios.invitar');

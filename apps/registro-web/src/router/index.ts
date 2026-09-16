@@ -81,6 +81,12 @@ const router = createRouter({
       component: () => import('@/views/FormulariosView.vue'),
       meta: { requiereSesion: true },
     },
+    {
+      path: '/mi-cuenta',
+      name: 'mi-cuenta',
+      component: () => import('@/views/MiCuentaView.vue'),
+      meta: { requiereSesion: true },
+    },
     { path: '/:pathMatch(.*)*', redirect: { name: 'inicio' } },
   ],
 })
