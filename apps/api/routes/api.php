@@ -65,6 +65,7 @@ use App\Modules\Tenancy\Http\Controllers\ReservasTenantController;
 use App\Modules\Tenancy\Http\Controllers\RespuestasFormularioController;
 use App\Modules\Tenancy\Http\Controllers\TiposDocumentoController;
 use App\Modules\Tenancy\Http\Controllers\UsuariosTenantController;
+use App\Modules\Tenancy\Http\Controllers\WebhookTenantController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -92,6 +93,11 @@ Route::prefix('v1')->group(function (): void {
     | identidad vive en la BD de cada estudio (no hay login global ni selector
     | de tenant tras el login). Ver docs/CONTROL_PLANE.md.
     */
+    // Webhook publico de pasarela por estudio (data plane): resuelve el estudio por
+    // slug y confirma el pago pendiente -> fulfillment. Sin sesion; idempotente.
+    Route::post('/webhooks/tenant/{estudio}/{proveedor}', WebhookTenantController::class)
+        ->middleware('estudio.resolver')->name('api.v1.webhooks.tenant');
+
     Route::post('/registro', [RegistroEstudioController::class, 'store'])->middleware('throttle:login')->name('api.v1.registro');
     Route::get('/registro/slug', [RegistroEstudioController::class, 'disponibilidad'])->middleware('throttle:60,1')->name('api.v1.registro.slug');
     Route::get('/directorio', [DirectorioController::class, 'index'])->middleware('throttle:60,1')->name('api.v1.directorio');
@@ -207,6 +213,9 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/ordenes', [OrdenesTenantController::class, 'crear'])->middleware('puede:ordenes.gestionar')->name('ordenes.store');
             Route::get('/ordenes/{orden}', [OrdenesTenantController::class, 'show'])->middleware('puede:ordenes.ver')->name('ordenes.show');
             Route::post('/ordenes/{orden}/liquidar', [OrdenesTenantController::class, 'liquidar'])->middleware('puede:ordenes.gestionar')->name('ordenes.liquidar');
+            // Cobro en linea con la pasarela del estudio (asincrono -> pendiente +
+            // checkout; el webhook confirma). Listo para activarse al cargar llaves.
+            Route::post('/ordenes/{orden}/cobrar', [OrdenesTenantController::class, 'cobrar'])->middleware('puede:ordenes.gestionar')->name('ordenes.cobrar');
 
             // Pasarelas de pago del estudio: el propietario conecta sus llaves
             // (cifradas, nunca expuestas). El cobro en linea real corre cuando el

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Tenancy\Http\Controllers;
 
+use App\Modules\Pagos\MetodoPago;
+use App\Modules\Tenancy\Application\CobrarOrdenTenant;
 use App\Modules\Tenancy\Application\OrdenesTenant;
 use App\Modules\Tenancy\Models\LineaOrdenTenant;
 use App\Modules\Tenancy\Models\OrdenTenant;
@@ -25,7 +27,10 @@ class OrdenesTenantController
 
     private const METODOS = ['efectivo', 'transferencia', 'ventanilla', 'manual'];
 
-    public function __construct(private readonly OrdenesTenant $ordenes) {}
+    public function __construct(
+        private readonly OrdenesTenant $ordenes,
+        private readonly CobrarOrdenTenant $cobrar,
+    ) {}
 
     public function index(): JsonResponse
     {
@@ -73,6 +78,30 @@ class OrdenesTenantController
         $orden = OrdenTenant::query()->where('ulid', (string) $request->route('orden'))->firstOrFail();
 
         return response()->json(['data' => $this->presentar($orden)]);
+    }
+
+    public function cobrar(Request $request): JsonResponse
+    {
+        $orden = OrdenTenant::query()->where('ulid', (string) $request->route('orden'))->firstOrFail();
+
+        $validado = $request->validate([
+            'proveedor' => ['required', 'string'],
+            'metodo' => ['nullable', Rule::enum(MetodoPago::class)],
+            'idempotency_key' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $metodo = isset($validado['metodo']) ? MetodoPago::from($validado['metodo']) : null;
+        $key = ($validado['idempotency_key'] ?? '') !== '' ? $validado['idempotency_key'] : null;
+
+        $pago = $this->cobrar->ejecutar($orden, $validado['proveedor'], $metodo, $key);
+
+        return response()->json(['data' => [
+            'pago' => $pago->ulid,
+            'proveedor' => $pago->proveedor,
+            'estado' => $pago->estado->value,
+            'checkout' => $pago->checkout,
+            'orden' => $this->presentar($orden->refresh()),
+        ]], 201);
     }
 
     public function liquidar(Request $request): JsonResponse

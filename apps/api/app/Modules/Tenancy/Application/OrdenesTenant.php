@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\DB;
  */
 class OrdenesTenant
 {
-    public function __construct(private readonly MembresiasTenant $membresias) {}
+    public function __construct(private readonly FulfillmentTenant $fulfillment) {}
 
     /**
      * @param  list<array{producto: ProductoTenant, cantidad: int, beneficiario?: PersonaTenant|null}>  $items
@@ -85,30 +85,11 @@ class OrdenesTenant
                 throw new OrdenNoLiquidable('La orden no admite liquidacion.');
             }
 
-            $bloqueada->update([
-                'estado' => EstadoOrden::Pagada->value,
-                'metodo_pago' => $metodo,
-                'referencia_pago' => $referencia,
-                'pagada_en' => now(),
-            ]);
+            // Registra el metodo/referencia del pago manual y hace el fulfillment.
+            $bloqueada->update(['metodo_pago' => $metodo, 'referencia_pago' => $referencia]);
+            $this->fulfillment->cumplir($bloqueada);
 
-            $bloqueada->loadMissing(['lineas.producto', 'lineas.beneficiario', 'persona']);
-
-            foreach ($bloqueada->lineas as $linea) {
-                $beneficiario = $linea->beneficiario ?? $bloqueada->persona;
-                $producto = $linea->producto;
-
-                if (! $beneficiario instanceof PersonaTenant || ! $producto instanceof ProductoTenant) {
-                    continue;
-                }
-
-                for ($i = 0; $i < $linea->cantidad; $i++) {
-                    $acuerdo = $this->membresias->venderProducto($beneficiario, $producto);
-                    $acuerdo->update(['linea_orden_id' => $linea->getKey()]);
-                }
-            }
-
-            return $bloqueada;
+            return $bloqueada->refresh();
         });
     }
 }
