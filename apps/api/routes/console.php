@@ -19,3 +19,6 @@ Schedule::command('turnouno:despachar-outbox')->everyMinute()->withoutOverlappin
 
 // Reintenta las entregas de webhook fallidas de cada estudio (R40).
 Schedule::command('turnouno:reintentar-webhooks')->everyFiveMinutes()->withoutOverlapping();
+
+// Envia los mensajes encolados (y reintenta los fallidos) de cada estudio (R28).
+Schedule::command('turnouno:enviar-mensajes')->everyMinute()->withoutOverlapping();

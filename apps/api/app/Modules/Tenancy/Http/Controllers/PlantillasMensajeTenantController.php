@@ -1,0 +1,73 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Tenancy\Http\Controllers;
+
+use App\Modules\Comunicaciones\CanalComunicacion;
+use App\Modules\Tenancy\Models\PlantillaMensajeTenant;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+
+/**
+ * Plantillas de comunicacion del estudio (R28): asunto/cuerpo con marcadores {{...}}
+ * que se disparan ante un evento (`clave`) por un `canal`. Idempotente por
+ * (clave, canal). Opera SIEMPRE sobre la BD del estudio resuelto.
+ */
+class PlantillasMensajeTenantController
+{
+    public function index(): JsonResponse
+    {
+        $plantillas = PlantillaMensajeTenant::query()->orderBy('clave')->get();
+
+        return response()->json([
+            'data' => $plantillas->map(fn (PlantillaMensajeTenant $p): array => $this->presentar($p))->all(),
+        ]);
+    }
+
+    public function guardar(Request $request): JsonResponse
+    {
+        $validado = $request->validate([
+            'clave' => ['required', 'string', 'max:100'],
+            'canal' => ['required', Rule::enum(CanalComunicacion::class)],
+            'asunto' => ['required', 'string', 'max:255'],
+            'cuerpo' => ['required', 'string', 'max:5000'],
+            'activo' => ['boolean'],
+        ]);
+
+        $plantilla = PlantillaMensajeTenant::query()->updateOrCreate(
+            ['clave' => $validado['clave'], 'canal' => $validado['canal']],
+            [
+                'asunto' => $validado['asunto'],
+                'cuerpo' => $validado['cuerpo'],
+                'activo' => (bool) ($validado['activo'] ?? true),
+            ],
+        );
+
+        return response()->json(['data' => $this->presentar($plantilla)], 201);
+    }
+
+    public function eliminar(Request $request): JsonResponse
+    {
+        $plantilla = PlantillaMensajeTenant::query()->where('ulid', (string) $request->route('plantilla'))->firstOrFail();
+        $plantilla->delete();
+
+        return response()->json(status: 204);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function presentar(PlantillaMensajeTenant $plantilla): array
+    {
+        return [
+            'id' => $plantilla->ulid,
+            'clave' => $plantilla->clave,
+            'canal' => $plantilla->canal->value,
+            'asunto' => $plantilla->asunto,
+            'cuerpo' => $plantilla->cuerpo,
+            'activo' => $plantilla->activo,
+        ];
+    }
+}
