@@ -96,6 +96,7 @@ Route::prefix('v1')->group(function (): void {
 
     Route::prefix('app/{estudio}')->middleware('estudio.resolver')->group(function (): void {
         Route::post('/login', [AuthTenantController::class, 'store'])->middleware('throttle:login')->name('api.v1.app.login');
+        Route::post('/auth/google', [AuthTenantController::class, 'google'])->middleware('throttle:login')->name('api.v1.app.auth.google');
         Route::post('/activar', [AuthTenantController::class, 'activar'])->middleware('throttle:login')->name('api.v1.app.activar');
 
         Route::middleware('estudio.auth')->group(function (): void {

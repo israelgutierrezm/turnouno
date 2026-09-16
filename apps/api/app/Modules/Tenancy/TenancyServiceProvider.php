@@ -6,6 +6,8 @@ namespace App\Modules\Tenancy;
 
 use App\Modules\Tenancy\Application\PoliticaAlumnosActivos;
 use App\Modules\Tenancy\Application\PoliticaAlumnosActivosV1;
+use App\Modules\Tenancy\Application\VerificadorGoogle;
+use App\Modules\Tenancy\Application\VerificadorGoogleTokeninfo;
 use App\Modules\Tenancy\Context\TenantContext;
 use App\Modules\Tenancy\Database\GestorDeConexionTenant;
 use App\Modules\Tenancy\Models\Tenant;
@@ -31,6 +33,10 @@ class TenancyServiceProvider extends ServiceProvider
         // Definición de "alumno activo" (versionada); intercambiable sin reescribir
         // mediciones históricas.
         $this->app->bind(PoliticaAlumnosActivos::class, PoliticaAlumnosActivosV1::class);
+
+        // Verificador de ID token de Google (SSO tenant-local); intercambiable en
+        // pruebas por un doble que devuelve una identidad conocida.
+        $this->app->bind(VerificadorGoogle::class, VerificadorGoogleTokeninfo::class);
     }
 
     public function boot(): void

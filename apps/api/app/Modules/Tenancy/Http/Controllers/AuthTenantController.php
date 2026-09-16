@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Tenancy\Http\Controllers;
 
 use App\Modules\Tenancy\Application\ActivacionPropietario;
+use App\Modules\Tenancy\Application\AutenticacionGoogleTenant;
 use App\Modules\Tenancy\Application\AutenticacionTenant;
 use App\Modules\Tenancy\Application\CatalogoDePermisosTenant;
 use App\Modules\Tenancy\Http\Requests\ActivarTenantRequest;
@@ -26,6 +27,7 @@ class AuthTenantController
     public function __construct(
         private readonly AutenticacionTenant $auth,
         private readonly ActivacionPropietario $activacion,
+        private readonly AutenticacionGoogleTenant $google,
     ) {}
 
     public function store(LoginTenantRequest $request): JsonResponse
@@ -40,6 +42,21 @@ class AuthTenantController
             || ! Hash::check((string) $request->validated('password'), (string) $usuario->password)) {
             throw ValidationException::withMessages(['email' => [__('auth.failed')]]);
         }
+
+        return response()->json(['data' => [
+            'token' => $this->auth->emitir($usuario),
+            'usuario' => $this->presentarUsuario($usuario),
+            'estudio' => $this->presentarEstudio($estudio),
+        ]]);
+    }
+
+    public function google(Request $request): JsonResponse
+    {
+        $estudio = $this->estudioDe($request);
+
+        $validado = $request->validate(['credential' => ['required', 'string']]);
+
+        $usuario = $this->google->ejecutar((string) $validado['credential']);
 
         return response()->json(['data' => [
             'token' => $this->auth->emitir($usuario),

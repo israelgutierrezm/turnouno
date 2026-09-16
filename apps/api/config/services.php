@@ -37,4 +37,12 @@ return [
         ],
     ],
 
+    /*
+    | Google Sign-In (SSO tenant-local). El `client_id` es el mismo del lado web
+    | (Google Identity Services) y sirve para validar el `aud` del ID token.
+    */
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+    ],
+
 ];

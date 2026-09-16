@@ -80,6 +80,23 @@ export const useSesionTenantStore = defineStore('sesionTenant', () => {
     }
   }
 
+  async function iniciarSesionConGoogle(slugEstudio: string, credential: string): Promise<void> {
+    cargando.value = true
+    error.value = null
+    try {
+      const { data } = await api.post<{ data: RespuestaAuth }>(
+        `/api/v1/app/${slugEstudio}/auth/google`,
+        { credential },
+      )
+      establecer(data.data)
+    } catch (e) {
+      error.value = mensajeDeError(e, 'No se pudo iniciar sesion con Google.')
+      throw e
+    } finally {
+      cargando.value = false
+    }
+  }
+
   async function activar(
     slugEstudio: string,
     email: string,
@@ -157,6 +174,7 @@ export const useSesionTenantStore = defineStore('sesionTenant', () => {
     autenticado,
     puede,
     iniciarSesion,
+    iniciarSesionConGoogle,
     activar,
     cargarYo,
     verificarSesion,

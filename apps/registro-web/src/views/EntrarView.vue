@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
+import { clientIdGoogle, renderizarBotonGoogle } from '@/lib/google'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
 
 const route = useRoute()
@@ -13,6 +14,9 @@ const email = ref('')
 const password = ref('')
 const avisoGoogle = ref(false)
 
+const hayGoogle = clientIdGoogle() !== undefined
+const contenedorGoogle = ref<HTMLElement | null>(null)
+
 async function enviar(): Promise<void> {
   try {
     await sesion.iniciarSesion(slug.value.trim(), email.value, password.value)
@@ -21,6 +25,25 @@ async function enviar(): Promise<void> {
     // El error queda en sesion.error.
   }
 }
+
+async function entrarConGoogle(credential: string): Promise<void> {
+  if (slug.value.trim() === '') {
+    sesion.error = 'Escribe primero la direccion de tu estudio.'
+    return
+  }
+  try {
+    await sesion.iniciarSesionConGoogle(slug.value.trim(), credential)
+    void router.push({ name: 'panel' })
+  } catch {
+    // El error queda en sesion.error.
+  }
+}
+
+onMounted(() => {
+  if (hayGoogle && contenedorGoogle.value !== null) {
+    void renderizarBotonGoogle(contenedorGoogle.value, (c) => void entrarConGoogle(c))
+  }
+})
 </script>
 
 <template>
@@ -60,13 +83,16 @@ async function enviar(): Promise<void> {
         <span class="flex-1 border-t" :style="{ borderColor: 'var(--borde)' }" />
       </div>
 
-      <button class="tu-btn tu-btn-fantasma w-full" type="button" @click="avisoGoogle = true">
-        <span aria-hidden="true">G</span>
-        {{ $t('entrar.google') }}
-      </button>
-      <p v-if="avisoGoogle" class="text-xs text-center" :style="{ color: 'var(--texto-suave)' }">
-        {{ $t('entrar.googlePronto') }}
-      </p>
+      <div v-if="hayGoogle" ref="contenedorGoogle" class="flex justify-center"></div>
+      <template v-else>
+        <button class="tu-btn tu-btn-fantasma w-full" type="button" @click="avisoGoogle = true">
+          <span aria-hidden="true">G</span>
+          {{ $t('entrar.google') }}
+        </button>
+        <p v-if="avisoGoogle" class="text-xs text-center" :style="{ color: 'var(--texto-suave)' }">
+          {{ $t('entrar.googlePronto') }}
+        </p>
+      </template>
     </form>
 
     <p class="mt-4 text-sm text-center" :style="{ color: 'var(--texto-suave)' }">
