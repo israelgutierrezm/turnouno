@@ -16,4 +16,5 @@ enum OrigenMovimiento: string
     case Ciclo = 'ciclo';
     case Reserva = 'reserva';
     case Ajuste = 'ajuste';
+    case Reembolso = 'reembolso';
 }

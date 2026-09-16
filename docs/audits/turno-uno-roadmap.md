@@ -22,15 +22,15 @@ Deriva de `turno-uno-competitive-audit.md`. Regla rectora del documento de produ
 
 ### P0.B — Motores núcleo (dan la forma que pide el documento)
 
-| Ítem | Acción | Prio dentro de P0 |
-|---|---|---|
-| **Booking Policy Engine (R1)** | Extraer un motor único (legacy+tenant) que devuelva `Decision{allowed,reason_code,message,rules_evaluated,credit_cost,entitlement_used,warnings}`; modo `preview`; sumar reglas nivel/edad/conflicto/no-show/deuda/prioridad. Base ya documentada en `docs/BOOKING_ENGINE.md`. | Alta |
-| **Renovación de ciclos en tenant (R10)** | Hacer que `GenerarCicloEntitlement` opere sobre `DerechoTenant` (hoy solo legacy): RENEWAL/EXPIRATION/ROLLOVER reales en el plano activo. | Alta |
-| **Credit ledger auditable (R2)** | Añadir a `movimientos_credito`: `persona_id, source, reason(tipado), balance_after, reserva_id/retencion_id, actor_id, metadata`; ampliar enum de tipos. | Alta |
-| **Audit log (R38)** | Módulo `Audit` append-only (actor/tenant/sucursal/action/entity/before/after/motivo/ip/correlation) cableado a crédito/refund/override/permiso/precio/documento. | Alta |
-| **RBAC scope + overrides auditables (R19)** | Portar branch-scope de `ControlDeAcceso` al tenant; exigir `motivo`+actor en concesiones/consumos/overrides. | Media |
-| **Refunds tenant (R11)** | `ReembolsarPagoTenant` con parcial/proporcional, entidad Refund enlazada a Pago, devolución real por pasarela + conciliación. | Media |
-| **Cancellation/no-show configurable (R8)** | Política por tenant/actividad/plan (deadline/crédito/penalización/strike/tolerancia) + snapshot en la reserva. | Media |
+| Ítem | Acción | Prio dentro de P0 | Estado |
+|---|---|---|---|
+| **Booking Policy Engine (R1)** | Extraer un motor único (legacy+tenant) que devuelva `Decision{allowed,reason_code,message,rules_evaluated,credit_cost,entitlement_used,warnings}`; modo `preview`; sumar reglas nivel/edad/conflicto/no-show/deuda/prioridad. Base ya documentada en `docs/BOOKING_ENGINE.md`. | Alta | ✅ `977adea` (base: decisión + preview; reglas nivel/edad/etc. quedan como extensiones progresivas) |
+| **Renovación de ciclos en tenant (R10)** | Hacer que `GenerarCicloEntitlement` opere sobre `DerechoTenant` (hoy solo legacy): RENEWAL/EXPIRATION/ROLLOVER reales en el plano activo. | Alta | ✅ `b9ac1a8` |
+| **Credit ledger auditable (R2)** | Añadir a `movimientos_credito`: `persona_id, source, reason(tipado), balance_after, reserva_id/retencion_id, actor_id, metadata`; ampliar enum de tipos. | Alta | ✅ `e9176df` (origen/actor/saldo_posterior/referencia/metadata + endpoint historial; enum ampliado con `OrigenMovimiento`) |
+| **Audit log (R38)** | Módulo `Audit` append-only (actor/tenant/sucursal/action/entity/before/after/motivo/ip/correlation) cableado a crédito/refund/override/permiso/precio/documento. | Alta | ✅ `22f8b9d` (base + cableado al top-up; más cableados al avanzar refund/override) |
+| **RBAC scope + overrides auditables (R19)** | Portar branch-scope de `ControlDeAcceso` al tenant; exigir `motivo`+actor en concesiones/consumos/overrides. | Media | Pendiente |
+| **Refunds tenant (R11)** | `ReembolsarPagoTenant` con parcial/proporcional, entidad Refund enlazada a Pago, devolución real por pasarela + conciliación. | Media | ✅ `ReembolsarPagoTenant` + `ReembolsoTenant` (total revierte entitlement con bloqueo-si-usado; parcial monetaria/proporcional; suma acotada al monto; auditada) + contrato `PasarelaReembolsable` para la devolución en línea (falta implementarla en Stripe con llaves reales, como el cobro en vivo). |
+| **Cancellation/no-show configurable (R8)** | Política por tenant/actividad/plan (deadline/crédito/penalización/strike/tolerancia) + snapshot en la reserva. | Media | Pendiente |
 
 *(Tenant isolation ya está EXISTE Y CORRECTO — no requiere trabajo P0, solo mantener los tests.)*
 

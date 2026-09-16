@@ -29,7 +29,7 @@ class CatalogoDePermisosTenant
                 'productos.ver', 'productos.gestionar',
                 'membresias.gestionar', 'creditos.gestionar', 'derechos.ver',
                 'reservas.ver', 'reservas.gestionar', 'asistencia.marcar', 'checkins.registrar',
-                'ordenes.ver', 'ordenes.gestionar',
+                'ordenes.ver', 'ordenes.gestionar', 'pagos.reembolsar',
                 'facturacion.ver', 'usuarios.invitar', 'auditoria.ver',
             ],
             'recepcionista' => [

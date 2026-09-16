@@ -9,6 +9,7 @@ use App\Modules\Pagos\MetodoPago;
 use App\Support\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Pago de una orden, tenant-local. Reusa los enums de estado/metodo del modulo
@@ -51,5 +52,13 @@ class PagoTenant extends Model
     public function orden(): BelongsTo
     {
         return $this->belongsTo(OrdenTenant::class, 'orden_id');
+    }
+
+    /**
+     * @return HasMany<ReembolsoTenant, $this>
+     */
+    public function reembolsos(): HasMany
+    {
+        return $this->hasMany(ReembolsoTenant::class, 'pago_id');
     }
 }

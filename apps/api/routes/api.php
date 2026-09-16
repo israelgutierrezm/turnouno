@@ -64,6 +64,7 @@ use App\Modules\Tenancy\Http\Controllers\OnboardingController;
 use App\Modules\Tenancy\Http\Controllers\OrdenesTenantController;
 use App\Modules\Tenancy\Http\Controllers\OrganizacionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\PasarelasTenantController;
+use App\Modules\Tenancy\Http\Controllers\ReembolsosTenantController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
 use App\Modules\Tenancy\Http\Controllers\ReservasTenantController;
 use App\Modules\Tenancy\Http\Controllers\RespuestasFormularioController;
@@ -233,6 +234,11 @@ Route::prefix('v1')->group(function (): void {
             // Cobro en linea con la pasarela del estudio (asincrono -> pendiente +
             // checkout; el webhook confirma). Listo para activarse al cargar llaves.
             Route::post('/ordenes/{orden}/cobrar', [OrdenesTenantController::class, 'cobrar'])->middleware('puede:ordenes.gestionar')->name('ordenes.cobrar');
+
+            // Devoluciones (refunds) de un pago: total (revierte entitlement) o parcial
+            // (proporcional). Operacion sensible: exige motivo y queda auditada.
+            Route::get('/pagos/{pago}/reembolsos', [ReembolsosTenantController::class, 'index'])->middleware('puede:pagos.reembolsar')->name('pagos.reembolsos.index');
+            Route::post('/pagos/{pago}/reembolsos', [ReembolsosTenantController::class, 'store'])->middleware('puede:pagos.reembolsar')->name('pagos.reembolsos.store');
 
             // Pasarelas de pago del estudio: el propietario conecta sus llaves
             // (cifradas, nunca expuestas). El cobro en linea real corre cuando el

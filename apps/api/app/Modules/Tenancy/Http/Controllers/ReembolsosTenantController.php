@@ -1,0 +1,92 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Tenancy\Http\Controllers;
+
+use App\Modules\Tenancy\Application\ReembolsarPagoTenant;
+use App\Modules\Tenancy\Application\RegistrarAuditoria;
+use App\Modules\Tenancy\Models\PagoTenant;
+use App\Modules\Tenancy\Models\ReembolsoTenant;
+use App\Modules\Tenancy\Models\Usuario;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+/**
+ * Devoluciones (refunds) de un pago del estudio (data plane del tenant). Total o
+ * parcial, con reversión del entitlement segun politica (ver
+ * {@see ReembolsarPagoTenant}). Operacion sensible: exige `motivo`, queda con actor
+ * en la devolucion y en la bitacora de auditoria. Opera SIEMPRE sobre la BD del
+ * estudio resuelto.
+ */
+class ReembolsosTenantController
+{
+    public function __construct(
+        private readonly ReembolsarPagoTenant $reembolsos,
+        private readonly RegistrarAuditoria $auditoria,
+    ) {}
+
+    public function index(Request $request): JsonResponse
+    {
+        $pago = PagoTenant::query()->where('ulid', (string) $request->route('pago'))->firstOrFail();
+
+        $lista = $pago->reembolsos()->orderByDesc('id')->get();
+
+        return response()->json([
+            'data' => $lista->map(fn (ReembolsoTenant $r): array => $this->presentar($r))->all(),
+        ]);
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        $pago = PagoTenant::query()->where('ulid', (string) $request->route('pago'))->firstOrFail();
+
+        $validado = $request->validate([
+            'monto_minor' => ['nullable', 'integer', 'min:1'],
+            'motivo' => ['required', 'string', 'max:255'],
+            'revertir_creditos' => ['boolean'],
+        ]);
+
+        $actor = $request->attributes->get('usuario_tenant');
+        $actorUsuario = $actor instanceof Usuario ? $actor : null;
+        $monto = isset($validado['monto_minor']) ? (int) $validado['monto_minor'] : null;
+        $revertir = (bool) ($validado['revertir_creditos'] ?? true);
+
+        $reembolso = $this->reembolsos->ejecutar($pago, $monto, $validado['motivo'], $actorUsuario, $revertir);
+
+        $this->auditoria->registrar(
+            $actorUsuario,
+            'pago.reembolso',
+            'pago',
+            $pago->ulid,
+            null,
+            [
+                'monto_minor' => $reembolso->monto_minor,
+                'estado' => $reembolso->estado->value,
+                'revirtio_creditos' => $reembolso->revirtio_creditos,
+            ],
+            $validado['motivo'],
+        );
+
+        return response()->json(['data' => $this->presentar($reembolso->refresh())], 201);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function presentar(ReembolsoTenant $reembolso): array
+    {
+        return [
+            'id' => $reembolso->ulid,
+            'monto_minor' => $reembolso->monto_minor,
+            'moneda' => $reembolso->moneda,
+            'estado' => $reembolso->estado->value,
+            'proveedor' => $reembolso->proveedor,
+            'motivo' => $reembolso->motivo,
+            'revirtio_creditos' => $reembolso->revirtio_creditos,
+            'referencia_externa' => $reembolso->referencia_externa,
+            'actor' => $reembolso->actor_nombre,
+            'fecha' => $reembolso->created_at?->toIso8601String(),
+        ];
+    }
+}
