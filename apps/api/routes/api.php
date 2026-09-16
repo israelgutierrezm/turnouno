@@ -94,104 +94,119 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/registro/slug', [RegistroEstudioController::class, 'disponibilidad'])->middleware('throttle:60,1')->name('api.v1.registro.slug');
     Route::get('/directorio', [DirectorioController::class, 'index'])->middleware('throttle:60,1')->name('api.v1.directorio');
 
-    Route::prefix('app/{estudio}')->middleware('estudio.resolver')->group(function (): void {
-        Route::post('/login', [AuthTenantController::class, 'store'])->middleware('throttle:login')->name('api.v1.app.login');
-        Route::post('/auth/google', [AuthTenantController::class, 'google'])->middleware('throttle:login')->name('api.v1.app.auth.google');
-        Route::post('/activar', [AuthTenantController::class, 'activar'])->middleware('throttle:login')->name('api.v1.app.activar');
+    /*
+    | Rutas tenant-local. Se montan de dos formas equivalentes: por RUTA
+    | (/app/{estudio}/...) y por SUBDOMINIO ({slug}.turnouno.com/...). En ambos
+    | casos `estudio.resolver` lee el param `{estudio}` (de la ruta o del dominio)
+    | y activa la conexión del data plane. Ver docs/CONTROL_PLANE.md.
+    */
+    $rutasTenant = function (): void {
+        Route::post('/login', [AuthTenantController::class, 'store'])->middleware('throttle:login')->name('login');
+        Route::post('/auth/google', [AuthTenantController::class, 'google'])->middleware('throttle:login')->name('auth.google');
+        Route::post('/activar', [AuthTenantController::class, 'activar'])->middleware('throttle:login')->name('activar');
 
         Route::middleware('estudio.auth')->group(function (): void {
-            Route::get('/yo', [AuthTenantController::class, 'yo'])->name('api.v1.app.yo');
-            Route::post('/logout', [AuthTenantController::class, 'destroy'])->name('api.v1.app.logout');
+            Route::get('/yo', [AuthTenantController::class, 'yo'])->name('yo');
+            Route::post('/logout', [AuthTenantController::class, 'destroy'])->name('logout');
 
             // Invitación de personal (crea usuario tenant-local con rol + activación).
-            Route::post('/usuarios/invitar', [UsuariosTenantController::class, 'invitar'])->middleware('puede:usuarios.invitar')->name('api.v1.app.usuarios.invitar');
+            Route::post('/usuarios/invitar', [UsuariosTenantController::class, 'invitar'])->middleware('puede:usuarios.invitar')->name('usuarios.invitar');
 
             // Operación tenant-local: alta de alumnos (data plane del estudio).
-            Route::get('/miembros', [MiembrosTenantController::class, 'index'])->middleware('puede:miembros.ver')->name('api.v1.app.miembros.index');
-            Route::post('/miembros', [MiembrosTenantController::class, 'store'])->middleware('puede:miembros.gestionar')->name('api.v1.app.miembros.store');
+            Route::get('/miembros', [MiembrosTenantController::class, 'index'])->middleware('puede:miembros.ver')->name('miembros.index');
+            Route::post('/miembros', [MiembrosTenantController::class, 'store'])->middleware('puede:miembros.gestionar')->name('miembros.store');
 
             // Facturación SaaS del estudio (control plane; separada de pagos de alumnos).
-            Route::get('/facturacion', [FacturacionController::class, 'show'])->middleware('puede:facturacion.ver')->name('api.v1.app.facturacion');
+            Route::get('/facturacion', [FacturacionController::class, 'show'])->middleware('puede:facturacion.ver')->name('facturacion');
 
             // Onboarding (guardar y continuar) y publicación en el directorio.
-            Route::get('/onboarding', [OnboardingController::class, 'show'])->middleware('puede:estudio.gestionar')->name('api.v1.app.onboarding.show');
-            Route::put('/onboarding', [OnboardingController::class, 'guardar'])->middleware('puede:estudio.gestionar')->name('api.v1.app.onboarding.guardar');
-            Route::put('/publicacion', [OnboardingController::class, 'publicacion'])->middleware('puede:estudio.gestionar')->name('api.v1.app.publicacion');
+            Route::get('/onboarding', [OnboardingController::class, 'show'])->middleware('puede:estudio.gestionar')->name('onboarding.show');
+            Route::put('/onboarding', [OnboardingController::class, 'guardar'])->middleware('puede:estudio.gestionar')->name('onboarding.guardar');
+            Route::put('/publicacion', [OnboardingController::class, 'publicacion'])->middleware('puede:estudio.gestionar')->name('publicacion');
 
             // Documentos: el admin define tipos requeridos; se cargan por persona y
             // el staff los valida (tenant-local, aislado).
-            Route::get('/tipos-documento', [TiposDocumentoController::class, 'index'])->middleware('puede:miembros.ver')->name('api.v1.app.tipos-documento.index');
-            Route::post('/tipos-documento', [TiposDocumentoController::class, 'store'])->middleware('puede:documentos.gestionar')->name('api.v1.app.tipos-documento.store');
-            Route::put('/tipos-documento/{tipo}', [TiposDocumentoController::class, 'update'])->middleware('puede:documentos.gestionar')->name('api.v1.app.tipos-documento.update');
-            Route::get('/documentos', [DocumentosController::class, 'index'])->middleware('puede:miembros.ver')->name('api.v1.app.documentos.index');
-            Route::post('/documentos', [DocumentosController::class, 'subir'])->middleware('puede:documentos.subir')->name('api.v1.app.documentos.subir');
-            Route::get('/documentos/{documento}', [DocumentosController::class, 'ver'])->middleware('puede:miembros.ver')->name('api.v1.app.documentos.ver');
-            Route::post('/documentos/{documento}/validar', [DocumentosController::class, 'validar'])->middleware('puede:documentos.gestionar')->name('api.v1.app.documentos.validar');
+            Route::get('/tipos-documento', [TiposDocumentoController::class, 'index'])->middleware('puede:miembros.ver')->name('tipos-documento.index');
+            Route::post('/tipos-documento', [TiposDocumentoController::class, 'store'])->middleware('puede:documentos.gestionar')->name('tipos-documento.store');
+            Route::put('/tipos-documento/{tipo}', [TiposDocumentoController::class, 'update'])->middleware('puede:documentos.gestionar')->name('tipos-documento.update');
+            Route::get('/documentos', [DocumentosController::class, 'index'])->middleware('puede:miembros.ver')->name('documentos.index');
+            Route::post('/documentos', [DocumentosController::class, 'subir'])->middleware('puede:documentos.subir')->name('documentos.subir');
+            Route::get('/documentos/{documento}', [DocumentosController::class, 'ver'])->middleware('puede:miembros.ver')->name('documentos.ver');
+            Route::post('/documentos/{documento}/validar', [DocumentosController::class, 'validar'])->middleware('puede:documentos.gestionar')->name('documentos.validar');
 
             // Formularios dinámicos: el admin define formularios/campos; miembros e
             // instructores responden (validación dinámica). Tenant-local.
-            Route::get('/formularios', [FormulariosController::class, 'index'])->middleware('puede:formularios.responder')->name('api.v1.app.formularios.index');
-            Route::post('/formularios', [FormulariosController::class, 'store'])->middleware('puede:formularios.gestionar')->name('api.v1.app.formularios.store');
-            Route::post('/formularios/{formulario}/campos', [FormulariosController::class, 'agregarCampo'])->middleware('puede:formularios.gestionar')->name('api.v1.app.formularios.campos');
-            Route::get('/formularios/{formulario}/respuestas', [RespuestasFormularioController::class, 'index'])->middleware('puede:formularios.gestionar')->name('api.v1.app.formularios.respuestas.index');
-            Route::post('/formularios/{formulario}/respuestas', [RespuestasFormularioController::class, 'store'])->middleware('puede:formularios.responder')->name('api.v1.app.formularios.respuestas.store');
+            Route::get('/formularios', [FormulariosController::class, 'index'])->middleware('puede:formularios.responder')->name('formularios.index');
+            Route::post('/formularios', [FormulariosController::class, 'store'])->middleware('puede:formularios.gestionar')->name('formularios.store');
+            Route::post('/formularios/{formulario}/campos', [FormulariosController::class, 'agregarCampo'])->middleware('puede:formularios.gestionar')->name('formularios.campos');
+            Route::get('/formularios/{formulario}/respuestas', [RespuestasFormularioController::class, 'index'])->middleware('puede:formularios.gestionar')->name('formularios.respuestas.index');
+            Route::post('/formularios/{formulario}/respuestas', [RespuestasFormularioController::class, 'store'])->middleware('puede:formularios.responder')->name('formularios.respuestas.store');
 
             // Catálogo del estudio (data plane del tenant): Programa → Actividad →
             // Nivel/Oferta. Primer módulo operativo migrado a la BD del tenant.
-            Route::get('/programas', [CatalogoTenantController::class, 'programas'])->middleware('puede:catalogo.ver')->name('api.v1.app.programas.index');
-            Route::post('/programas', [CatalogoTenantController::class, 'crearPrograma'])->middleware('puede:catalogo.gestionar')->name('api.v1.app.programas.store');
-            Route::post('/programas/{programa}/actividades', [CatalogoTenantController::class, 'crearActividad'])->middleware('puede:catalogo.gestionar')->name('api.v1.app.actividades.store');
-            Route::post('/actividades/{actividad}/niveles', [CatalogoTenantController::class, 'crearNivel'])->middleware('puede:catalogo.gestionar')->name('api.v1.app.niveles.store');
-            Route::post('/actividades/{actividad}/ofertas', [CatalogoTenantController::class, 'crearOferta'])->middleware('puede:catalogo.gestionar')->name('api.v1.app.ofertas.store');
-            Route::get('/ofertas', [CatalogoTenantController::class, 'ofertas'])->middleware('puede:catalogo.ver')->name('api.v1.app.ofertas.index');
+            Route::get('/programas', [CatalogoTenantController::class, 'programas'])->middleware('puede:catalogo.ver')->name('programas.index');
+            Route::post('/programas', [CatalogoTenantController::class, 'crearPrograma'])->middleware('puede:catalogo.gestionar')->name('programas.store');
+            Route::post('/programas/{programa}/actividades', [CatalogoTenantController::class, 'crearActividad'])->middleware('puede:catalogo.gestionar')->name('actividades.store');
+            Route::post('/actividades/{actividad}/niveles', [CatalogoTenantController::class, 'crearNivel'])->middleware('puede:catalogo.gestionar')->name('niveles.store');
+            Route::post('/actividades/{actividad}/ofertas', [CatalogoTenantController::class, 'crearOferta'])->middleware('puede:catalogo.gestionar')->name('ofertas.store');
+            Route::get('/ofertas', [CatalogoTenantController::class, 'ofertas'])->middleware('puede:catalogo.ver')->name('ofertas.index');
 
             // Estructura del estudio (data plane del tenant): Organización → Sucursal.
-            Route::get('/organizaciones', [OrganizacionesTenantController::class, 'organizaciones'])->middleware('puede:organizaciones.ver')->name('api.v1.app.organizaciones.index');
-            Route::post('/organizaciones', [OrganizacionesTenantController::class, 'crearOrganizacion'])->middleware('puede:organizaciones.gestionar')->name('api.v1.app.organizaciones.store');
-            Route::post('/organizaciones/{organizacion}/sucursales', [OrganizacionesTenantController::class, 'crearSucursal'])->middleware('puede:sucursales.gestionar')->name('api.v1.app.sucursales.store');
-            Route::get('/sucursales', [OrganizacionesTenantController::class, 'sucursales'])->middleware('puede:sucursales.ver')->name('api.v1.app.sucursales.index');
+            Route::get('/organizaciones', [OrganizacionesTenantController::class, 'organizaciones'])->middleware('puede:organizaciones.ver')->name('organizaciones.index');
+            Route::post('/organizaciones', [OrganizacionesTenantController::class, 'crearOrganizacion'])->middleware('puede:organizaciones.gestionar')->name('organizaciones.store');
+            Route::post('/organizaciones/{organizacion}/sucursales', [OrganizacionesTenantController::class, 'crearSucursal'])->middleware('puede:sucursales.gestionar')->name('sucursales.store');
+            Route::get('/sucursales', [OrganizacionesTenantController::class, 'sucursales'])->middleware('puede:sucursales.ver')->name('sucursales.index');
 
             // Agenda (data plane del tenant): materializa una Oferta en una Sucursal
             // a una hora concreta. La hora local (zona de la sucursal) se guarda en UTC
             // con snapshot de zona.
-            Route::get('/sesiones', [AgendaTenantController::class, 'sesiones'])->middleware('puede:agenda.ver')->name('api.v1.app.sesiones.index');
-            Route::post('/sesiones', [AgendaTenantController::class, 'crearSesion'])->middleware('puede:agenda.gestionar')->name('api.v1.app.sesiones.store');
-            Route::post('/sesiones/{sesion}/cancelar', [AgendaTenantController::class, 'cancelar'])->middleware('puede:agenda.gestionar')->name('api.v1.app.sesiones.cancelar');
+            Route::get('/sesiones', [AgendaTenantController::class, 'sesiones'])->middleware('puede:agenda.ver')->name('sesiones.index');
+            Route::post('/sesiones', [AgendaTenantController::class, 'crearSesion'])->middleware('puede:agenda.gestionar')->name('sesiones.store');
+            Route::post('/sesiones/{sesion}/cancelar', [AgendaTenantController::class, 'cancelar'])->middleware('puede:agenda.gestionar')->name('sesiones.cancelar');
 
             // Membresias (data plane del tenant): producto comercial → acuerdo →
             // derecho (entitlement) + ledger de creditos. El saldo se deriva del
             // ledger. La venta y las mutaciones del ledger son concurrency-safe.
-            Route::get('/productos', [MembresiasTenantController::class, 'productos'])->middleware('puede:productos.ver')->name('api.v1.app.productos.index');
-            Route::post('/productos', [MembresiasTenantController::class, 'crearProducto'])->middleware('puede:productos.gestionar')->name('api.v1.app.productos.store');
-            Route::post('/acuerdos', [MembresiasTenantController::class, 'vender'])->middleware('puede:membresias.gestionar')->name('api.v1.app.acuerdos.store');
-            Route::get('/miembros/{persona}/derechos', [MembresiasTenantController::class, 'derechos'])->middleware('puede:derechos.ver')->name('api.v1.app.miembros.derechos.index');
-            Route::post('/derechos/{derecho}/topups', [MembresiasTenantController::class, 'topUp'])->middleware('puede:membresias.gestionar')->name('api.v1.app.derechos.topups.store');
+            Route::get('/productos', [MembresiasTenantController::class, 'productos'])->middleware('puede:productos.ver')->name('productos.index');
+            Route::post('/productos', [MembresiasTenantController::class, 'crearProducto'])->middleware('puede:productos.gestionar')->name('productos.store');
+            Route::post('/acuerdos', [MembresiasTenantController::class, 'vender'])->middleware('puede:membresias.gestionar')->name('acuerdos.store');
+            Route::get('/miembros/{persona}/derechos', [MembresiasTenantController::class, 'derechos'])->middleware('puede:derechos.ver')->name('miembros.derechos.index');
+            Route::post('/derechos/{derecho}/topups', [MembresiasTenantController::class, 'topUp'])->middleware('puede:membresias.gestionar')->name('derechos.topups.store');
 
             // Creditos (data plane del tenant): consumo directo y retenciones (holds)
             // con confirmar/liberar/perder. Concurrencia protegida (lockForUpdate).
-            Route::post('/derechos/{derecho}/consumos', [CreditosTenantController::class, 'consumir'])->middleware('puede:creditos.gestionar')->name('api.v1.app.derechos.consumos.store');
-            Route::post('/derechos/{derecho}/retenciones', [CreditosTenantController::class, 'retener'])->middleware('puede:creditos.gestionar')->name('api.v1.app.derechos.retenciones.store');
-            Route::post('/retenciones/{retencion}/confirmar', [CreditosTenantController::class, 'confirmar'])->middleware('puede:creditos.gestionar')->name('api.v1.app.retenciones.confirmar');
-            Route::post('/retenciones/{retencion}/liberar', [CreditosTenantController::class, 'liberar'])->middleware('puede:creditos.gestionar')->name('api.v1.app.retenciones.liberar');
-            Route::post('/retenciones/{retencion}/perder', [CreditosTenantController::class, 'perder'])->middleware('puede:creditos.gestionar')->name('api.v1.app.retenciones.perder');
+            Route::post('/derechos/{derecho}/consumos', [CreditosTenantController::class, 'consumir'])->middleware('puede:creditos.gestionar')->name('derechos.consumos.store');
+            Route::post('/derechos/{derecho}/retenciones', [CreditosTenantController::class, 'retener'])->middleware('puede:creditos.gestionar')->name('derechos.retenciones.store');
+            Route::post('/retenciones/{retencion}/confirmar', [CreditosTenantController::class, 'confirmar'])->middleware('puede:creditos.gestionar')->name('retenciones.confirmar');
+            Route::post('/retenciones/{retencion}/liberar', [CreditosTenantController::class, 'liberar'])->middleware('puede:creditos.gestionar')->name('retenciones.liberar');
+            Route::post('/retenciones/{retencion}/perder', [CreditosTenantController::class, 'perder'])->middleware('puede:creditos.gestionar')->name('retenciones.perder');
 
             // Reservas (booking) del tenant: motor transaccional sobre una sesion,
             // con lista de espera y politica de cancelacion por hold. La asistencia
             // liquida la retencion (presente consume, ausente pierde).
-            Route::get('/sesiones/{sesion}/reservas', [ReservasTenantController::class, 'index'])->middleware('puede:reservas.ver')->name('api.v1.app.sesiones.reservas.index');
-            Route::post('/sesiones/{sesion}/reservas', [ReservasTenantController::class, 'reservar'])->middleware('puede:reservas.gestionar')->name('api.v1.app.sesiones.reservas.store');
-            Route::post('/reservas/{reserva}/cancelar', [ReservasTenantController::class, 'cancelar'])->middleware('puede:reservas.gestionar')->name('api.v1.app.reservas.cancelar');
-            Route::post('/reservas/{reserva}/asistencia', [AsistenciaTenantController::class, 'marcar'])->middleware('puede:asistencia.marcar')->name('api.v1.app.reservas.asistencia.store');
+            Route::get('/sesiones/{sesion}/reservas', [ReservasTenantController::class, 'index'])->middleware('puede:reservas.ver')->name('sesiones.reservas.index');
+            Route::post('/sesiones/{sesion}/reservas', [ReservasTenantController::class, 'reservar'])->middleware('puede:reservas.gestionar')->name('sesiones.reservas.store');
+            Route::post('/reservas/{reserva}/cancelar', [ReservasTenantController::class, 'cancelar'])->middleware('puede:reservas.gestionar')->name('reservas.cancelar');
+            Route::post('/reservas/{reserva}/asistencia', [AsistenciaTenantController::class, 'marcar'])->middleware('puede:asistencia.marcar')->name('reservas.asistencia.store');
 
             // Ordenes (comercio del tenant): orden pendiente (precio congelado) →
             // liquidacion manual/ventanilla → fulfillment (concesion de derechos). El
             // cobro con pasarela real es un modulo posterior (cuando haya llaves).
-            Route::get('/ordenes', [OrdenesTenantController::class, 'index'])->middleware('puede:ordenes.ver')->name('api.v1.app.ordenes.index');
-            Route::post('/ordenes', [OrdenesTenantController::class, 'crear'])->middleware('puede:ordenes.gestionar')->name('api.v1.app.ordenes.store');
-            Route::get('/ordenes/{orden}', [OrdenesTenantController::class, 'show'])->middleware('puede:ordenes.ver')->name('api.v1.app.ordenes.show');
-            Route::post('/ordenes/{orden}/liquidar', [OrdenesTenantController::class, 'liquidar'])->middleware('puede:ordenes.gestionar')->name('api.v1.app.ordenes.liquidar');
+            Route::get('/ordenes', [OrdenesTenantController::class, 'index'])->middleware('puede:ordenes.ver')->name('ordenes.index');
+            Route::post('/ordenes', [OrdenesTenantController::class, 'crear'])->middleware('puede:ordenes.gestionar')->name('ordenes.store');
+            Route::get('/ordenes/{orden}', [OrdenesTenantController::class, 'show'])->middleware('puede:ordenes.ver')->name('ordenes.show');
+            Route::post('/ordenes/{orden}/liquidar', [OrdenesTenantController::class, 'liquidar'])->middleware('puede:ordenes.gestionar')->name('ordenes.liquidar');
         });
-    });
+    };
+
+    // Acceso por ruta: /api/v1/app/{estudio}/...
+    Route::prefix('app/{estudio}')->middleware('estudio.resolver')->name('api.v1.app.')->group($rutasTenant);
+
+    // Acceso por subdominio: {slug}.turnouno.com/api/v1/... (mismo comportamiento).
+    Route::domain('{estudio}.'.config('turnouno.dominio_base'))
+        ->middleware('estudio.resolver')
+        ->name('api.v1.sub.')
+        ->group($rutasTenant);
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::delete('/auth/token', [TokenController::class, 'destroy'])->name('api.v1.auth.token.destroy');
