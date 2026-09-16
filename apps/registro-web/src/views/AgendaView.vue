@@ -35,12 +35,20 @@ interface Reserva {
   unidades: number
   asistencia: string | null
 }
+interface Checkin {
+  id: string
+  proveedor: string
+  usuario: string | null
+  estado: string
+  registrado_en: string
+}
 
 const sesion = useSesionTenantStore()
 const base = computed(() => `/api/v1/app/${sesion.slug}`)
 const puedeGestionar = computed(() => sesion.puede('agenda.gestionar'))
 const puedeReservar = computed(() => sesion.puede('reservas.gestionar'))
 const puedeMarcar = computed(() => sesion.puede('asistencia.marcar'))
+const puedeCheckin = computed(() => sesion.puede('checkins.registrar'))
 
 const ofertas = ref<Oferta[]>([])
 const sucursales = ref<Sucursal[]>([])
@@ -58,6 +66,11 @@ const roster = ref<Reserva[]>([])
 const cargandoRoster = ref(false)
 const reservarModel = ref({ miembroId: '', esperar: false })
 const accionando = ref(false)
+
+const checkins = ref<Checkin[]>([])
+const checkinModel = ref({ proveedor: 'wellhub', codigo: '' })
+const registrandoCheckin = ref(false)
+const okCheckin = ref(false)
 
 function horaLocal(iso: string, zona: string): string {
   return new Intl.DateTimeFormat('es-MX', {
@@ -130,6 +143,35 @@ async function cargarRoster(id: string): Promise<void> {
   }
 }
 
+async function cargarCheckins(id: string): Promise<void> {
+  try {
+    const { data } = await api.get<{ data: Checkin[] }>(`${base.value}/sesiones/${id}/checkins`)
+    checkins.value = data.data
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  }
+}
+
+async function registrarCheckin(id: string): Promise<void> {
+  registrandoCheckin.value = true
+  okCheckin.value = false
+  error.value = null
+  try {
+    await api.post(`${base.value}/checkins`, {
+      proveedor: checkinModel.value.proveedor,
+      sesion_id: id,
+      codigo: checkinModel.value.codigo,
+    })
+    checkinModel.value.codigo = ''
+    okCheckin.value = true
+    await cargarCheckins(id)
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    registrandoCheckin.value = false
+  }
+}
+
 async function alternarRoster(s: Sesion): Promise<void> {
   if (expandidaId.value === s.id) {
     expandidaId.value = null
@@ -137,8 +179,14 @@ async function alternarRoster(s: Sesion): Promise<void> {
   }
   expandidaId.value = s.id
   roster.value = []
+  checkins.value = []
   reservarModel.value = { miembroId: '', esperar: false }
+  checkinModel.value = { proveedor: 'wellhub', codigo: '' }
+  okCheckin.value = false
   await cargarRoster(s.id)
+  if (puedeCheckin.value) {
+    await cargarCheckins(s.id)
+  }
 }
 
 async function reservar(id: string): Promise<void> {
@@ -400,6 +448,68 @@ onMounted(cargar)
                 </span>
               </li>
             </ul>
+
+            <!-- Check-ins de bienestar (Wellhub / TotalPass) -->
+            <div
+              v-if="puedeCheckin"
+              class="mt-4 border-t pt-4"
+              :style="{ borderColor: 'var(--borde)' }"
+            >
+              <h3 class="font-semibold text-sm">{{ $t('checkins.titulo') }}</h3>
+              <form
+                class="mt-2 flex flex-wrap items-end gap-2"
+                @submit.prevent="registrarCheckin(s.id)"
+              >
+                <div class="min-w-[140px]">
+                  <label class="tu-label" :for="'cp' + s.id">{{ $t('checkins.proveedor') }}</label>
+                  <select :id="'cp' + s.id" v-model="checkinModel.proveedor" class="tu-input">
+                    <option value="wellhub">{{ $t('integraciones.proveedores.wellhub') }}</option>
+                    <option value="totalpass">{{ $t('integraciones.proveedores.totalpass') }}</option>
+                  </select>
+                </div>
+                <div class="flex-1 min-w-[160px]">
+                  <label class="tu-label" :for="'cc' + s.id">{{ $t('checkins.codigo') }}</label>
+                  <input
+                    :id="'cc' + s.id"
+                    v-model="checkinModel.codigo"
+                    class="tu-input"
+                    autocomplete="off"
+                    required
+                  />
+                </div>
+                <button
+                  class="tu-btn tu-btn-primario"
+                  type="submit"
+                  :disabled="registrandoCheckin || checkinModel.codigo === ''"
+                >
+                  {{ registrandoCheckin ? $t('checkins.registrando') : $t('checkins.registrar') }}
+                </button>
+              </form>
+              <p v-if="okCheckin" class="mt-2 text-sm" :style="{ color: 'var(--exito)' }">
+                {{ $t('checkins.ok') }}
+              </p>
+
+              <p
+                v-if="checkins.length === 0"
+                class="mt-3 text-sm"
+                :style="{ color: 'var(--texto-suave)' }"
+              >
+                {{ $t('checkins.vacio') }}
+              </p>
+              <ul v-else class="mt-3 space-y-2">
+                <li
+                  v-for="c in checkins"
+                  :key="c.id"
+                  class="flex items-center justify-between gap-2 text-sm"
+                >
+                  <span class="flex items-center gap-2 min-w-0">
+                    <span class="truncate">{{ c.usuario ?? '—' }}</span>
+                    <span class="tu-badge">{{ $t(`integraciones.proveedores.${c.proveedor}`) }}</span>
+                  </span>
+                  <span class="tu-badge tu-badge-exito shrink-0">{{ $t(`checkins.${c.estado}`) }}</span>
+                </li>
+              </ul>
+            </div>
           </div>
         </li>
       </ul>

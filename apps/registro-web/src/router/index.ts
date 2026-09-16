@@ -70,6 +70,12 @@ const router = createRouter({
       meta: { requiereSesion: true },
     },
     {
+      path: '/integraciones',
+      name: 'integraciones',
+      component: () => import('@/views/IntegracionesView.vue'),
+      meta: { requiereSesion: true },
+    },
+    {
       path: '/documentos',
       name: 'documentos',
       component: () => import('@/views/DocumentosView.vue'),

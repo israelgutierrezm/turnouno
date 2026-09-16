@@ -28,6 +28,7 @@ const ENLACES: Enlace[] = [
   { nombre: 'documentos', etiqueta: 'nav.documentos', permiso: 'documentos.subir' },
   { nombre: 'formularios', etiqueta: 'nav.formularios', permiso: 'formularios.responder' },
   { nombre: 'pasarelas', etiqueta: 'nav.pasarelas', permiso: 'pagos.configurar' },
+  { nombre: 'integraciones', etiqueta: 'nav.integraciones', permiso: 'integraciones.configurar' },
 ]
 
 const enlaces = computed(() =>
