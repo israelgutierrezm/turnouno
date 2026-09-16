@@ -27,7 +27,11 @@ class ResolverEstudio
 
         $estudio = Estudio::query()->where('slug', $slug)->first();
 
-        if (! $estudio instanceof Estudio || ! $estudio->estado->operativo()) {
+        // Falla seguro (404) si el estudio no existe, no esta operativo, o su BD no
+        // esta disponible (aprovisionamiento pendiente/incompleto): nunca un 500.
+        if (! $estudio instanceof Estudio
+            || ! $estudio->estado->operativo()
+            || ! $this->gestor->baseDeDatosExiste($estudio)) {
             abort(404, 'Estudio no encontrado.');
         }
 

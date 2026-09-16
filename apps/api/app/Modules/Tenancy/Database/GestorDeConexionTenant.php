@@ -64,6 +64,20 @@ class GestorDeConexionTenant
     }
 
     /**
+     * ¿La BD fisica del estudio existe? Evita reventar (500) cuando un estudio tiene
+     * registro en el control plane pero su base no fue aprovisionada o se borro
+     * (p. ej. en dev, tras limpiar storage/tenants). En MySQL se asume aprovisionada.
+     */
+    public function baseDeDatosExiste(Estudio $estudio): bool
+    {
+        if ($estudio->db_driver === 'sqlite') {
+            return File::exists($this->rutaSqlite($estudio));
+        }
+
+        return true;
+    }
+
+    /**
      * Ejecuta el callback con la conexión del estudio activa y restaura el estado
      * anterior SIEMPRE (aislamiento entre tenants en un mismo proceso/worker).
      *
