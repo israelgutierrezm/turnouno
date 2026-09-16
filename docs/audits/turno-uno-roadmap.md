@@ -52,7 +52,7 @@ Deriva de `turno-uno-competitive-audit.md`. Regla rectora del documento de produ
 - **Industry/business profiles (R35):** `perfil_negocio` en Estudio + defaults/terminología/feature-flags (sin forks).
 - **Comunicaciones (R28):** módulo con outbox + estados + templates + colas.
 - **Dunning (R10):** reintentos/delays/grace/suspensión + política de reservas ante fallo.
-- **Webhooks salientes + API keys (R40):** subsistema firmado sobre outbox; API keys con scopes.
+- **Webhooks salientes + API keys (R40):** subsistema firmado sobre outbox; API keys con scopes. ✅ **Webhooks salientes HECHOS**: `webhooks_salientes` (endpoints con secreto HMAC cifrado, suscripción por tipo o todos) + `entregas_webhook` (registro por intento); listener `EnviarWebhooksSalientes` sobre `EventoDeDominioTenant` firma (HMAC-SHA256, cabecera `X-TurnoUno-Signature`) y entrega; `turnouno:reintentar-webhooks` reintenta las fallidas (agendado c/5 min). CRUD `/webhooks-salientes` (permiso `integraciones.configurar`, secreto devuelto solo al crear). **Pendiente**: API keys con scopes (subsistema aparte).
 - **Multi-sucursal (R18):** Brand/Region + `sucursal_id` home + moneda/impuestos por sucursal + reporting consolidado.
 - **Importación CSV (R37):** clientes/membresías/créditos/instructores/productos con preview/errores/rollback.
 - **Tax/fiscal:** integración local (CFDI/facturación) donde el mercado lo exija.

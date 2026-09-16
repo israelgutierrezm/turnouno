@@ -16,3 +16,6 @@ Schedule::command('entitlements:generar-ciclos')->dailyAt('00:15');
 // Publica los eventos de dominio pendientes del outbox de cada estudio (R39).
 // Frecuente para baja latencia; withoutOverlapping evita relays solapados.
 Schedule::command('turnouno:despachar-outbox')->everyMinute()->withoutOverlapping();
+
+// Reintenta las entregas de webhook fallidas de cada estudio (R40).
+Schedule::command('turnouno:reintentar-webhooks')->everyFiveMinutes()->withoutOverlapping();

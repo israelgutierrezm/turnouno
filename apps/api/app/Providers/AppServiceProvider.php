@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Modules\Tenancy\Events\EventoDeDominioTenant;
+use App\Modules\Tenancy\Listeners\EnviarWebhooksSalientes;
 use App\Modules\Tenancy\Models\Usuario;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -46,5 +49,9 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(120)->by($clave);
         });
+
+        // Consumidor del outbox (R40): los eventos de dominio publicados por el relay
+        // se entregan, firmados, a los webhooks salientes del estudio.
+        Event::listen(EventoDeDominioTenant::class, EnviarWebhooksSalientes::class);
     }
 }

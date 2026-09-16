@@ -1,0 +1,45 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Console\Commands;
+
+use App\Modules\Tenancy\Application\ReintentarWebhooksTenant;
+use App\Modules\Tenancy\Database\GestorDeConexionTenant;
+use App\Modules\Tenancy\EstadoEstudio;
+use App\Modules\Tenancy\Models\Estudio;
+use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Collection;
+
+/**
+ * Reintenta las entregas de webhook fallidas de cada estudio operativo (R40).
+ * Pensado para correr frecuentemente por el scheduler.
+ */
+class ReintentarWebhooks extends Command
+{
+    protected $signature = 'turnouno:reintentar-webhooks';
+
+    protected $description = 'Reintenta las entregas de webhook fallidas de cada estudio';
+
+    public function handle(ReintentarWebhooksTenant $relay, GestorDeConexionTenant $gestor): int
+    {
+        $reintentadas = 0;
+
+        Estudio::query()
+            ->whereIn('estado', [EstadoEstudio::Trialing->value, EstadoEstudio::Active->value])
+            ->chunkById(100, function (Collection $estudios) use (&$reintentadas, $relay, $gestor): void {
+                /** @var Collection<int, Estudio> $estudios */
+                foreach ($estudios as $estudio) {
+                    if (! $gestor->baseDeDatosExiste($estudio)) {
+                        continue;
+                    }
+
+                    $reintentadas += $gestor->ejecutarEn($estudio, fn (): int => $relay->ejecutar());
+                }
+            });
+
+        $this->info("Entregas de webhook reintentadas: {$reintentadas}.");
+
+        return self::SUCCESS;
+    }
+}
