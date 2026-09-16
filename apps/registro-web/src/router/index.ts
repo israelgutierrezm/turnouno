@@ -63,6 +63,12 @@ const router = createRouter({
       component: () => import('@/views/AgendaView.vue'),
       meta: { requiereSesion: true },
     },
+    {
+      path: '/pasarelas',
+      name: 'pasarelas',
+      component: () => import('@/views/PasarelasView.vue'),
+      meta: { requiereSesion: true },
+    },
     { path: '/:pathMatch(.*)*', redirect: { name: 'inicio' } },
   ],
 })
