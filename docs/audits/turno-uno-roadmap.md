@@ -86,6 +86,8 @@ Deriva de `turno-uno-competitive-audit.md`. Regla rectora del documento de produ
 
 ## Primer bloque de implementación recomendado (2–3 días, verificable)
 
+> **✅ COMPLETADO** — commit `be94bc4` (`RegresionesIntegridadTenantTest`, 7 tests; suite ControlPlane 113 verde). Ítems 1–4 y 6 hechos; el ítem 5 (unique `(sesion_id, persona_id)`) se difirió a P1 por su forma portable SQLite/MySQL (el lock ya previene el duplicado).
+
 **"Cierre de regresiones de integridad del plano tenant" (P0.A).** Es pequeño, aislado, de alto valor y totalmente cubrible con tests:
 
 1. `AgendaTenantController::cancelar` → cancelar reservas + liberar holds (reusar patrón legacy) **+ test**.
