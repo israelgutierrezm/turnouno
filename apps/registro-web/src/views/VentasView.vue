@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+import TablaDatos from '@/components/TablaDatos.vue'
 import { api, mensajeDeError } from '@/lib/api'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
 
@@ -18,7 +20,7 @@ interface Producto {
   ilimitado: boolean
   creditos_incluidos: number | null
 }
-interface Orden {
+type Orden = {
   id: string
   comprador: string | null
   estado: string
@@ -26,6 +28,7 @@ interface Orden {
   moneda: string
 }
 
+const { t } = useI18n()
 const sesion = useSesionTenantStore()
 const base = computed(() => `/api/v1/app/${sesion.slug}`)
 const puedeVender = computed(() => sesion.puede('ordenes.gestionar'))
@@ -43,6 +46,12 @@ const exito = ref<string | null>(null)
 
 const prod = ref({ nombre: '', tipo: 'paquete', precio: '899', creditos: '8' })
 const creando = ref(false)
+
+const columnasOrdenes = computed(() => [
+  { clave: 'comprador', etiqueta: t('ventas.ordenes.colComprador') },
+  { clave: 'total_minor', etiqueta: t('ventas.ordenes.colTotal'), alinear: 'derecha' as const },
+  { clave: 'estado', etiqueta: t('ventas.ordenes.colEstado'), alinear: 'derecha' as const },
+])
 
 function dinero(minor: number, moneda: string): string {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: moneda }).format(minor / 100)
@@ -253,22 +262,27 @@ onMounted(cargar)
     </div>
 
     <!-- Ventas recientes -->
-    <div v-if="!cargando" class="mt-6 tu-card p-6">
-      <h2 class="font-bold text-lg">{{ $t('ventas.ordenes.titulo') }}</h2>
-      <ul v-if="ordenes.length > 0" class="mt-3 space-y-2">
-        <li v-for="o in ordenes" :key="o.id" class="flex items-center justify-between gap-2 text-sm">
-          <span class="truncate">{{ o.comprador ?? '—' }}</span>
-          <span class="flex items-center gap-2 shrink-0">
-            <span>{{ dinero(o.total_minor, o.moneda) }}</span>
-            <span class="tu-badge" :class="{ 'tu-badge-exito': o.estado === 'pagada' }">
-              {{ o.estado === 'pagada' ? $t('ventas.ordenes.pagada') : $t('ventas.ordenes.pendiente') }}
-            </span>
+    <div v-if="!cargando" class="mt-6">
+      <h2 class="font-bold text-lg mb-3">{{ $t('ventas.ordenes.titulo') }}</h2>
+      <TablaDatos
+        :columnas="columnasOrdenes"
+        :filas="ordenes"
+        :buscar-en="['comprador']"
+        :por-pagina="8"
+        :vacio="$t('ventas.ordenes.vacio')"
+      >
+        <template #col-comprador="{ valor }">
+          <span class="font-medium">{{ valor ?? '—' }}</span>
+        </template>
+        <template #col-total_minor="{ fila }">
+          {{ dinero((fila as Orden).total_minor, (fila as Orden).moneda) }}
+        </template>
+        <template #col-estado="{ valor }">
+          <span class="tu-badge" :class="{ 'tu-badge-exito': valor === 'pagada' }">
+            {{ valor === 'pagada' ? $t('ventas.ordenes.pagada') : $t('ventas.ordenes.pendiente') }}
           </span>
-        </li>
-      </ul>
-      <p v-else class="mt-3 text-sm" :style="{ color: 'var(--texto-suave)' }">
-        {{ $t('ventas.ordenes.vacio') }}
-      </p>
+        </template>
+      </TablaDatos>
     </div>
   </section>
 </template>

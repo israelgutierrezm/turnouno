@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import { api, mensajeDeError } from '@/lib/api'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
@@ -60,6 +60,35 @@ const error = ref<string | null>(null)
 
 const form = ref({ ofertaId: '', sucursalId: '', instructorId: '', fecha: '', duracion: '60', capacidad: '' })
 const creando = ref(false)
+
+// Buscador + paginacion de la lista de sesiones (las tarjetas conservan su roster).
+const buscarSesion = ref('')
+const paginaSesion = ref(1)
+const POR_PAGINA_SESION = 8
+
+const sesionesFiltradas = computed(() => {
+  const q = buscarSesion.value.trim().toLowerCase()
+  if (q === '') {
+    return sesiones.value
+  }
+  return sesiones.value.filter((s) => {
+    const texto = `${s.oferta ?? ''} ${s.instructor ?? ''} ${horaLocal(s.inicia_en, s.zona_horaria)}`
+    return texto.toLowerCase().includes(q)
+  })
+})
+const totalPaginasSesion = computed(() =>
+  Math.max(1, Math.ceil(sesionesFiltradas.value.length / POR_PAGINA_SESION)),
+)
+const paginaSesionSegura = computed(() => Math.min(paginaSesion.value, totalPaginasSesion.value))
+const sesionesPaginadas = computed(() =>
+  sesionesFiltradas.value.slice(
+    (paginaSesionSegura.value - 1) * POR_PAGINA_SESION,
+    paginaSesionSegura.value * POR_PAGINA_SESION,
+  ),
+)
+watch(buscarSesion, () => {
+  paginaSesion.value = 1
+})
 
 const expandidaId = ref<string | null>(null)
 const roster = ref<Reserva[]>([])
@@ -315,6 +344,16 @@ onMounted(cargar)
       </div>
 
       <!-- Sesiones -->
+      <div v-if="sesiones.length > 0" class="mt-6">
+        <input
+          v-model="buscarSesion"
+          class="tu-input max-w-md"
+          type="search"
+          :placeholder="$t('agenda.buscar')"
+          :aria-label="$t('agenda.buscar')"
+        />
+      </div>
+
       <p
         v-if="sesiones.length === 0"
         class="mt-8 text-center text-sm"
@@ -322,9 +361,16 @@ onMounted(cargar)
       >
         {{ $t('agenda.vacio') }}
       </p>
+      <p
+        v-else-if="sesionesFiltradas.length === 0"
+        class="mt-6 text-center text-sm"
+        :style="{ color: 'var(--texto-suave)' }"
+      >
+        {{ $t('tabla.vacio') }}
+      </p>
 
-      <ul v-else class="mt-6 space-y-3">
-        <li v-for="s in sesiones" :key="s.id" class="tu-card p-4">
+      <ul v-else class="mt-4 space-y-3">
+        <li v-for="s in sesionesPaginadas" :key="s.id" class="tu-card p-4">
           <div class="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <p class="font-semibold">{{ s.oferta ?? '—' }}</p>
@@ -513,6 +559,31 @@ onMounted(cargar)
           </div>
         </li>
       </ul>
+
+      <!-- Paginacion de sesiones -->
+      <div
+        v-if="sesionesFiltradas.length > POR_PAGINA_SESION"
+        class="mt-4 flex items-center justify-between gap-3 text-sm"
+        :style="{ color: 'var(--texto-suave)' }"
+      >
+        <span>{{ $t('tabla.pagina', { n: paginaSesionSegura, total: totalPaginasSesion }) }}</span>
+        <div class="flex items-center gap-2">
+          <button
+            class="tu-btn tu-btn-fantasma px-3 py-1.5"
+            :disabled="paginaSesionSegura <= 1"
+            @click="paginaSesion = Math.max(1, paginaSesionSegura - 1)"
+          >
+            {{ $t('tabla.anterior') }}
+          </button>
+          <button
+            class="tu-btn tu-btn-fantasma px-3 py-1.5"
+            :disabled="paginaSesionSegura >= totalPaginasSesion"
+            @click="paginaSesion = Math.min(totalPaginasSesion, paginaSesionSegura + 1)"
+          >
+            {{ $t('tabla.siguiente') }}
+          </button>
+        </div>
+      </div>
     </template>
   </section>
 </template>

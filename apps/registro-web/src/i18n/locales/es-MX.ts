@@ -297,11 +297,15 @@ export default {
       vacio: 'Sin ventas aun.',
       pagada: 'Pagada',
       pendiente: 'Pendiente',
+      colComprador: 'Comprador',
+      colTotal: 'Total',
+      colEstado: 'Estado',
     },
   },
   agenda: {
     titulo: 'Agenda',
     subtitulo: 'Programa clases y gestiona sus reservas.',
+    buscar: 'Buscar por clase, instructor o fecha…',
     nueva: {
       titulo: 'Nueva clase',
       oferta: 'Oferta',
