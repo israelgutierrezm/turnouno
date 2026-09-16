@@ -115,7 +115,7 @@ onMounted(() => {
     <aside
       class="fixed lg:sticky top-0 z-50 h-screen w-64 shrink-0 flex flex-col transition-all duration-200"
       :class="[
-        compacto ? 'lg:w-[76px]' : 'lg:w-64',
+        compacto ? 'lg:w-16' : 'lg:w-64',
         menuLateral ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
       ]"
       :style="{ background: 'var(--barra)', color: 'var(--barra-texto)' }"
@@ -265,7 +265,7 @@ onMounted(() => {
                     type="button"
                     class="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
                     :style="{
-                      background: a.hex ?? '#4f46e5',
+                      background: a.hex ?? '#0b8a99',
                       borderColor: tema.acento === a.hex ? 'var(--texto)' : 'transparent',
                     }"
                     :title="a.nombre"
@@ -411,7 +411,7 @@ onMounted(() => {
 }
 .tu-side-link.router-link-active {
   background: var(--barra-activo);
-  color: #ffffff;
+  color: var(--barra);
   font-weight: 600;
 }
 

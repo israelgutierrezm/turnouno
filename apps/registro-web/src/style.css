@@ -9,26 +9,26 @@
 | escala base (botones +/-).
 */
 :root {
-  --fondo: #f1f5f9;
+  --fondo: #f1f5f8;
   --superficie: #ffffff;
-  --superficie-2: #eef1f8;
-  --texto: #1c2033;
-  --texto-suave: #5b6178;
-  --borde: #e3e7f1;
-  /* El color de acento es personalizable (lo fija el store de tema). El resto de
-     los tonos "primario" se derivan de el, asi el usuario cambia un solo valor. */
-  --acento: #4f46e5;
+  --superficie-2: #eef2f5;
+  --texto: #13212e;
+  --texto-suave: #5c7482;
+  --borde: #dbe4ea;
+  /* Acento personalizable (lo fija el store de tema); los tonos "primario" se
+     derivan de el. Por defecto, teal estilo Comandia. */
+  --acento: #0b8a99;
   --primario: var(--acento);
   --primario-fuerte: color-mix(in srgb, var(--acento), black 15%);
   --primario-contraste: #ffffff;
   --primario-suave: color-mix(in srgb, var(--acento) 12%, #ffffff);
-  /* Barra lateral: siempre oscura (estilo panel), teñida del acento elegido. */
-  --barra: color-mix(in srgb, var(--acento) 18%, #0c1622);
-  --barra-suave: color-mix(in srgb, var(--acento) 38%, #101c2b);
-  --barra-activo: var(--acento);
-  --barra-texto: #a9b8c7;
-  --barra-borde: color-mix(in srgb, white 8%, transparent);
-  --exito: #15803d;
+  /* Barra lateral (panel): navy fija; el item activo va en menta. */
+  --barra: #2f455c;
+  --barra-suave: #24384b;
+  --barra-activo: #21d0b2;
+  --barra-texto: #b4c8d6;
+  --barra-borde: rgb(0 0 0 / 22%);
+  --exito: #16a34a;
   --exito-suave: #dcfce7;
   --error: #dc2626;
   --error-suave: #fee2e2;
@@ -39,17 +39,23 @@
 }
 
 .dark {
-  --fondo: #0d0f16;
-  --superficie: #161925;
-  --superficie-2: #1f2331;
-  --texto: #e8eaf3;
-  --texto-suave: #a3a9be;
-  --borde: #2a3042;
-  --acento: #6366f1;
+  --fondo: #0f172a;
+  --superficie: #1e293b;
+  --superficie-2: #243247;
+  --texto: #f1f5f9;
+  --texto-suave: #94a3b8;
+  --borde: #334155;
+  --acento: #38bdf8;
   --primario: var(--acento);
   --primario-fuerte: color-mix(in srgb, var(--acento), white 22%);
-  --primario-contraste: #0d0f16;
-  --primario-suave: color-mix(in srgb, var(--acento) 22%, #161925);
+  --primario-contraste: #0b1120;
+  --primario-suave: color-mix(in srgb, var(--acento) 22%, #1e293b);
+  /* Barra lateral en oscuro (preset Medianoche). */
+  --barra: #0b1120;
+  --barra-suave: #111827;
+  --barra-activo: #38bdf8;
+  --barra-texto: #94a3b8;
+  --barra-borde: rgb(255 255 255 / 6%);
   --exito: #4ade80;
   --exito-suave: #10261a;
   --error: #f87171;
@@ -87,7 +93,7 @@ body {
 .tu-card {
   background: var(--superficie);
   border: 1px solid var(--borde);
-  border-radius: 1rem;
+  border-radius: 0.85rem;
   box-shadow: var(--sombra);
 }
 
