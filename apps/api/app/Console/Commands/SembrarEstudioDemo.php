@@ -123,10 +123,17 @@ class SembrarEstudioDemo extends Command
                 'activo' => true, 'es_facturable' => true, 'archivado' => false, 'usuario_id' => $miembro->getKey()],
         );
 
-        // Un par de alumnos más (sin acceso), para poblar el listado.
-        foreach ([['Carla', 'Ruiz'], ['Diego', 'Mora']] as [$nombre, $apellidos]) {
+        // Varios alumnos más (sin acceso), para poblar el listado y ver el
+        // buscador + la paginacion de la tabla.
+        $alumnos = [
+            ['Carla', 'Ruiz'], ['Diego', 'Mora'], ['Elena', 'Vega'], ['Fabian', 'Cortes'],
+            ['Gabriela', 'Nunez'], ['Hector', 'Salas'], ['Ivonne', 'Rios'], ['Jorge', 'Lara'],
+            ['Karla', 'Mena'], ['Luis', 'Prado'], ['Marina', 'Soto'], ['Nestor', 'Gil'],
+            ['Olivia', 'Cano'], ['Pablo', 'Reyna'],
+        ];
+        foreach ($alumnos as [$nombre, $apellidos]) {
             PersonaTenant::query()->firstOrCreate(
-                ['email' => mb_strtolower($nombre).'@'.'demo.mx'],
+                ['email' => mb_strtolower($nombre).'@demo.mx'],
                 ['nombre' => $nombre, 'apellidos' => $apellidos, 'tipo' => TipoPersonaTenant::Miembro->value,
                     'activo' => true, 'es_facturable' => true, 'archivado' => false],
             );

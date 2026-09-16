@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+import TablaDatos from '@/components/TablaDatos.vue'
 import { api, mensajeDeError } from '@/lib/api'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
 
-interface Miembro {
+type Miembro = {
   id: string
   nombre: string
   apellidos: string | null
@@ -13,6 +15,7 @@ interface Miembro {
   activo: boolean
 }
 
+const { t } = useI18n()
 const sesion = useSesionTenantStore()
 const base = computed(() => `/api/v1/app/${sesion.slug}`)
 const puedeGestionar = computed(() => sesion.puede('miembros.gestionar'))
@@ -25,6 +28,12 @@ const mensaje = ref<string | null>(null)
 
 const form = ref({ nombre: '', apellidos: '', email: '', tipo: 'miembro' })
 const guardando = ref(false)
+
+const columnas = computed(() => [
+  { clave: 'nombre', etiqueta: t('miembros.colNombre') },
+  { clave: 'email', etiqueta: t('miembros.colCorreo') },
+  { clave: 'activo', etiqueta: t('miembros.colEstado') },
+])
 
 async function cargar(): Promise<void> {
   cargando.value = true
@@ -63,6 +72,10 @@ async function crear(): Promise<void> {
   } finally {
     guardando.value = false
   }
+}
+
+function nombreCompleto(m: Miembro): string {
+  return `${m.nombre} ${m.apellidos ?? ''}`.trim()
 }
 
 watch(tipo, () => {
@@ -107,42 +120,39 @@ onMounted(() => {
       </button>
     </div>
 
-    <div class="mt-6 grid gap-6 md:grid-cols-[1fr_300px]">
-      <!-- Lista -->
-      <div class="tu-card p-2">
-        <p v-if="cargando" class="p-4 text-sm" :style="{ color: 'var(--texto-suave)' }">
+    <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_300px]">
+      <!-- Tabla -->
+      <div class="min-w-0">
+        <p v-if="cargando" class="tu-card p-6 text-sm" :style="{ color: 'var(--texto-suave)' }">
           {{ $t('comun.cargando') }}
         </p>
-        <p
-          v-else-if="miembros.length === 0"
-          class="p-6 text-center text-sm"
-          :style="{ color: 'var(--texto-suave)' }"
+        <TablaDatos
+          v-else
+          :columnas="columnas"
+          :filas="miembros"
+          :buscar-en="['nombre', 'apellidos', 'email']"
+          :vacio="$t('miembros.vacio')"
         >
-          {{ $t('miembros.vacio') }}
-        </p>
-        <ul v-else>
-          <li
-            v-for="(m, i) in miembros"
-            :key="m.id"
-            class="flex items-center gap-3 p-3"
-            :style="{ borderTop: i > 0 ? '1px solid var(--borde)' : 'none' }"
-          >
-            <span
-              class="h-9 w-9 rounded-full inline-flex items-center justify-center text-sm font-bold text-white shrink-0"
-              :style="{ background: 'var(--primario)' }"
-              aria-hidden="true"
-              >{{ m.nombre.charAt(0).toUpperCase() }}</span
-            >
-            <div class="min-w-0">
-              <p class="font-semibold truncate">
-                {{ m.nombre }} {{ m.apellidos ?? '' }}
-              </p>
-              <p class="text-sm truncate" :style="{ color: 'var(--texto-suave)' }">
-                {{ m.email ?? $t('miembros.sinApellidos') }}
-              </p>
+          <template #col-nombre="{ fila }">
+            <div class="flex items-center gap-3">
+              <span
+                class="h-8 w-8 rounded-full inline-flex items-center justify-center text-xs font-bold text-white shrink-0"
+                :style="{ background: 'var(--primario)' }"
+                aria-hidden="true"
+                >{{ (fila as Miembro).nombre.charAt(0).toUpperCase() }}</span
+              >
+              <span class="font-semibold">{{ nombreCompleto(fila as Miembro) }}</span>
             </div>
-          </li>
-        </ul>
+          </template>
+          <template #col-email="{ valor }">
+            <span :style="{ color: 'var(--texto-suave)' }">{{ valor ?? '—' }}</span>
+          </template>
+          <template #col-activo="{ valor }">
+            <span class="tu-badge" :class="valor ? 'tu-badge-exito' : ''">
+              {{ valor ? $t('miembros.activo') : $t('miembros.inactivo') }}
+            </span>
+          </template>
+        </TablaDatos>
       </div>
 
       <!-- Alta -->
