@@ -45,6 +45,7 @@ use App\Modules\Recursos\Http\Controllers\InstalacionController;
 use App\Modules\Recursos\Http\Controllers\RecursoController;
 use App\Modules\Reservas\Http\Controllers\ReservaController;
 use App\Modules\Tenancy\Http\Controllers\AgendaTenantController;
+use App\Modules\Tenancy\Http\Controllers\AsignacionesPersonalTenantController;
 use App\Modules\Tenancy\Http\Controllers\AsistenciaTenantController;
 use App\Modules\Tenancy\Http\Controllers\AuditoriaController;
 use App\Modules\Tenancy\Http\Controllers\AuthTenantController;
@@ -137,6 +138,12 @@ Route::prefix('v1')->group(function (): void {
             // Invitación de personal (crea usuario tenant-local con rol + activación).
             Route::post('/usuarios/invitar', [UsuariosTenantController::class, 'invitar'])->middleware('puede:usuarios.invitar')->name('usuarios.invitar');
             Route::get('/instructores', [UsuariosTenantController::class, 'instructores'])->middleware('puede:agenda.gestionar')->name('instructores.index');
+
+            // RBAC con scope por sucursal (R19): asigna a un usuario un rol EN una
+            // sucursal, ampliando su rol tenant-wide.
+            Route::get('/asignaciones-personal', [AsignacionesPersonalTenantController::class, 'index'])->middleware('puede:usuarios.invitar')->name('asignaciones-personal.index');
+            Route::put('/asignaciones-personal', [AsignacionesPersonalTenantController::class, 'guardar'])->middleware('puede:usuarios.invitar')->name('asignaciones-personal.guardar');
+            Route::delete('/asignaciones-personal/{asignacion}', [AsignacionesPersonalTenantController::class, 'eliminar'])->middleware('puede:usuarios.invitar')->name('asignaciones-personal.eliminar');
 
             // Operación tenant-local: alta de alumnos (data plane del estudio).
             Route::get('/miembros', [MiembrosTenantController::class, 'index'])->middleware('puede:miembros.ver')->name('miembros.index');

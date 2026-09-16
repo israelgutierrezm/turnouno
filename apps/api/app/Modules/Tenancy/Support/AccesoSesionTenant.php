@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Tenancy\Support;
 
+use App\Modules\Tenancy\Application\ResolverAccesoTenant;
 use App\Modules\Tenancy\Models\SesionTenant;
 use App\Modules\Tenancy\Models\Usuario;
 
@@ -11,10 +12,14 @@ use App\Modules\Tenancy\Models\Usuario;
  * Politica de acceso a una sesion segun el usuario tenant-local. Un instructor solo
  * opera (ve roster, marca asistencia) sobre SUS sesiones asignadas; el resto del
  * staff (propietario/admin/recepcionista) opera sobre todas. Privacidad: un
- * instructor no debe ver los datos de las clases de otros.
+ * instructor no debe ver los datos de las clases de otros. Ademas, el scope por
+ * sucursal (R19) puede AMPLIAR el alcance de un instructor a toda una sucursal donde
+ * tenga un rol asignado (p. ej. como recepcionista de esa sede).
  */
 class AccesoSesionTenant
 {
+    public function __construct(private readonly ResolverAccesoTenant $acceso) {}
+
     public function puedeOperar(SesionTenant $sesion, ?Usuario $usuario): bool
     {
         if (! $usuario instanceof Usuario) {
@@ -25,7 +30,13 @@ class AccesoSesionTenant
             return true;
         }
 
-        return $sesion->instructor_id !== null && (int) $sesion->instructor_id === (int) $usuario->getKey();
+        if ($sesion->instructor_id !== null && (int) $sesion->instructor_id === (int) $usuario->getKey()) {
+            return true;
+        }
+
+        // Scope por sucursal (R19): un rol asignado en la sucursal de la sesion amplia
+        // su alcance mas alla de sus propias sesiones. `sucursal_id` es obligatorio.
+        return $this->acceso->rolAsignadoPermite($usuario, 'asistencia.marcar', (int) $sesion->sucursal_id);
     }
 
     /**
