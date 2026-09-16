@@ -48,11 +48,13 @@ use App\Modules\Tenancy\Http\Controllers\AgendaTenantController;
 use App\Modules\Tenancy\Http\Controllers\AsistenciaTenantController;
 use App\Modules\Tenancy\Http\Controllers\AuthTenantController;
 use App\Modules\Tenancy\Http\Controllers\CatalogoTenantController;
+use App\Modules\Tenancy\Http\Controllers\CheckinsTenantController;
 use App\Modules\Tenancy\Http\Controllers\CreditosTenantController;
 use App\Modules\Tenancy\Http\Controllers\DirectorioController;
 use App\Modules\Tenancy\Http\Controllers\DocumentosController;
 use App\Modules\Tenancy\Http\Controllers\FacturacionController;
 use App\Modules\Tenancy\Http\Controllers\FormulariosController;
+use App\Modules\Tenancy\Http\Controllers\IntegracionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\MembresiasTenantController;
 use App\Modules\Tenancy\Http\Controllers\MiembrosTenantController;
 use App\Modules\Tenancy\Http\Controllers\MiTenantController;
@@ -222,6 +224,14 @@ Route::prefix('v1')->group(function (): void {
             // estudio carga sus llaves. Solo propietario (pagos.configurar).
             Route::get('/pasarelas', [PasarelasTenantController::class, 'index'])->middleware('puede:pagos.configurar')->name('pasarelas.index');
             Route::put('/pasarelas/{proveedor}', [PasarelasTenantController::class, 'upsert'])->middleware('puede:pagos.configurar')->name('pasarelas.upsert');
+
+            // Integraciones de bienestar (Wellhub / TotalPass): el propietario conecta
+            // llaves (cifradas); el staff valida check-ins de esos usuarios en clases
+            // (sin consumir creditos del estudio).
+            Route::get('/integraciones', [IntegracionesTenantController::class, 'index'])->middleware('puede:integraciones.configurar')->name('integraciones.index');
+            Route::put('/integraciones/{proveedor}', [IntegracionesTenantController::class, 'upsert'])->middleware('puede:integraciones.configurar')->name('integraciones.upsert');
+            Route::post('/checkins', [CheckinsTenantController::class, 'registrar'])->middleware('puede:checkins.registrar')->name('checkins.store');
+            Route::get('/sesiones/{sesion}/checkins', [CheckinsTenantController::class, 'index'])->middleware('puede:checkins.registrar')->name('sesiones.checkins.index');
         });
     };
 
