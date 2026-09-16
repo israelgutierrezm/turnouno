@@ -1,0 +1,21 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": [
+        "-NoProfile",
+        "-Command",
+        "Set-Location apps/api; $env:XDEBUG_MODE='off'; php -d opcache.enable=1 -d opcache.enable_cli=1 artisan serve --port=8000"
+      ],
+      "port": 8000
+    },
+    {
+      "name": "registro-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "apps/registro-web", "run", "dev"],
+      "port": 5175
+    }
+  ]
+}
