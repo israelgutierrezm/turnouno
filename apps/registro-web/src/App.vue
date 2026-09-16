@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 
 import { useSesionTenantStore } from '@/stores/sesionTenant'
-import { useTemaStore } from '@/stores/tema'
+import { ACENTOS, useTemaStore } from '@/stores/tema'
 
 const tema = useTemaStore()
 const sesion = useSesionTenantStore()
@@ -119,6 +119,24 @@ async function salir(): Promise<void> {
 
       <!-- Pie: tema + perfil -->
       <div class="border-t p-3 space-y-3" :style="{ borderColor: 'var(--borde)' }">
+        <!-- Color de acento -->
+        <div class="flex items-center gap-1.5" role="group" :aria-label="$t('tema.acento')">
+          <button
+            v-for="a in ACENTOS"
+            :key="a.nombre"
+            type="button"
+            class="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
+            :style="{
+              background: a.hex ?? '#4f46e5',
+              borderColor: tema.acento === a.hex ? 'var(--texto)' : 'transparent',
+            }"
+            :title="a.nombre"
+            :aria-label="a.nombre"
+            :aria-pressed="tema.acento === a.hex"
+            @click="tema.fijarAcento(a.hex)"
+          />
+        </div>
+
         <!-- Controles de tema -->
         <div class="flex items-center gap-2">
           <button

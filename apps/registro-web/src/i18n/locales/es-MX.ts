@@ -41,6 +41,7 @@ export default {
     oscuro: 'Tema oscuro',
     menosDensidad: 'Menos densidad',
     masDensidad: 'Mas densidad',
+    acento: 'Color de acento',
   },
   landing: {
     titulo: 'El software para tu estudio, gimnasio o academia',

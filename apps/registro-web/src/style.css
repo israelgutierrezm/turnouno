@@ -15,10 +15,13 @@
   --texto: #1c2033;
   --texto-suave: #5b6178;
   --borde: #e3e7f1;
-  --primario: #4f46e5;
-  --primario-fuerte: #4338ca;
+  /* El color de acento es personalizable (lo fija el store de tema). El resto de
+     los tonos "primario" se derivan de el, asi el usuario cambia un solo valor. */
+  --acento: #4f46e5;
+  --primario: var(--acento);
+  --primario-fuerte: color-mix(in srgb, var(--acento), black 15%);
   --primario-contraste: #ffffff;
-  --primario-suave: #ecedfe;
+  --primario-suave: color-mix(in srgb, var(--acento) 12%, #ffffff);
   --exito: #15803d;
   --exito-suave: #dcfce7;
   --error: #dc2626;
@@ -36,10 +39,11 @@
   --texto: #e8eaf3;
   --texto-suave: #a3a9be;
   --borde: #2a3042;
-  --primario: #6366f1;
-  --primario-fuerte: #818cf8;
+  --acento: #6366f1;
+  --primario: var(--acento);
+  --primario-fuerte: color-mix(in srgb, var(--acento), white 22%);
   --primario-contraste: #0d0f16;
-  --primario-suave: #1e2238;
+  --primario-suave: color-mix(in srgb, var(--acento) 22%, #161925);
   --exito: #4ade80;
   --exito-suave: #10261a;
   --error: #f87171;
