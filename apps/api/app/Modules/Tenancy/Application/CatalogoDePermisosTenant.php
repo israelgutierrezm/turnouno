@@ -30,7 +30,7 @@ class CatalogoDePermisosTenant
                 'membresias.gestionar', 'creditos.gestionar', 'derechos.ver',
                 'reservas.ver', 'reservas.gestionar', 'asistencia.marcar', 'checkins.registrar',
                 'ordenes.ver', 'ordenes.gestionar',
-                'facturacion.ver', 'usuarios.invitar',
+                'facturacion.ver', 'usuarios.invitar', 'auditoria.ver',
             ],
             'recepcionista' => [
                 'miembros.gestionar', 'miembros.ver', 'documentos.subir', 'formularios.responder',

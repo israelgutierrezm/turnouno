@@ -9,11 +9,13 @@ use App\Modules\Membresias\PoliticaRollover;
 use App\Modules\Membresias\TipoProducto;
 use App\Modules\Tenancy\Application\LibroMayorTenant;
 use App\Modules\Tenancy\Application\MembresiasTenant;
+use App\Modules\Tenancy\Application\RegistrarAuditoria;
 use App\Modules\Tenancy\Models\ActividadTenant;
 use App\Modules\Tenancy\Models\DerechoTenant;
 use App\Modules\Tenancy\Models\PersonaTenant;
 use App\Modules\Tenancy\Models\ProductoTenant;
 use App\Modules\Tenancy\Models\SucursalTenant;
+use App\Modules\Tenancy\Models\Usuario;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -30,6 +32,7 @@ class MembresiasTenantController
     public function __construct(
         private readonly MembresiasTenant $membresias,
         private readonly LibroMayorTenant $libro,
+        private readonly RegistrarAuditoria $auditoria,
     ) {}
 
     public function productos(): JsonResponse
@@ -122,7 +125,21 @@ class MembresiasTenantController
             'descripcion' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $this->membresias->agregarTopUp($derecho, (int) $validado['unidades'], $validado['descripcion'] ?? null);
+        $unidades = (int) $validado['unidades'];
+        $descripcion = is_string($validado['descripcion'] ?? null) ? $validado['descripcion'] : null;
+        $this->membresias->agregarTopUp($derecho, $unidades, $descripcion);
+
+        // Concesion manual de credito = operacion sensible: se audita (quien y cuanto).
+        $actor = $request->attributes->get('usuario_tenant');
+        $this->auditoria->registrar(
+            $actor instanceof Usuario ? $actor : null,
+            'credito.top_up',
+            'derecho',
+            $derecho->ulid,
+            null,
+            ['unidades' => $unidades, 'saldo_nuevo' => $this->libro->saldo($derecho->refresh())],
+            $descripcion,
+        );
 
         return response()->json(['data' => $this->presentarDerecho($derecho->refresh())], 201);
     }
