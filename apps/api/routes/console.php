@@ -22,3 +22,6 @@ Schedule::command('turnouno:reintentar-webhooks')->everyFiveMinutes()->withoutOv
 
 // Envia los mensajes encolados (y reintenta los fallidos) de cada estudio (R28).
 Schedule::command('turnouno:enviar-mensajes')->everyMinute()->withoutOverlapping();
+
+// Materializa la agenda recurrente de cada estudio (R5): ventana deslizante diaria.
+Schedule::command('turnouno:generar-agenda')->dailyAt('00:30');

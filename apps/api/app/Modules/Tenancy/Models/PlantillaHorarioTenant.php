@@ -4,33 +4,38 @@ declare(strict_types=1);
 
 namespace App\Modules\Tenancy\Models;
 
-use App\Modules\Tenancy\EstadoSesionTenant;
 use App\Support\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Sesión de la agenda (oferta materializada en una sucursal), tenant-local. Horas
- * en UTC + snapshot de zona horaria.
+ * Plantilla de horario recurrente tenant-local (R5): una oferta impartida en una
+ * sucursal ciertos `dias_semana` (ISO 1..7) a `hora_local`. De aqui se materializan
+ * sesiones (con `serie_id` = esta plantilla).
  */
-class SesionTenant extends Model
+class PlantillaHorarioTenant extends Model
 {
     use HasPublicId;
 
     protected $connection = 'tenant';
 
-    protected $table = 'sesiones';
+    protected $table = 'plantillas_horario';
 
-    protected $fillable = ['oferta_id', 'sucursal_id', 'serie_id', 'instructor_id', 'inicia_en', 'termina_en', 'zona_horaria', 'capacidad', 'estado'];
+    protected $fillable = [
+        'oferta_id', 'sucursal_id', 'instructor_id', 'dias_semana', 'hora_local',
+        'duracion_minutos', 'capacidad', 'activo', 'vigente_desde', 'vigente_hasta',
+    ];
 
     /**
      * @var array<string, string>
      */
     protected $casts = [
-        'inicia_en' => 'datetime',
-        'termina_en' => 'datetime',
+        'dias_semana' => 'array',
+        'duracion_minutos' => 'integer',
         'capacidad' => 'integer',
-        'estado' => EstadoSesionTenant::class,
+        'activo' => 'boolean',
+        'vigente_desde' => 'date',
+        'vigente_hasta' => 'date',
     ];
 
     /**
@@ -50,8 +55,6 @@ class SesionTenant extends Model
     }
 
     /**
-     * Instructor asignado (usuario tenant-local), opcional.
-     *
      * @return BelongsTo<Usuario, $this>
      */
     public function instructor(): BelongsTo

@@ -54,6 +54,7 @@ use App\Modules\Tenancy\Http\Controllers\CheckinsTenantController;
 use App\Modules\Tenancy\Http\Controllers\CreditosTenantController;
 use App\Modules\Tenancy\Http\Controllers\DirectorioController;
 use App\Modules\Tenancy\Http\Controllers\DocumentosController;
+use App\Modules\Tenancy\Http\Controllers\ExcepcionesHorarioTenantController;
 use App\Modules\Tenancy\Http\Controllers\FacturacionController;
 use App\Modules\Tenancy\Http\Controllers\FormulariosController;
 use App\Modules\Tenancy\Http\Controllers\IntegracionesTenantController;
@@ -66,6 +67,7 @@ use App\Modules\Tenancy\Http\Controllers\OnboardingController;
 use App\Modules\Tenancy\Http\Controllers\OrdenesTenantController;
 use App\Modules\Tenancy\Http\Controllers\OrganizacionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\PasarelasTenantController;
+use App\Modules\Tenancy\Http\Controllers\PlantillasHorarioTenantController;
 use App\Modules\Tenancy\Http\Controllers\PlantillasMensajeTenantController;
 use App\Modules\Tenancy\Http\Controllers\PoliticasCancelacionTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReembolsosTenantController;
@@ -206,6 +208,16 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/sesiones', [AgendaTenantController::class, 'sesiones'])->middleware('puede:agenda.ver')->name('sesiones.index');
             Route::post('/sesiones', [AgendaTenantController::class, 'crearSesion'])->middleware('puede:agenda.gestionar')->name('sesiones.store');
             Route::post('/sesiones/{sesion}/cancelar', [AgendaTenantController::class, 'cancelar'])->middleware('puede:agenda.gestionar')->name('sesiones.cancelar');
+
+            // Agenda recurrente (R5): plantillas de horario (materializan sesiones con
+            // serie_id), excepciones (feriados/cierres) y generacion bajo demanda.
+            Route::get('/plantillas-horario', [PlantillasHorarioTenantController::class, 'index'])->middleware('puede:agenda.ver')->name('plantillas-horario.index');
+            Route::post('/plantillas-horario', [PlantillasHorarioTenantController::class, 'crear'])->middleware('puede:agenda.gestionar')->name('plantillas-horario.store');
+            Route::delete('/plantillas-horario/{plantilla}', [PlantillasHorarioTenantController::class, 'eliminar'])->middleware('puede:agenda.gestionar')->name('plantillas-horario.eliminar');
+            Route::post('/plantillas-horario/{plantilla}/generar', [PlantillasHorarioTenantController::class, 'generar'])->middleware('puede:agenda.gestionar')->name('plantillas-horario.generar');
+            Route::get('/excepciones-horario', [ExcepcionesHorarioTenantController::class, 'index'])->middleware('puede:agenda.ver')->name('excepciones-horario.index');
+            Route::post('/excepciones-horario', [ExcepcionesHorarioTenantController::class, 'crear'])->middleware('puede:agenda.gestionar')->name('excepciones-horario.store');
+            Route::delete('/excepciones-horario/{excepcion}', [ExcepcionesHorarioTenantController::class, 'eliminar'])->middleware('puede:agenda.gestionar')->name('excepciones-horario.eliminar');
             Route::put('/sesiones/{sesion}/instructor', [AgendaTenantController::class, 'asignarInstructor'])->middleware('puede:agenda.gestionar')->name('sesiones.instructor');
 
             // Membresias (data plane del tenant): producto comercial → acuerdo →
