@@ -7,6 +7,7 @@ namespace App\Modules\Tenancy\Http\Controllers;
 use App\Modules\Tenancy\Application\GenerarAgendaTenant;
 use App\Modules\Tenancy\Models\OfertaTenant;
 use App\Modules\Tenancy\Models\PlantillaHorarioTenant;
+use App\Modules\Tenancy\Models\RecursoTenant;
 use App\Modules\Tenancy\Models\SucursalTenant;
 use App\Modules\Tenancy\Models\Usuario;
 use Illuminate\Http\JsonResponse;
@@ -36,6 +37,7 @@ class PlantillasHorarioTenantController
             'oferta_id' => ['required', 'string'],
             'sucursal_id' => ['required', 'string'],
             'instructor_id' => ['nullable', 'string'],
+            'recurso_id' => ['nullable', 'string'],
             'dias_semana' => ['required', 'array', 'min:1'],
             'dias_semana.*' => ['integer', 'min:1', 'max:7'],
             'hora_local' => ['required', 'date_format:H:i'],
@@ -53,6 +55,7 @@ class PlantillasHorarioTenantController
             'oferta_id' => $oferta->getKey(),
             'sucursal_id' => $sucursal->getKey(),
             'instructor_id' => $this->resolverInstructor($validado['instructor_id'] ?? null),
+            'recurso_id' => $this->resolverRecurso($validado['recurso_id'] ?? null),
             'dias_semana' => array_values(array_unique(array_map('intval', $validado['dias_semana']))),
             'hora_local' => $validado['hora_local'],
             'duracion_minutos' => (int) $validado['duracion_minutos'],
@@ -96,6 +99,17 @@ class PlantillasHorarioTenantController
         $instructor = Usuario::query()->where('ulid', $ulid)->first();
 
         return $instructor instanceof Usuario ? (int) $instructor->getKey() : null;
+    }
+
+    private function resolverRecurso(?string $ulid): ?int
+    {
+        if ($ulid === null || $ulid === '') {
+            return null;
+        }
+
+        $recurso = RecursoTenant::query()->where('ulid', $ulid)->first();
+
+        return $recurso instanceof RecursoTenant ? (int) $recurso->getKey() : null;
     }
 
     /**

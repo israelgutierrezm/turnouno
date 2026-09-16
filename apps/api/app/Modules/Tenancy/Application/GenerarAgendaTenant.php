@@ -8,6 +8,7 @@ use App\Modules\Agenda\Application\GenerarSesiones;
 use App\Modules\Tenancy\EstadoSesionTenant;
 use App\Modules\Tenancy\Models\ExcepcionHorarioTenant;
 use App\Modules\Tenancy\Models\PlantillaHorarioTenant;
+use App\Modules\Tenancy\Models\RecursoTenant;
 use App\Modules\Tenancy\Models\SesionTenant;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,8 @@ use Illuminate\Support\Facades\DB;
  */
 class GenerarAgendaTenant
 {
+    public function __construct(private readonly VerificarRecursoTenant $recursos) {}
+
     public function ejecutar(PlantillaHorarioTenant $plantilla, string $desde, string $hasta): int
     {
         if (! $plantilla->activo) {
@@ -32,6 +35,9 @@ class GenerarAgendaTenant
         $zona = is_string($plantilla->sucursal?->zona_horaria) ? $plantilla->sucursal->zona_horaria : 'UTC';
         $capacidad = $plantilla->capacidad ?? $plantilla->oferta?->capacidad;
         $dias = array_map('intval', $plantilla->dias_semana ?? []);
+        $recurso = $plantilla->recurso_id !== null
+            ? RecursoTenant::query()->find($plantilla->recurso_id)
+            : null;
 
         // Ventana efectiva = interseccion del rango pedido con la vigencia.
         $inicio = CarbonImmutable::parse($desde)->startOfDay();
@@ -53,7 +59,7 @@ class GenerarAgendaTenant
             ->map(fn ($fecha): string => $fecha->toDateString())
             ->flip();
 
-        return DB::connection('tenant')->transaction(function () use ($plantilla, $inicio, $fin, $dias, $zona, $capacidad, $excepciones): int {
+        return DB::connection('tenant')->transaction(function () use ($plantilla, $inicio, $fin, $dias, $zona, $capacidad, $excepciones, $recurso): int {
             $creadas = 0;
 
             for ($dia = $inicio; $dia->lte($fin); $dia = $dia->addDay()) {
@@ -66,6 +72,14 @@ class GenerarAgendaTenant
                 }
 
                 $iniciaEn = CarbonImmutable::parse($dia->toDateString().' '.$plantilla->hora_local, $zona)->utc();
+                $terminaEn = $iniciaEn->addMinutes($plantilla->duracion_minutos);
+
+                // Recurso ocupado a su cupo por OTRA serie/sesion en ese horario: se
+                // omite la instancia (se excluye la propia serie para no auto-chocar).
+                if ($recurso instanceof RecursoTenant
+                    && ! $this->recursos->disponible($recurso, $iniciaEn, $terminaEn, (int) $plantilla->getKey())) {
+                    continue;
+                }
 
                 $sesion = SesionTenant::query()->firstOrCreate(
                     ['serie_id' => $plantilla->getKey(), 'inicia_en' => $iniciaEn],
@@ -73,7 +87,8 @@ class GenerarAgendaTenant
                         'oferta_id' => $plantilla->oferta_id,
                         'sucursal_id' => $plantilla->sucursal_id,
                         'instructor_id' => $plantilla->instructor_id,
-                        'termina_en' => $iniciaEn->addMinutes($plantilla->duracion_minutos),
+                        'recurso_id' => $plantilla->recurso_id,
+                        'termina_en' => $terminaEn,
                         'zona_horaria' => $zona,
                         'capacidad' => $capacidad,
                         'estado' => EstadoSesionTenant::Programada->value,

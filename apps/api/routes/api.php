@@ -70,6 +70,7 @@ use App\Modules\Tenancy\Http\Controllers\PasarelasTenantController;
 use App\Modules\Tenancy\Http\Controllers\PlantillasHorarioTenantController;
 use App\Modules\Tenancy\Http\Controllers\PlantillasMensajeTenantController;
 use App\Modules\Tenancy\Http\Controllers\PoliticasCancelacionTenantController;
+use App\Modules\Tenancy\Http\Controllers\RecursosTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReembolsosTenantController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
 use App\Modules\Tenancy\Http\Controllers\ReservasTenantController;
@@ -218,6 +219,12 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/excepciones-horario', [ExcepcionesHorarioTenantController::class, 'index'])->middleware('puede:agenda.ver')->name('excepciones-horario.index');
             Route::post('/excepciones-horario', [ExcepcionesHorarioTenantController::class, 'crear'])->middleware('puede:agenda.gestionar')->name('excepciones-horario.store');
             Route::delete('/excepciones-horario/{excepcion}', [ExcepcionesHorarioTenantController::class, 'eliminar'])->middleware('puede:agenda.gestionar')->name('excepciones-horario.eliminar');
+
+            // Recursos reservables (R3): salas/canchas/carriles/equipos. El motor de
+            // agenda evita sobre-reservarlos (unidad = 1; pool = capacidad).
+            Route::get('/recursos', [RecursosTenantController::class, 'index'])->middleware('puede:agenda.ver')->name('recursos.index');
+            Route::post('/recursos', [RecursosTenantController::class, 'crear'])->middleware('puede:agenda.gestionar')->name('recursos.store');
+            Route::delete('/recursos/{recurso}', [RecursosTenantController::class, 'eliminar'])->middleware('puede:agenda.gestionar')->name('recursos.eliminar');
             Route::put('/sesiones/{sesion}/instructor', [AgendaTenantController::class, 'asignarInstructor'])->middleware('puede:agenda.gestionar')->name('sesiones.instructor');
 
             // Membresias (data plane del tenant): producto comercial → acuerdo →

@@ -22,7 +22,7 @@ class PlantillaHorarioTenant extends Model
     protected $table = 'plantillas_horario';
 
     protected $fillable = [
-        'oferta_id', 'sucursal_id', 'instructor_id', 'dias_semana', 'hora_local',
+        'oferta_id', 'sucursal_id', 'instructor_id', 'recurso_id', 'dias_semana', 'hora_local',
         'duracion_minutos', 'capacidad', 'activo', 'vigente_desde', 'vigente_hasta',
     ];
 

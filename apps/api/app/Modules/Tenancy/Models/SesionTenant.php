@@ -21,7 +21,7 @@ class SesionTenant extends Model
 
     protected $table = 'sesiones';
 
-    protected $fillable = ['oferta_id', 'sucursal_id', 'serie_id', 'instructor_id', 'inicia_en', 'termina_en', 'zona_horaria', 'capacidad', 'estado'];
+    protected $fillable = ['oferta_id', 'sucursal_id', 'serie_id', 'recurso_id', 'instructor_id', 'inicia_en', 'termina_en', 'zona_horaria', 'capacidad', 'estado'];
 
     /**
      * @var array<string, string>

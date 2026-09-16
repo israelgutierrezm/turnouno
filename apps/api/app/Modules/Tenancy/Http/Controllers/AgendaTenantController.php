@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\Tenancy\Http\Controllers;
 
 use App\Modules\Tenancy\Application\ReservasTenant;
+use App\Modules\Tenancy\Application\VerificarRecursoTenant;
 use App\Modules\Tenancy\EstadoSesionTenant;
 use App\Modules\Tenancy\Models\OfertaTenant;
+use App\Modules\Tenancy\Models\RecursoTenant;
 use App\Modules\Tenancy\Models\SesionTenant;
 use App\Modules\Tenancy\Models\SucursalTenant;
 use App\Modules\Tenancy\Models\Usuario;
@@ -27,6 +29,7 @@ class AgendaTenantController
     public function __construct(
         private readonly AccesoSesionTenant $acceso,
         private readonly ReservasTenant $reservas,
+        private readonly VerificarRecursoTenant $recursos,
     ) {}
 
     public function crearSesion(Request $request): JsonResponse
@@ -35,6 +38,7 @@ class AgendaTenantController
             'oferta_id' => ['required', 'string'],
             'sucursal_id' => ['required', 'string'],
             'instructor_id' => ['nullable', 'string'],
+            'recurso_id' => ['nullable', 'string'],
             'inicia_en_local' => ['required', 'date'],
             'duracion_minutos' => ['required', 'integer', 'min:1', 'max:1440'],
             'capacidad' => ['nullable', 'integer', 'min:1'],
@@ -47,10 +51,18 @@ class AgendaTenantController
         $inicia = CarbonImmutable::parse((string) $validado['inicia_en_local'], (string) $sucursal->zona_horaria)->utc();
         $termina = $inicia->addMinutes((int) $validado['duracion_minutos']);
 
+        // Recurso (R3): si se asigna, no puede estar ocupado a su cupo en ese horario.
+        $recurso = null;
+        if (($validado['recurso_id'] ?? '') !== '') {
+            $recurso = RecursoTenant::query()->where('ulid', $validado['recurso_id'])->firstOrFail();
+            $this->recursos->exigirDisponible($recurso, $inicia, $termina);
+        }
+
         $sesion = SesionTenant::query()->create([
             'oferta_id' => $oferta->id,
             'sucursal_id' => $sucursal->id,
             'instructor_id' => $this->resolverInstructor($validado['instructor_id'] ?? null),
+            'recurso_id' => $recurso?->getKey(),
             'inicia_en' => $inicia,
             'termina_en' => $termina,
             'zona_horaria' => $sucursal->zona_horaria,
