@@ -39,6 +39,10 @@ class RegistrarEstudio
                 'slug' => $slug,
                 'estado' => EstadoEstudio::Provisioning->value,
                 'estado_facturacion' => EstadoFacturacion::Trial->value,
+                // Por defecto el estudio aparece en el directorio en cuanto queda
+                // operativo; el administrador puede optar por salirse (Configuracion).
+                'publicado' => true,
+                'privado' => false,
                 'contacto_nombre' => $datos['contacto_nombre'],
                 'contacto_email' => $datos['contacto_email'],
                 'contacto_telefono' => $datos['contacto_telefono'] ?? null,

@@ -31,7 +31,7 @@ return new class extends Migration
             $tabla->timestamp('aprovisionado_en')->nullable();
 
             // Directorio público.
-            $tabla->boolean('publicado')->default(false)->index();
+            $tabla->boolean('publicado')->default(true)->index();
             $tabla->boolean('privado')->default(false);
             $tabla->string('pais', 2)->nullable();
             $tabla->string('ciudad')->nullable();

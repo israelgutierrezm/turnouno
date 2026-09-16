@@ -14,21 +14,24 @@ afterEach(function (): void {
     File::deleteDirectory(storage_path('tenants'));
 });
 
-it('el directorio lista solo estudios publicados y no privados; nunca IDs internos', function (): void {
+it('el directorio lista por defecto; el estudio puede optar por salirse o marcarse privado; nunca IDs internos', function (): void {
+    // Por defecto un estudio operativo aparece en el directorio (sin publicar nada).
     $publico = estudioConSesion('estudio-publico', 'a@correo.mx');
     $privado = estudioConSesion('estudio-privado', 'b@correo.mx');
-    estudioConSesion('estudio-oculto', 'c@correo.mx'); // no publicado
+    $oculto = estudioConSesion('estudio-oculto', 'c@correo.mx');
 
-    $this->putJson("/api/v1/app/{$publico['slug']}/publicacion", ['publicado' => true, 'privado' => false], conBearer($publico['bearer']))
-        ->assertOk()->assertJsonPath('data.en_directorio', true);
+    // El propietario opta por NO aparecer (solo por URL directa).
+    $this->putJson("/api/v1/app/{$oculto['slug']}/publicacion", ['publicado' => false, 'privado' => false], conBearer($oculto['bearer']))
+        ->assertOk()->assertJsonPath('data.en_directorio', false);
 
+    // Marcarse privado tambien lo saca del directorio.
     $this->putJson("/api/v1/app/{$privado['slug']}/publicacion", ['publicado' => true, 'privado' => true], conBearer($privado['bearer']))
         ->assertOk()->assertJsonPath('data.en_directorio', false);
 
     $data = $this->getJson('/api/v1/directorio')->assertOk()->json('data');
     $slugs = collect($data)->pluck('slug');
 
-    expect($slugs)->toContain('estudio-publico');
+    expect($slugs)->toContain('estudio-publico'); // aparece por defecto
     expect($slugs)->not->toContain('estudio-privado');
     expect($slugs)->not->toContain('estudio-oculto');
     expect($data[0] ?? [])->not->toHaveKey('id'); // sin IDs internos

@@ -144,6 +144,8 @@ class AuthTenantController
             'estado' => $estudio->estado->value,
             'estado_facturacion' => $estudio->estado_facturacion->value,
             'trial_termina_en' => $estudio->trial_termina_en?->toDateString(),
+            'publicado' => $estudio->publicado,
+            'en_directorio' => $estudio->enDirectorio(),
         ];
     }
 }
