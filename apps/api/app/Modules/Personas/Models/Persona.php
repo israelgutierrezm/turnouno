@@ -14,11 +14,19 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * Un ser humano dentro de un tenant. Puede vincularse a un User (opcional),
  * pertenecer a un Hogar y ostentar varios perfiles (Miembro, Tutor, ...).
  * Persona != User != Miembro.
+ *
+ * Columnas declaradas para el analizador (Larastan pierde el esquema legacy por la
+ * colisión de nombres con las tablas del data plane; ver {@see BelongsToTenant}).
+ *
+ * @property int|null $user_id
+ * @property int|null $hogar_id
+ * @property Carbon|null $fecha_nacimiento
  */
 class Persona extends Model
 {

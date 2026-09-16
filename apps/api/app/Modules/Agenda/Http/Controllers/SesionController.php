@@ -85,9 +85,9 @@ class SesionController
 
     private function zonaDe(Sucursal $sucursal): string
     {
-        return is_string($sucursal->zona_horaria) && $sucursal->zona_horaria !== ''
-            ? $sucursal->zona_horaria
-            : 'UTC';
+        // `zona_horaria` es nullable en el esquema legacy (aunque el analizador la vea
+        // como string por la colisión con la tabla tenant): `?:` cubre null y vacío.
+        return $sucursal->zona_horaria ?: 'UTC';
     }
 
     private function resolverRecurso(mixed $ulid): ?Recurso

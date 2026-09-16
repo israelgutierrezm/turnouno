@@ -19,6 +19,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * When no tenant context is set (console, seeders, cross-tenant tests) the
  * scope is inert; tenant-scoped HTTP endpoints must require a resolved context.
+ *
+ * `tenant_id` se declara para el analizador: la columna existe en el esquema
+ * compartido (legacy), pero el data plane define tablas homónimas por tenant, y
+ * Larastan fusiona ambos esquemas por nombre de tabla y la pierde. Ver docs/TENANCY.md.
+ *
+ * @property int $tenant_id
  */
 trait BelongsToTenant
 {

@@ -12,6 +12,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * Organización dentro de un tenant. Contiene marcas, que contienen sucursales
  * (Tenant → Organización → Marca → Sucursal, ver docs/DOMAIN_MODEL.md).
+ *
+ * Columna declarada para el analizador (Larastan pierde el esquema legacy por la
+ * colisión de nombres con las tablas del data plane; ver {@see BelongsToTenant}).
+ *
+ * @property string $slug
  */
 class Organizacion extends Model
 {

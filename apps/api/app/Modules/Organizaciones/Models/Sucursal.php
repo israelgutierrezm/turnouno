@@ -13,6 +13,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * Unidad operativa dentro de un tenant. Una Sucursal NO es frontera de tenant
  * (ver docs/TENANCY.md); es donde viven agenda, recursos y personal.
+ *
+ * Columnas declaradas para el analizador (Larastan pierde el esquema legacy por la
+ * colisión de nombres con las tablas del data plane; ver {@see BelongsToTenant}).
+ *
+ * @property string $slug
+ * @property string $estado
  */
 class Sucursal extends Model
 {

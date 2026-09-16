@@ -11,9 +11,16 @@ use App\Modules\Tenancy\Concerns\BelongsToTenant;
 use App\Support\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Intento de cobro de una orden a través de una pasarela.
+ *
+ * Columnas declaradas para el analizador (Larastan pierde el esquema legacy por la
+ * colisión de nombres con las tablas del data plane; ver {@see BelongsToTenant}).
+ *
+ * @property string|null $comprobante_ruta
+ * @property Carbon|null $comprobante_subido_en
  */
 class Pago extends Model
 {
