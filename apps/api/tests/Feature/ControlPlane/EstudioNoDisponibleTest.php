@@ -35,3 +35,17 @@ it('un slug inexistente sigue respondiendo 404', function (): void {
         'email' => 'x@correo.mx', 'password' => 'secreto123',
     ])->assertStatus(404);
 });
+
+it('el directorio no lista estudios publicados cuya BD ya no existe (fantasmas)', function (): void {
+    $e = estudioConSesion('estudio-a', 'a@correo.mx');
+    // Publica el estudio en el directorio.
+    $this->putJson("/api/v1/app/{$e['slug']}/publicacion", ['publicado' => true, 'privado' => false], conBearer($e['bearer']))
+        ->assertOk();
+    $this->getJson('/api/v1/directorio')->assertOk()->assertJsonCount(1, 'data');
+
+    // Se borra su BD (fantasma): deja de listarse aunque siga publicado.
+    app(GestorDeConexionTenant::class)->desconectar();
+    File::deleteDirectory(storage_path('tenants'));
+
+    $this->getJson('/api/v1/directorio')->assertOk()->assertJsonCount(0, 'data');
+});

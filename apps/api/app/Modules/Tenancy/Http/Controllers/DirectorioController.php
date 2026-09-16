@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Tenancy\Http\Controllers;
 
+use App\Modules\Tenancy\Database\GestorDeConexionTenant;
 use App\Modules\Tenancy\EstadoEstudio;
 use App\Modules\Tenancy\Models\Estudio;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -19,6 +20,8 @@ use Illuminate\Http\Request;
 class DirectorioController
 {
     private const LIMITE = 50;
+
+    public function __construct(private readonly GestorDeConexionTenant $gestor) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -37,7 +40,11 @@ class DirectorioController
             })
             ->orderBy('nombre')
             ->limit(self::LIMITE)
-            ->get();
+            ->get()
+            // Excluye estudios "fantasma": publicados pero cuya BD no existe (p. ej.
+            // aprovisionamiento incompleto). No se listan cosas que no se pueden abrir.
+            ->filter(fn (Estudio $estudio): bool => $this->gestor->baseDeDatosExiste($estudio))
+            ->values();
 
         return response()->json([
             'data' => $estudios->map(static fn (Estudio $estudio): array => [
