@@ -14,6 +14,7 @@ export interface UsuarioTenant {
 export interface EstudioSesion {
   slug: string
   nombre: string
+  logo_url?: string | null
   estado: string
   estado_facturacion?: string
   trial_termina_en?: string | null

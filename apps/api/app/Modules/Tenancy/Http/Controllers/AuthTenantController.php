@@ -141,6 +141,7 @@ class AuthTenantController
         return [
             'slug' => $estudio->slug,
             'nombre' => $estudio->nombre,
+            'logo_url' => $estudio->logo_url,
             'estado' => $estudio->estado->value,
             'estado_facturacion' => $estudio->estado_facturacion->value,
             'trial_termina_en' => $estudio->trial_termina_en?->toDateString(),

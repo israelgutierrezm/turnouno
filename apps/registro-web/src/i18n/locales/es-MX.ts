@@ -35,6 +35,7 @@ export default {
     pasarelas: 'Pagos',
     integraciones: 'Integraciones',
     configuracion: 'Configuracion',
+    contraer: 'Contraer',
   },
   tema: {
     claro: 'Tema claro',
@@ -42,6 +43,11 @@ export default {
     menosDensidad: 'Menos densidad',
     masDensidad: 'Mas densidad',
     acento: 'Color de acento',
+    apariencia: 'Apariencia',
+    modo: 'Tema',
+    claroCorto: 'Claro',
+    oscuroCorto: 'Oscuro',
+    densidad: 'Densidad',
   },
   landing: {
     titulo: 'El software para tu estudio, gimnasio o academia',
