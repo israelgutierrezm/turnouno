@@ -25,6 +25,7 @@ class ReservaTenant extends Model
     protected $fillable = [
         'sesion_id', 'persona_id', 'derecho_id', 'retencion_id',
         'estado', 'unidades', 'costo_unidades', 'idempotency_key',
+        'horas_limite', 'penaliza_tarde', 'penaliza_no_show',
     ];
 
     /**
@@ -34,6 +35,9 @@ class ReservaTenant extends Model
         'estado' => EstadoReserva::class,
         'unidades' => 'integer',
         'costo_unidades' => 'integer',
+        'horas_limite' => 'integer',
+        'penaliza_tarde' => 'boolean',
+        'penaliza_no_show' => 'boolean',
     ];
 
     /**

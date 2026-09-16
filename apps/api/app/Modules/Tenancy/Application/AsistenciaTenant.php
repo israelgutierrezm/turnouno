@@ -49,10 +49,16 @@ class AsistenciaTenant
                     ['asistencia' => $estado->value],
                 );
 
-                match ($estado) {
-                    EstadoAsistencia::Presente => $this->creditos->confirmar($retencion, $contexto),
-                    EstadoAsistencia::Ausente => $this->creditos->perder($retencion, $contexto),
-                };
+                if ($estado === EstadoAsistencia::Presente) {
+                    // Asistió: el servicio se prestó, se consume el crédito.
+                    $this->creditos->confirmar($retencion, $contexto);
+                } elseif ($reserva->penaliza_no_show ?? true) {
+                    // No-show con penalización (politica congelada, R8): se pierde.
+                    $this->creditos->perder($retencion, $contexto);
+                } else {
+                    // No-show sin penalización: el crédito retenido vuelve al miembro.
+                    $this->creditos->liberar($retencion);
+                }
             }
 
             return $asistencia;

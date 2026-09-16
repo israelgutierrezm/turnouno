@@ -35,6 +35,7 @@ class ReservasTenant
     public function __construct(
         private readonly ResolverDerechoTenant $resolver,
         private readonly CreditosTenant $creditos,
+        private readonly ResolverPoliticaCancelacionTenant $politicas,
     ) {}
 
     public function crear(SesionTenant $sesion, PersonaTenant $persona, ?string $idempotencyKey = null, bool $permitirEspera = false, ?int $unidades = null): ReservaTenant
@@ -81,6 +82,15 @@ class ReservasTenant
                     throw new SinDerechoDisponible('No hay un derecho con saldo para esta sesion.');
                 }
 
+                // Congela (snapshot) la politica de cancelacion/no-show vigente: cancelar
+                // o marcar asistencia leeran ESTOS valores, no la config viva (R8).
+                $politica = $this->politicas->paraSesion($bloqueada);
+                $snapshot = [
+                    'horas_limite' => $politica->horasLimite,
+                    'penaliza_tarde' => $politica->penalizaTarde,
+                    'penaliza_no_show' => $politica->penalizaNoShow,
+                ];
+
                 // Si hay cupo definido y esta lleno: lista de espera (sin hold) o rechazo.
                 if ($bloqueada->capacidad !== null && $this->confirmadas($bloqueada) >= $bloqueada->capacidad) {
                     if (! $permitirEspera) {
@@ -96,6 +106,7 @@ class ReservasTenant
                         'unidades' => 0,
                         'costo_unidades' => $costo,
                         'idempotency_key' => $idempotencyKey,
+                        ...$snapshot,
                     ]);
                 }
 
@@ -116,6 +127,7 @@ class ReservasTenant
                     'unidades' => $unidadesReservadas,
                     'costo_unidades' => $costo,
                     'idempotency_key' => $idempotencyKey,
+                    ...$snapshot,
                 ]);
             });
         } catch (QueryException $e) {
@@ -230,12 +242,19 @@ class ReservasTenant
 
             $retencion = $bloqueada->retencion;
             if ($retencion !== null) {
-                $momentoLimite = $sesion->inicia_en->copy()->subHours($horasLimite);
+                // Politica congelada en la reserva (R8); `$horasLimite` es solo el
+                // respaldo para reservas anteriores al snapshot.
+                $horas = $bloqueada->horas_limite ?? $horasLimite;
+                $penalizaTarde = $bloqueada->penaliza_tarde ?? true;
+                $momentoLimite = $sesion->inicia_en->copy()->subHours($horas);
+                $aTiempo = now()->lessThanOrEqualTo($momentoLimite);
 
-                if (now()->lessThanOrEqualTo($momentoLimite)) {
+                if ($aTiempo || ! $penalizaTarde) {
+                    // A tiempo, o el estudio no penaliza la cancelacion tardia: el
+                    // credito retenido vuelve al miembro.
                     $this->creditos->liberar($retencion);
                 } else {
-                    // Cancelación tardía: el crédito se cobra (penalización). Se deja
+                    // Cancelación tardía con penalización: el crédito se cobra. Se deja
                     // trazable con el origen (reserva) y la reserva referida.
                     $this->creditos->confirmar($retencion, ContextoMovimiento::para(
                         OrigenMovimiento::Reserva,

@@ -30,7 +30,7 @@ Deriva de `turno-uno-competitive-audit.md`. Regla rectora del documento de produ
 | **Audit log (R38)** | Módulo `Audit` append-only (actor/tenant/sucursal/action/entity/before/after/motivo/ip/correlation) cableado a crédito/refund/override/permiso/precio/documento. | Alta | ✅ `22f8b9d` (base + cableado al top-up; más cableados al avanzar refund/override) |
 | **RBAC scope + overrides auditables (R19)** | Portar branch-scope de `ControlDeAcceso` al tenant; exigir `motivo`+actor en concesiones/consumos/overrides. | Media | Pendiente |
 | **Refunds tenant (R11)** | `ReembolsarPagoTenant` con parcial/proporcional, entidad Refund enlazada a Pago, devolución real por pasarela + conciliación. | Media | ✅ `ReembolsarPagoTenant` + `ReembolsoTenant` (total revierte entitlement con bloqueo-si-usado; parcial monetaria/proporcional; suma acotada al monto; auditada) + contrato `PasarelaReembolsable` para la devolución en línea (falta implementarla en Stripe con llaves reales, como el cobro en vivo). |
-| **Cancellation/no-show configurable (R8)** | Política por tenant/actividad/plan (deadline/crédito/penalización/strike/tolerancia) + snapshot en la reserva. | Media | Pendiente |
+| **Cancellation/no-show configurable (R8)** | Política por tenant/actividad/plan (deadline/crédito/penalización/strike/tolerancia) + snapshot en la reserva. | Media | ✅ `PoliticaCancelacionTenant` (global + override por actividad) con deadline + penaliza_tarde + penaliza_no_show; snapshot congelado en la reserva y aplicado en cancelar/asistencia. Falta: strikes/tolerancia (columna lista, lógica difierida) y override por plan. |
 
 *(Tenant isolation ya está EXISTE Y CORRECTO — no requiere trabajo P0, solo mantener los tests.)*
 
