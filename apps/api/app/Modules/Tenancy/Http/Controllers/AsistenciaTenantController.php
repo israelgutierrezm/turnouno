@@ -39,7 +39,11 @@ class AsistenciaTenantController
             'estado' => ['required', Rule::enum(EstadoAsistencia::class)],
         ]);
 
-        $asistencia = $this->asistencia->marcar($reserva, EstadoAsistencia::from($validado['estado']));
+        $asistencia = $this->asistencia->marcar(
+            $reserva,
+            EstadoAsistencia::from($validado['estado']),
+            $usuario instanceof Usuario ? $usuario : null,
+        );
 
         return response()->json([
             'data' => [

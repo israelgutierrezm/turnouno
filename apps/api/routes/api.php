@@ -207,6 +207,7 @@ Route::prefix('v1')->group(function (): void {
 
             // Creditos (data plane del tenant): consumo directo y retenciones (holds)
             // con confirmar/liberar/perder. Concurrencia protegida (lockForUpdate).
+            Route::get('/derechos/{derecho}/movimientos', [CreditosTenantController::class, 'movimientos'])->middleware('puede:derechos.ver')->name('derechos.movimientos.index');
             Route::post('/derechos/{derecho}/consumos', [CreditosTenantController::class, 'consumir'])->middleware('puede:creditos.gestionar')->name('derechos.consumos.store');
             Route::post('/derechos/{derecho}/retenciones', [CreditosTenantController::class, 'retener'])->middleware('puede:creditos.gestionar')->name('derechos.retenciones.store');
             Route::post('/retenciones/{retencion}/confirmar', [CreditosTenantController::class, 'confirmar'])->middleware('puede:creditos.gestionar')->name('retenciones.confirmar');

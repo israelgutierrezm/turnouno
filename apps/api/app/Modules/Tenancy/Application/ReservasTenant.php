@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Tenancy\Application;
 
 use App\Modules\Creditos\Exceptions\SaldoInsuficiente;
+use App\Modules\Creditos\OrigenMovimiento;
 use App\Modules\Reservas\EstadoReserva;
 use App\Modules\Reservas\Exceptions\CupoLleno;
 use App\Modules\Reservas\Exceptions\FueraDeVentana;
@@ -234,7 +235,15 @@ class ReservasTenant
                 if (now()->lessThanOrEqualTo($momentoLimite)) {
                     $this->creditos->liberar($retencion);
                 } else {
-                    $this->creditos->confirmar($retencion);
+                    // Cancelación tardía: el crédito se cobra (penalización). Se deja
+                    // trazable con el origen (reserva) y la reserva referida.
+                    $this->creditos->confirmar($retencion, ContextoMovimiento::para(
+                        OrigenMovimiento::Reserva,
+                        'reserva',
+                        $bloqueada->ulid,
+                        null,
+                        ['motivo' => 'cancelacion_tardia'],
+                    ));
                 }
             }
 

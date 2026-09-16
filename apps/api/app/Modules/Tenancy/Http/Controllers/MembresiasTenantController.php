@@ -90,7 +90,13 @@ class MembresiasTenantController
         $persona = PersonaTenant::query()->where('ulid', $validado['persona_id'])->firstOrFail();
         $producto = ProductoTenant::query()->where('ulid', $validado['producto_id'])->firstOrFail();
 
-        $acuerdo = $this->membresias->venderProducto($persona, $producto, $validado['fecha_inicio'] ?? null);
+        $actor = $request->attributes->get('usuario_tenant');
+        $acuerdo = $this->membresias->venderProducto(
+            $persona,
+            $producto,
+            $validado['fecha_inicio'] ?? null,
+            $actor instanceof Usuario ? $actor : null,
+        );
         $derecho = $acuerdo->derechos()->firstOrFail();
 
         return response()->json([
@@ -127,12 +133,15 @@ class MembresiasTenantController
 
         $unidades = (int) $validado['unidades'];
         $descripcion = is_string($validado['descripcion'] ?? null) ? $validado['descripcion'] : null;
-        $this->membresias->agregarTopUp($derecho, $unidades, $descripcion);
 
-        // Concesion manual de credito = operacion sensible: se audita (quien y cuanto).
+        // Concesion manual de credito = operacion sensible: el actor queda en el propio
+        // asiento del ledger (origen/actor) y en la bitacora transversal de auditoria.
         $actor = $request->attributes->get('usuario_tenant');
+        $actorUsuario = $actor instanceof Usuario ? $actor : null;
+        $this->membresias->agregarTopUp($derecho, $unidades, $descripcion, $actorUsuario);
+
         $this->auditoria->registrar(
-            $actor instanceof Usuario ? $actor : null,
+            $actorUsuario,
             'credito.top_up',
             'derecho',
             $derecho->ulid,

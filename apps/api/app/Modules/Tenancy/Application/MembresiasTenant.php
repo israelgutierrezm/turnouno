@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Tenancy\Application;
 
+use App\Modules\Creditos\OrigenMovimiento;
 use App\Modules\Creditos\TipoMovimiento;
 use App\Modules\Membresias\PoliticaReset;
 use App\Modules\Membresias\PoliticaRollover;
@@ -13,6 +14,7 @@ use App\Modules\Tenancy\Models\DerechoTenant;
 use App\Modules\Tenancy\Models\MovimientoCreditoTenant;
 use App\Modules\Tenancy\Models\PersonaTenant;
 use App\Modules\Tenancy\Models\ProductoTenant;
+use App\Modules\Tenancy\Models\Usuario;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -63,9 +65,9 @@ class MembresiasTenant
      * sola transaccion. Producto recurrente: inicializa el primer ciclo y concede su
      * cupo; pack: concede sus creditos incluidos.
      */
-    public function venderProducto(PersonaTenant $persona, ProductoTenant $producto, ?string $fechaInicio = null): AcuerdoTenant
+    public function venderProducto(PersonaTenant $persona, ProductoTenant $producto, ?string $fechaInicio = null, ?Usuario $actor = null): AcuerdoTenant
     {
-        return DB::connection('tenant')->transaction(function () use ($persona, $producto, $fechaInicio): AcuerdoTenant {
+        return DB::connection('tenant')->transaction(function () use ($persona, $producto, $fechaInicio, $actor): AcuerdoTenant {
             $inicio = $fechaInicio ?? Carbon::now()->toDateString();
 
             $acuerdo = AcuerdoTenant::query()->create([
@@ -107,6 +109,7 @@ class MembresiasTenant
                         TipoMovimiento::Concesion,
                         $concesion,
                         $recurrente ? 'Concesion de ciclo' : 'Concesion inicial',
+                        ContextoMovimiento::para(OrigenMovimiento::Venta, 'acuerdo', $acuerdo->ulid, $actor),
                     );
                 }
             }
@@ -117,16 +120,23 @@ class MembresiasTenant
 
     /**
      * Agrega un add-on / top-up a un derecho: un asiento adicional en el ledger, sin
-     * editar la membresia original.
+     * editar la membresia original. Bloquea el derecho para que la instantánea de
+     * `saldo_posterior` sea consistente ante top-ups concurrentes, y deja trazable
+     * quién concedió el crédito.
      */
-    public function agregarTopUp(DerechoTenant $derecho, int $unidades, ?string $descripcion = null): MovimientoCreditoTenant
+    public function agregarTopUp(DerechoTenant $derecho, int $unidades, ?string $descripcion = null, ?Usuario $actor = null): MovimientoCreditoTenant
     {
-        return $this->libro->registrar(
-            $derecho,
-            TipoMovimiento::AddOn,
-            $unidades,
-            $descripcion ?? 'Add-on / top-up',
-        );
+        return DB::connection('tenant')->transaction(function () use ($derecho, $unidades, $descripcion, $actor): MovimientoCreditoTenant {
+            $bloqueado = DerechoTenant::query()->whereKey($derecho->getKey())->lockForUpdate()->firstOrFail();
+
+            return $this->libro->registrar(
+                $bloqueado,
+                TipoMovimiento::AddOn,
+                $unidades,
+                $descripcion ?? 'Add-on / top-up',
+                ContextoMovimiento::para(OrigenMovimiento::TopUp, null, null, $actor),
+            );
+        });
     }
 
     /**

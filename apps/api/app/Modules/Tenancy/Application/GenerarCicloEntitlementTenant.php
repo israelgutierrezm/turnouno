@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Tenancy\Application;
 
+use App\Modules\Creditos\OrigenMovimiento;
 use App\Modules\Creditos\TipoMovimiento;
 use App\Modules\Membresias\Application\GenerarCicloEntitlement;
 use App\Modules\Membresias\EstadoAcuerdo;
@@ -54,7 +55,7 @@ class GenerarCicloEntitlementTenant
                 $expira = $saldo - $acarreo;
 
                 if ($expira > 0) {
-                    $this->libro->registrar($bloqueado, TipoMovimiento::Expiracion, -$expira, 'Expiracion de ciclo');
+                    $this->libro->registrar($bloqueado, TipoMovimiento::Expiracion, -$expira, 'Expiracion de ciclo', ContextoMovimiento::para(OrigenMovimiento::Ciclo));
                 }
 
                 [$inicio, $fin] = $this->siguienteVentana($bloqueado);
@@ -62,7 +63,7 @@ class GenerarCicloEntitlementTenant
 
                 $cupo = $bloqueado->unidades_por_ciclo ?? 0;
                 if ($cupo > 0) {
-                    $this->libro->registrar($bloqueado, TipoMovimiento::Concesion, $cupo, 'Concesion de ciclo');
+                    $this->libro->registrar($bloqueado, TipoMovimiento::Concesion, $cupo, 'Concesion de ciclo', ContextoMovimiento::para(OrigenMovimiento::Ciclo));
                 }
 
                 $bloqueado->refresh();

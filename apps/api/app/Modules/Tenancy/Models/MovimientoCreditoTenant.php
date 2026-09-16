@@ -21,7 +21,10 @@ class MovimientoCreditoTenant extends Model
 
     protected $table = 'movimientos_credito';
 
-    protected $fillable = ['derecho_id', 'tipo', 'unidades', 'descripcion'];
+    protected $fillable = [
+        'derecho_id', 'persona_id', 'tipo', 'origen', 'unidades', 'saldo_posterior',
+        'descripcion', 'referencia_tipo', 'referencia_id', 'actor_id', 'actor_nombre', 'metadata',
+    ];
 
     /**
      * @var array<string, string>
@@ -29,6 +32,8 @@ class MovimientoCreditoTenant extends Model
     protected $casts = [
         'tipo' => TipoMovimiento::class,
         'unidades' => 'integer',
+        'saldo_posterior' => 'integer',
+        'metadata' => 'array',
     ];
 
     /**
@@ -37,5 +42,13 @@ class MovimientoCreditoTenant extends Model
     public function derecho(): BelongsTo
     {
         return $this->belongsTo(DerechoTenant::class, 'derecho_id');
+    }
+
+    /**
+     * @return BelongsTo<PersonaTenant, $this>
+     */
+    public function persona(): BelongsTo
+    {
+        return $this->belongsTo(PersonaTenant::class, 'persona_id');
     }
 }

@@ -16,12 +16,35 @@ use App\Modules\Tenancy\Models\MovimientoCreditoTenant;
  */
 class LibroMayorTenant
 {
-    public function registrar(DerechoTenant $derecho, TipoMovimiento $tipo, int $unidades, ?string $descripcion = null): MovimientoCreditoTenant
-    {
+    /**
+     * Asienta un movimiento en el ledger dejando rastro auditable: de quién es
+     * (`persona_id`, derivado del acuerdo), el saldo resultante (`saldo_posterior`,
+     * instantánea para conciliar) y el {@see ContextoMovimiento} (origen, referencia,
+     * actor, metadata). El saldo previo se lee dentro del lock que el llamador ya
+     * mantiene sobre el derecho, por lo que la instantánea es consistente.
+     */
+    public function registrar(
+        DerechoTenant $derecho,
+        TipoMovimiento $tipo,
+        int $unidades,
+        ?string $descripcion = null,
+        ?ContextoMovimiento $contexto = null,
+    ): MovimientoCreditoTenant {
+        $saldoPrevio = $this->saldo($derecho);
+        $actor = $contexto?->actor;
+
         return $derecho->movimientos()->create([
+            'persona_id' => $derecho->acuerdo?->persona_id,
             'tipo' => $tipo,
+            'origen' => $contexto?->origen?->value,
             'unidades' => $unidades,
+            'saldo_posterior' => $saldoPrevio + $unidades,
             'descripcion' => $descripcion,
+            'referencia_tipo' => $contexto?->referenciaTipo,
+            'referencia_id' => $contexto?->referenciaId,
+            'actor_id' => $actor?->getKey(),
+            'actor_nombre' => $actor?->name,
+            'metadata' => $contexto?->metadata,
         ]);
     }
 

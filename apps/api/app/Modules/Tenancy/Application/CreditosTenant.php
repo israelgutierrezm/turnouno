@@ -25,16 +25,16 @@ class CreditosTenant
     /**
      * Consume creditos asentando un movimiento negativo en el ledger.
      */
-    public function consumir(DerechoTenant $derecho, int $unidades, ?string $descripcion = null): MovimientoCreditoTenant
+    public function consumir(DerechoTenant $derecho, int $unidades, ?string $descripcion = null, ?ContextoMovimiento $contexto = null): MovimientoCreditoTenant
     {
-        return DB::connection('tenant')->transaction(function () use ($derecho, $unidades, $descripcion): MovimientoCreditoTenant {
+        return DB::connection('tenant')->transaction(function () use ($derecho, $unidades, $descripcion, $contexto): MovimientoCreditoTenant {
             $bloqueado = DerechoTenant::query()->whereKey($derecho->getKey())->lockForUpdate()->firstOrFail();
 
             if (! $bloqueado->ilimitado && $this->libro->disponible($bloqueado) < $unidades) {
                 throw new SaldoInsuficiente('Saldo insuficiente para el consumo.');
             }
 
-            return $this->libro->registrar($bloqueado, TipoMovimiento::Consumo, -$unidades, $descripcion);
+            return $this->libro->registrar($bloqueado, TipoMovimiento::Consumo, -$unidades, $descripcion, $contexto);
         });
     }
 
@@ -61,16 +61,16 @@ class CreditosTenant
     /**
      * Confirma una retencion: asienta el consumo en el ledger y la marca consumida.
      */
-    public function confirmar(RetencionCreditoTenant $retencion): void
+    public function confirmar(RetencionCreditoTenant $retencion, ?ContextoMovimiento $contexto = null): void
     {
-        DB::connection('tenant')->transaction(function () use ($retencion): void {
+        DB::connection('tenant')->transaction(function () use ($retencion, $contexto): void {
             $bloqueada = RetencionCreditoTenant::query()->whereKey($retencion->getKey())->lockForUpdate()->firstOrFail();
 
             if ($bloqueada->estado !== EstadoRetencion::Activa) {
                 return;
             }
 
-            $this->libro->registrar($bloqueada->derecho, TipoMovimiento::Consumo, -$bloqueada->unidades, 'Confirmacion de retencion');
+            $this->libro->registrar($bloqueada->derecho, TipoMovimiento::Consumo, -$bloqueada->unidades, 'Confirmacion de retencion', $contexto);
             $bloqueada->update(['estado' => EstadoRetencion::Consumida]);
         });
     }
@@ -90,16 +90,16 @@ class CreditosTenant
      * Pierde (forfeit) una retencion: las unidades se consumen sin servicio (p. ej.
      * cancelacion tardia). Asienta el consumo y la marca perdida.
      */
-    public function perder(RetencionCreditoTenant $retencion): void
+    public function perder(RetencionCreditoTenant $retencion, ?ContextoMovimiento $contexto = null): void
     {
-        DB::connection('tenant')->transaction(function () use ($retencion): void {
+        DB::connection('tenant')->transaction(function () use ($retencion, $contexto): void {
             $bloqueada = RetencionCreditoTenant::query()->whereKey($retencion->getKey())->lockForUpdate()->firstOrFail();
 
             if ($bloqueada->estado !== EstadoRetencion::Activa) {
                 return;
             }
 
-            $this->libro->registrar($bloqueada->derecho, TipoMovimiento::Consumo, -$bloqueada->unidades, 'Retencion perdida (forfeit)');
+            $this->libro->registrar($bloqueada->derecho, TipoMovimiento::Consumo, -$bloqueada->unidades, 'Retencion perdida (forfeit)', $contexto);
             $bloqueada->update(['estado' => EstadoRetencion::Perdida]);
         });
     }
