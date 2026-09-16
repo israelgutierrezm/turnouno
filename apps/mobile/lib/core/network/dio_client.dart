@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/app_config.dart';
+import 'auth_token.dart';
 
 /// Shared Dio client for the app.
 ///
@@ -23,6 +24,13 @@ final dioProvider = Provider<Dio>((ref) {
     InterceptorsWrapper(
       onRequest: (options, handler) {
         options.headers['X-Correlation-ID'] = _correlationId();
+
+        // Autenticacion tenant-local por bearer (si hay sesion activa).
+        final token = ref.read(authTokenProvider);
+        if (token != null) {
+          options.headers['Authorization'] = 'Bearer $token';
+        }
+
         handler.next(options);
       },
     ),
