@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 
+import EncabezadoSeccion from '@/components/EncabezadoSeccion.vue'
 import { api, mensajeDeError } from '@/lib/api'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
 
@@ -159,8 +160,11 @@ onMounted(cargar)
 
 <template>
   <section class="mx-auto max-w-4xl px-4 py-10">
-    <h1 class="text-3xl font-extrabold">{{ $t('formularios.titulo') }}</h1>
-    <p class="mt-1" :style="{ color: 'var(--texto-suave)' }">{{ $t('formularios.subtitulo') }}</p>
+    <EncabezadoSeccion
+      icono="formularios"
+      :titulo="$t('formularios.titulo')"
+      :subtitulo="$t('formularios.subtitulo')"
+    />
 
     <p v-if="cargando" class="mt-8" :style="{ color: 'var(--texto-suave)' }">{{ $t('comun.cargando') }}</p>
     <p v-if="error" class="mt-4 text-sm" style="color: var(--error)">{{ error }}</p>

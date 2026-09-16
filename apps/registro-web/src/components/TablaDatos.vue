@@ -78,11 +78,11 @@ function ir(delta: number): void {
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
-          <tr :style="{ background: 'var(--superficie-2)' }">
+          <tr :style="{ background: 'color-mix(in srgb, var(--texto-suave) 6%, var(--superficie))' }">
             <th
               v-for="c in columnas"
               :key="c.clave"
-              class="px-4 py-2.5 font-semibold whitespace-nowrap"
+              class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
               :class="c.alinear === 'derecha' ? 'text-right' : 'text-left'"
               :style="{ color: 'var(--texto-suave)' }"
               scope="col"
@@ -91,7 +91,7 @@ function ir(delta: number): void {
             </th>
           </tr>
         </thead>
-        <tbody>
+        <tbody class="tu-tabla-cuerpo">
           <tr v-if="paginadas.length === 0">
             <td
               :colspan="columnas.length"
@@ -148,3 +148,12 @@ function ir(delta: number): void {
     </div>
   </div>
 </template>
+
+<style scoped>
+.tu-tabla-cuerpo tr {
+  transition: background-color 0.12s ease;
+}
+.tu-tabla-cuerpo tr:hover {
+  background: color-mix(in srgb, var(--acento) 5%, transparent);
+}
+</style>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 
+import EncabezadoSeccion from '@/components/EncabezadoSeccion.vue'
 import { api, mensajeDeError } from '@/lib/api'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
 
@@ -279,8 +280,11 @@ onMounted(cargar)
 
 <template>
   <section class="mx-auto max-w-4xl px-4 py-10">
-    <h1 class="text-3xl font-extrabold">{{ $t('agenda.titulo') }}</h1>
-    <p class="mt-1" :style="{ color: 'var(--texto-suave)' }">{{ $t('agenda.subtitulo') }}</p>
+    <EncabezadoSeccion
+      icono="agenda"
+      :titulo="$t('agenda.titulo')"
+      :subtitulo="$t('agenda.subtitulo')"
+    />
 
     <p v-if="cargando" class="mt-8" :style="{ color: 'var(--texto-suave)' }">{{ $t('comun.cargando') }}</p>
     <p v-if="error" class="mt-4 text-sm" style="color: var(--error)">{{ error }}</p>
