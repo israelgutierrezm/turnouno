@@ -24,6 +24,7 @@ const ENLACES: Enlace[] = [
   { nombre: 'agenda', etiqueta: 'nav.agenda', permiso: 'agenda.ver' },
   { nombre: 'ventas', etiqueta: 'nav.ventas', permiso: 'productos.ver' },
   { nombre: 'documentos', etiqueta: 'nav.documentos', permiso: 'documentos.subir' },
+  { nombre: 'formularios', etiqueta: 'nav.formularios', permiso: 'formularios.responder' },
   { nombre: 'pasarelas', etiqueta: 'nav.pasarelas', permiso: 'pagos.configurar' },
 ]
 
