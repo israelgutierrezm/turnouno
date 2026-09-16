@@ -53,7 +53,8 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: pdo_mysql, bcmath, intl, mbstring, zip
+          # pdo_sqlite: las BD por tenant (data plane) usan SQLite en test/CI.
+          extensions: pdo_mysql, pdo_sqlite, sqlite3, bcmath, intl, mbstring, zip
           coverage: none
           tools: composer:v2
 
@@ -110,6 +111,27 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: apps/portal-web/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run test
+
+  registro-web:
+    name: Registro · Vue
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/registro-web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/registro-web/package-lock.json
 
       - run: npm ci
       - run: npm run lint
