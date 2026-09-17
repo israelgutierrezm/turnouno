@@ -79,6 +79,7 @@ use App\Modules\Tenancy\Http\Controllers\ReembolsosTenantController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
 use App\Modules\Tenancy\Http\Controllers\ReservasTenantController;
 use App\Modules\Tenancy\Http\Controllers\RespuestasFormularioController;
+use App\Modules\Tenancy\Http\Controllers\StaffTenantController;
 use App\Modules\Tenancy\Http\Controllers\TiposDocumentoController;
 use App\Modules\Tenancy\Http\Controllers\UsuariosTenantController;
 use App\Modules\Tenancy\Http\Controllers\WaiversTenantController;
@@ -245,6 +246,13 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/excepciones-horario', [ExcepcionesHorarioTenantController::class, 'index'])->middleware('puede:agenda.ver')->name('excepciones-horario.index');
             Route::post('/excepciones-horario', [ExcepcionesHorarioTenantController::class, 'crear'])->middleware('puede:agenda.gestionar')->name('excepciones-horario.store');
             Route::delete('/excepciones-horario/{excepcion}', [ExcepcionesHorarioTenantController::class, 'eliminar'])->middleware('puede:agenda.gestionar')->name('excepciones-horario.eliminar');
+
+            // Staff multi + sustitucion + nomina (R17): asignar staff a una sesion (rol/
+            // sustitucion), esquema de pago por staff y nomina de un periodo.
+            Route::get('/sesiones/{sesion}/staff', [StaffTenantController::class, 'staffDeSesion'])->middleware('puede:agenda.ver')->name('sesiones.staff.index');
+            Route::post('/sesiones/{sesion}/staff', [StaffTenantController::class, 'asignar'])->middleware('puede:agenda.gestionar')->name('sesiones.staff.store');
+            Route::put('/staff/{usuario}/esquema-pago', [StaffTenantController::class, 'esquemaPago'])->middleware('puede:estudio.gestionar')->name('staff.esquema-pago');
+            Route::get('/nomina', [StaffTenantController::class, 'nomina'])->middleware('puede:estudio.gestionar')->name('nomina');
 
             // Grupos / cursos con inscripcion (R25): un grupo sigue una serie; inscribir
             // auto-reserva las ocurrencias futuras.
