@@ -7,11 +7,13 @@ namespace App\Modules\Tenancy\Http\Controllers;
 use App\Modules\Reservas\EstadoReserva;
 use App\Modules\Tenancy\Application\LibroMayorTenant;
 use App\Modules\Tenancy\Application\ReservasTenant;
+use App\Modules\Tenancy\Application\WaiversTenant;
 use App\Modules\Tenancy\Models\DerechoTenant;
 use App\Modules\Tenancy\Models\PersonaTenant;
 use App\Modules\Tenancy\Models\ReservaTenant;
 use App\Modules\Tenancy\Models\SesionTenant;
 use App\Modules\Tenancy\Models\Usuario;
+use App\Modules\Tenancy\Models\WaiverTenant;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,7 +28,44 @@ class MiTenantController
     public function __construct(
         private readonly ReservasTenant $reservas,
         private readonly LibroMayorTenant $libro,
+        private readonly WaiversTenant $waivers,
     ) {}
+
+    /**
+     * Waivers/consentimientos que el miembro tiene pendientes de aceptar (incluye
+     * re-aceptacion cuando el estudio publica una version nueva).
+     */
+    public function waiversPendientes(Request $request): JsonResponse
+    {
+        $persona = $this->persona($request);
+        if (! $persona instanceof PersonaTenant) {
+            return response()->json(['data' => []]);
+        }
+
+        return response()->json([
+            'data' => $this->waivers->pendientesDe($persona)->map(fn (WaiverTenant $w): array => [
+                'id' => $w->ulid,
+                'clave' => $w->clave,
+                'titulo' => $w->titulo,
+                'contenido' => $w->contenido,
+                'version' => $w->version,
+            ])->all(),
+        ]);
+    }
+
+    public function aceptarWaiver(Request $request): JsonResponse
+    {
+        $persona = $this->persona($request);
+        abort_unless($persona instanceof PersonaTenant, 403);
+
+        $waiver = WaiverTenant::query()->where('ulid', (string) $request->route('waiver'))->firstOrFail();
+        $aceptacion = $this->waivers->aceptar($persona, $waiver, $request->ip());
+
+        return response()->json(['data' => [
+            'waiver' => $waiver->ulid,
+            'aceptado_en' => $aceptacion->aceptado_en->toIso8601String(),
+        ]], 201);
+    }
 
     public function perfil(Request $request): JsonResponse
     {

@@ -80,6 +80,7 @@ use App\Modules\Tenancy\Http\Controllers\ReservasTenantController;
 use App\Modules\Tenancy\Http\Controllers\RespuestasFormularioController;
 use App\Modules\Tenancy\Http\Controllers\TiposDocumentoController;
 use App\Modules\Tenancy\Http\Controllers\UsuariosTenantController;
+use App\Modules\Tenancy\Http\Controllers\WaiversTenantController;
 use App\Modules\Tenancy\Http\Controllers\WebhooksSalientesTenantController;
 use App\Modules\Tenancy\Http\Controllers\WebhookTenantController;
 use Illuminate\Support\Facades\Route;
@@ -144,6 +145,8 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/mi/reservas', [MiTenantController::class, 'reservar'])->name('mi.reservas.store');
             Route::post('/mi/reservas/{reserva}/cancelar', [MiTenantController::class, 'cancelar'])->name('mi.reservas.cancelar');
             Route::post('/mi/reservas/{reserva}/aceptar', [MiTenantController::class, 'aceptar'])->name('mi.reservas.aceptar');
+            Route::get('/mi/waivers', [MiTenantController::class, 'waiversPendientes'])->name('mi.waivers.index');
+            Route::post('/mi/waivers/{waiver}/aceptar', [MiTenantController::class, 'aceptarWaiver'])->name('mi.waivers.aceptar');
 
             // Invitación de personal (crea usuario tenant-local con rol + activación).
             Route::post('/usuarios/invitar', [UsuariosTenantController::class, 'invitar'])->middleware('puede:usuarios.invitar')->name('usuarios.invitar');
@@ -189,6 +192,13 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/documentos', [DocumentosController::class, 'subir'])->middleware('puede:documentos.subir')->name('documentos.subir');
             Route::get('/documentos/{documento}', [DocumentosController::class, 'ver'])->middleware('puede:miembros.ver')->name('documentos.ver');
             Route::post('/documentos/{documento}/validar', [DocumentosController::class, 'validar'])->middleware('puede:documentos.gestionar')->name('documentos.validar');
+
+            // Waivers / consentimientos versionados (R27): publicar versiones y ver
+            // vigentes; qué le falta firmar a un miembro (front desk). La persona los
+            // acepta por autoservicio (grupo /mi).
+            Route::get('/waivers', [WaiversTenantController::class, 'index'])->middleware('puede:documentos.gestionar')->name('waivers.index');
+            Route::post('/waivers', [WaiversTenantController::class, 'publicar'])->middleware('puede:documentos.gestionar')->name('waivers.store');
+            Route::get('/miembros/{persona}/waivers', [WaiversTenantController::class, 'pendientesDePersona'])->middleware('puede:miembros.ver')->name('miembros.waivers.index');
 
             // Formularios dinámicos: el admin define formularios/campos; miembros e
             // instructores responden (validación dinámica). Tenant-local.
