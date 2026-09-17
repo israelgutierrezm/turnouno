@@ -28,6 +28,7 @@ export default {
     panel: 'Panel',
     miCuenta: 'Mi cuenta',
     miembros: 'Miembros',
+    instructores: 'Instructores',
     agenda: 'Agenda',
     ventas: 'Ventas',
     documentos: 'Documentos',
@@ -36,6 +37,13 @@ export default {
     integraciones: 'Integraciones',
     configuracion: 'Configuracion',
     contraer: 'Contraer',
+    grupos: {
+      personas: 'Personas',
+      operacion: 'Operación',
+      comercio: 'Comercio',
+      contenido: 'Contenido',
+      ajustes: 'Ajustes',
+    },
   },
   tema: {
     claro: 'Tema claro',
@@ -307,6 +315,19 @@ export default {
       colComprador: 'Comprador',
       colTotal: 'Total',
       colEstado: 'Estado',
+    },
+  },
+  instructores: {
+    titulo: 'Instructores',
+    subtitulo: 'El equipo que imparte las clases.',
+    vacio: 'Aún no hay instructores. Invita al primero.',
+    invitar: {
+      titulo: 'Invitar instructor',
+      nombre: 'Nombre',
+      email: 'Correo',
+      enviar: 'Invitar',
+      enviando: 'Invitando…',
+      creada: 'Invitación creada para {email}. Comparte este token de activación:',
     },
   },
   agenda: {

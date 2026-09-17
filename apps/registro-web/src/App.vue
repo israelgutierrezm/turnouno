@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import IconoNav from '@/components/IconoNav.vue'
+import NavArbol from '@/components/NavArbol.vue'
+import type { MenuItem, NavEstado } from '@/components/nav'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
 import { ACENTOS, useTemaStore } from '@/stores/tema'
 
@@ -15,34 +17,76 @@ const route = useRoute()
 
 tema.inicializar()
 
-interface Enlace {
-  nombre: string
-  etiqueta: string
-  permiso?: string
-  soloMiembro?: boolean
-}
-
-const ENLACES: Enlace[] = [
-  { nombre: 'mi-cuenta', etiqueta: 'nav.miCuenta', soloMiembro: true },
-  { nombre: 'panel', etiqueta: 'nav.panel', permiso: 'facturacion.ver' },
-  { nombre: 'miembros', etiqueta: 'nav.miembros', permiso: 'miembros.ver' },
-  { nombre: 'agenda', etiqueta: 'nav.agenda', permiso: 'agenda.ver' },
-  { nombre: 'ventas', etiqueta: 'nav.ventas', permiso: 'productos.ver' },
-  { nombre: 'documentos', etiqueta: 'nav.documentos', permiso: 'documentos.subir' },
-  { nombre: 'formularios', etiqueta: 'nav.formularios', permiso: 'formularios.responder' },
-  { nombre: 'pasarelas', etiqueta: 'nav.pasarelas', permiso: 'pagos.configurar' },
-  { nombre: 'integraciones', etiqueta: 'nav.integraciones', permiso: 'integraciones.configurar' },
-  { nombre: 'configuracion', etiqueta: 'nav.configuracion', permiso: 'estudio.gestionar' },
+// Menu lateral en ARBOL (3 niveles): grupos por area -> secciones -> sub-secciones.
+const MENU: MenuItem[] = [
+  { clave: 'mi-cuenta', etiqueta: 'nav.miCuenta', icono: 'mi-cuenta', ruta: 'mi-cuenta', soloMiembro: true },
+  { clave: 'panel', etiqueta: 'nav.panel', icono: 'panel', ruta: 'panel', permiso: 'facturacion.ver' },
+  {
+    clave: 'personas',
+    etiqueta: 'nav.grupos.personas',
+    icono: 'personas',
+    hijos: [
+      { clave: 'miembros', etiqueta: 'nav.miembros', icono: 'miembros', ruta: 'miembros', permiso: 'miembros.ver' },
+      { clave: 'instructores', etiqueta: 'nav.instructores', icono: 'instructores', ruta: 'instructores', permiso: 'agenda.gestionar' },
+    ],
+  },
+  {
+    clave: 'operacion',
+    etiqueta: 'nav.grupos.operacion',
+    icono: 'operacion',
+    hijos: [{ clave: 'agenda', etiqueta: 'nav.agenda', icono: 'agenda', ruta: 'agenda', permiso: 'agenda.ver' }],
+  },
+  {
+    clave: 'comercio',
+    etiqueta: 'nav.grupos.comercio',
+    icono: 'comercio',
+    hijos: [
+      { clave: 'ventas', etiqueta: 'nav.ventas', icono: 'ventas', ruta: 'ventas', permiso: 'productos.ver' },
+      { clave: 'pasarelas', etiqueta: 'nav.pasarelas', icono: 'pasarelas', ruta: 'pasarelas', permiso: 'pagos.configurar' },
+    ],
+  },
+  {
+    clave: 'contenido',
+    etiqueta: 'nav.grupos.contenido',
+    icono: 'contenido',
+    hijos: [
+      { clave: 'documentos', etiqueta: 'nav.documentos', icono: 'documentos', ruta: 'documentos', permiso: 'documentos.subir' },
+      { clave: 'formularios', etiqueta: 'nav.formularios', icono: 'formularios', ruta: 'formularios', permiso: 'formularios.responder' },
+    ],
+  },
+  {
+    clave: 'ajustes',
+    etiqueta: 'nav.grupos.ajustes',
+    icono: 'ajustes',
+    hijos: [
+      { clave: 'integraciones', etiqueta: 'nav.integraciones', icono: 'integraciones', ruta: 'integraciones', permiso: 'integraciones.configurar' },
+      { clave: 'configuracion', etiqueta: 'nav.configuracion', icono: 'configuracion', ruta: 'configuracion', permiso: 'estudio.gestionar' },
+    ],
+  },
 ]
 
-const enlaces = computed(() =>
-  ENLACES.filter((e) => {
-    if (e.soloMiembro === true) {
-      return sesion.usuario?.rol === 'miembro'
-    }
-    return e.permiso === undefined || sesion.puede(e.permiso)
-  }),
-)
+function visible(item: MenuItem): boolean {
+  if (item.soloMiembro === true) {
+    return sesion.usuario?.rol === 'miembro'
+  }
+  return item.permiso === undefined || sesion.puede(item.permiso)
+}
+
+// Filtra el arbol por permisos: una hoja se ve si pasa su permiso; un grupo, si le
+// queda al menos un hijo visible.
+function filtrar(items: MenuItem[]): MenuItem[] {
+  return items
+    .map((item): MenuItem | null => {
+      if (item.hijos !== undefined) {
+        const hijos = filtrar(item.hijos)
+        return hijos.length > 0 ? { ...item, hijos } : null
+      }
+      return visible(item) ? item : null
+    })
+    .filter((item): item is MenuItem => item !== null)
+}
+
+const menuVisible = computed(() => filtrar(MENU))
 
 const hogar = computed(() =>
   sesion.usuario?.rol === 'miembro' ? { name: 'mi-cuenta' } : { name: 'panel' },
@@ -50,10 +94,58 @@ const hogar = computed(() =>
 
 const puedeConfigurar = computed(() => sesion.puede('estudio.gestionar'))
 
-const enlaceActivo = computed(() => ENLACES.find((e) => e.nombre === route.name) ?? null)
+// Aplana las hojas para localizar la seccion activa (titulo + icono del encabezado).
+function hojas(items: MenuItem[]): MenuItem[] {
+  return items.flatMap((i) => (i.hijos !== undefined ? hojas(i.hijos) : [i]))
+}
+const enlaceActivo = computed(() => hojas(MENU).find((e) => e.ruta === route.name) ?? null)
 const tituloSeccion = computed(() =>
-  enlaceActivo.value ? t(enlaceActivo.value.etiqueta) : (sesion.estudio?.nombre ?? ''),
+  enlaceActivo.value !== null ? t(enlaceActivo.value.etiqueta) : (sesion.estudio?.nombre ?? ''),
 )
+
+// ---- Estado del arbol (expandir/colapsar grupos) ----
+const abiertos = ref<Set<string>>(new Set())
+
+// La clave del grupo que contiene la ruta activa (para auto-expandirlo).
+function grupoDe(ruta: string, items: MenuItem[] = MENU): string | null {
+  for (const item of items) {
+    if (item.hijos !== undefined) {
+      if (item.hijos.some((h) => h.ruta === ruta) || grupoDe(ruta, item.hijos) !== null) {
+        return item.clave
+      }
+    }
+  }
+  return null
+}
+
+function alternar(clave: string): void {
+  // En modo rail, expandir un grupo primero descompacta la barra.
+  if (compacto.value) {
+    compacto.value = false
+  }
+  const s = new Set(abiertos.value)
+  s.has(clave) ? s.delete(clave) : s.add(clave)
+  abiertos.value = s
+}
+
+function abrirGrupoActivo(): void {
+  const g = grupoDe(String(route.name))
+  if (g !== null) {
+    abiertos.value = new Set(abiertos.value).add(g)
+  }
+}
+
+watch(() => route.name, abrirGrupoActivo)
+
+const navEstado: NavEstado = {
+  abiertos,
+  compacto: computed(() => compactoEfectivo.value),
+  alternar,
+  cerrarCajon: () => {
+    menuLateral.value = false
+  },
+}
+provide('navEstado', navEstado)
 
 function siglas(nombre: string | undefined): string {
   return (
@@ -98,6 +190,7 @@ onMounted(() => {
   } catch {
     // Ignora.
   }
+  abrirGrupoActivo()
 })
 </script>
 
@@ -148,20 +241,9 @@ onMounted(() => {
         </span>
       </RouterLink>
 
-      <!-- Navegación -->
+      <!-- Navegación (árbol de 3 niveles: grupos por área → secciones → sub-secciones) -->
       <nav class="flex-1 overflow-y-auto px-3 py-3 space-y-1">
-        <RouterLink
-          v-for="e in enlaces"
-          :key="e.nombre"
-          class="tu-side-link"
-          :class="{ 'lg:justify-center': compactoEfectivo }"
-          :to="{ name: e.nombre }"
-          :title="compactoEfectivo ? $t(e.etiqueta) : undefined"
-          @click="menuLateral = false"
-        >
-          <IconoNav :nombre="e.nombre" :tam="20" class="shrink-0" />
-          <span v-show="!compactoEfectivo" class="truncate">{{ $t(e.etiqueta) }}</span>
-        </RouterLink>
+        <NavArbol :items="menuVisible" :nivel="1" />
       </nav>
 
       <!-- Contraer (solo escritorio) -->
@@ -204,7 +286,7 @@ onMounted(() => {
             :style="{ background: 'var(--primario-suave)', color: 'var(--primario-fuerte)' }"
             aria-hidden="true"
           >
-            <IconoNav :nombre="enlaceActivo.nombre" :tam="18" />
+            <IconoNav :nombre="enlaceActivo.icono ?? 'punto'" :tam="18" />
           </span>
           <h1 class="text-base font-semibold truncate">{{ tituloSeccion }}</h1>
         </div>
