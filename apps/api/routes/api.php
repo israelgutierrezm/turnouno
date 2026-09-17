@@ -57,6 +57,7 @@ use App\Modules\Tenancy\Http\Controllers\DirectorioController;
 use App\Modules\Tenancy\Http\Controllers\DocumentosController;
 use App\Modules\Tenancy\Http\Controllers\ExcepcionesHorarioTenantController;
 use App\Modules\Tenancy\Http\Controllers\FacturacionController;
+use App\Modules\Tenancy\Http\Controllers\FamiliasTenantController;
 use App\Modules\Tenancy\Http\Controllers\FormulariosController;
 use App\Modules\Tenancy\Http\Controllers\FrontDeskTenantController;
 use App\Modules\Tenancy\Http\Controllers\IntegracionesTenantController;
@@ -157,6 +158,12 @@ Route::prefix('v1')->group(function (): void {
             // Operación tenant-local: alta de alumnos (data plane del estudio).
             Route::get('/miembros', [MiembrosTenantController::class, 'index'])->middleware('puede:miembros.ver')->name('miembros.index');
             Route::post('/miembros', [MiembrosTenantController::class, 'store'])->middleware('puede:miembros.gestionar')->name('miembros.store');
+
+            // Familias (R26): hogares y tutelas (tutor -> dependiente).
+            Route::post('/hogares', [FamiliasTenantController::class, 'crearHogar'])->middleware('puede:miembros.gestionar')->name('hogares.store');
+            Route::post('/hogares/{hogar}/personas', [FamiliasTenantController::class, 'asignarPersona'])->middleware('puede:miembros.gestionar')->name('hogares.personas.store');
+            Route::post('/tutelas', [FamiliasTenantController::class, 'crearTutela'])->middleware('puede:miembros.gestionar')->name('tutelas.store');
+            Route::get('/miembros/{persona}/dependientes', [FamiliasTenantController::class, 'dependientes'])->middleware('puede:miembros.ver')->name('miembros.dependientes.index');
 
             // Facturación SaaS del estudio (control plane; separada de pagos de alumnos).
             Route::get('/facturacion', [FacturacionController::class, 'show'])->middleware('puede:facturacion.ver')->name('facturacion');
