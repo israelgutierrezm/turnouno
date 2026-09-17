@@ -8,6 +8,7 @@ use App\Modules\Tenancy\EstadoSesionTenant;
 use App\Support\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Sesión de la agenda (oferta materializada en una sucursal), tenant-local. Horas
@@ -57,5 +58,13 @@ class SesionTenant extends Model
     public function instructor(): BelongsTo
     {
         return $this->belongsTo(Usuario::class, 'instructor_id');
+    }
+
+    /**
+     * @return HasMany<ReservaTenant, $this>
+     */
+    public function reservas(): HasMany
+    {
+        return $this->hasMany(ReservaTenant::class, 'sesion_id');
     }
 }

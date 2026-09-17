@@ -18,10 +18,12 @@ interface Sesion {
   id: string
   oferta: string | null
   instructor: string | null
+  instructor_id: string | null
   inicia_en: string
   termina_en: string
   zona_horaria: string
   capacidad: number | null
+  ocupados: number
   estado: string
 }
 interface Miembro {
@@ -57,77 +59,105 @@ const sesiones = ref<Sesion[]>([])
 const miembros = ref<Miembro[]>([])
 const instructores = ref<{ id: string; nombre: string }[]>([])
 const cargando = ref(true)
+const cargandoSesiones = ref(false)
 const error = ref<string | null>(null)
 
-const form = ref({ ofertaId: '', sucursalId: '', instructorId: '', fecha: '', duracion: '60', capacidad: '' })
-const creando = ref(false)
+// ---- Calendario (semana / dia) ----
+type Vista = 'semana' | 'dia'
+const vista = ref<Vista>('semana')
+const semanaInicio = ref(lunesDe(new Date()))
+const diaSel = ref(isoDe(new Date()))
+const sucursalFiltro = ref('')
+const instructorFiltro = ref('')
 
-// Buscador + paginacion de la lista de sesiones (las tarjetas conservan su roster).
-const buscarSesion = ref('')
-const paginaSesion = ref(1)
-const POR_PAGINA_SESION = 8
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : `${n}`
+}
+function isoDe(d: Date): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+}
+function lunesDe(d: Date): Date {
+  const base = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const dow = (base.getDay() + 6) % 7 // 0 = lunes
+  base.setDate(base.getDate() - dow)
+  return base
+}
+function sumarDias(d: Date, n: number): Date {
+  const r = new Date(d)
+  r.setDate(r.getDate() + n)
+  return r
+}
 
-const sesionesFiltradas = computed(() => {
-  const q = buscarSesion.value.trim().toLowerCase()
-  if (q === '') {
-    return sesiones.value
-  }
-  return sesiones.value.filter((s) => {
-    const texto = `${s.oferta ?? ''} ${s.instructor ?? ''} ${horaLocal(s.inicia_en, s.zona_horaria)}`
-    return texto.toLowerCase().includes(q)
-  })
-})
-const totalPaginasSesion = computed(() =>
-  Math.max(1, Math.ceil(sesionesFiltradas.value.length / POR_PAGINA_SESION)),
+const dias = computed(() =>
+  Array.from({ length: 7 }, (_, i) => {
+    const fecha = sumarDias(semanaInicio.value, i)
+    return {
+      fecha,
+      iso: isoDe(fecha),
+      nombre: new Intl.DateTimeFormat('es-MX', { weekday: 'short' }).format(fecha),
+      dia: fecha.getDate(),
+      esHoy: isoDe(fecha) === isoDe(new Date()),
+    }
+  }),
 )
-const paginaSesionSegura = computed(() => Math.min(paginaSesion.value, totalPaginasSesion.value))
-const sesionesPaginadas = computed(() =>
-  sesionesFiltradas.value.slice(
-    (paginaSesionSegura.value - 1) * POR_PAGINA_SESION,
-    paginaSesionSegura.value * POR_PAGINA_SESION,
-  ),
-)
-watch(buscarSesion, () => {
-  paginaSesion.value = 1
+
+const rangoTexto = computed(() => {
+  const a = semanaInicio.value
+  const b = sumarDias(a, 6)
+  const fmt = (d: Date, opts: Intl.DateTimeFormatOptions): string =>
+    new Intl.DateTimeFormat('es-MX', opts).format(d)
+  return `${fmt(a, { day: 'numeric', month: 'short' })} – ${fmt(b, { day: 'numeric', month: 'short', year: 'numeric' })}`
 })
 
-const expandidaId = ref<string | null>(null)
-const roster = ref<Reserva[]>([])
-const cargandoRoster = ref(false)
-const reservarModel = ref({ miembroId: '', esperar: false })
-const accionando = ref(false)
-
-const checkins = ref<Checkin[]>([])
-const checkinModel = ref({ proveedor: 'wellhub', codigo: '' })
-const registrandoCheckin = ref(false)
-const okCheckin = ref(false)
-
-function horaLocal(iso: string, zona: string): string {
+function fechaLocalSesion(iso: string, zona: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: zona,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(iso))
+}
+function horaCorta(iso: string, zona: string): string {
   return new Intl.DateTimeFormat('es-MX', {
     timeZone: zona,
-    dateStyle: 'medium',
-    timeStyle: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
   }).format(new Date(iso))
 }
 function nombreMiembro(m: Miembro): string {
   return `${m.nombre} ${m.apellidos ?? ''}`.trim()
 }
 
-async function cargar(): Promise<void> {
+// Instructor se filtra en cliente (el server ya filtra por sucursal + rango).
+const sesionesVisibles = computed(() =>
+  instructorFiltro.value === ''
+    ? sesiones.value
+    : sesiones.value.filter((s) => s.instructor_id === instructorFiltro.value),
+)
+function sesionesDe(iso: string): Sesion[] {
+  return sesionesVisibles.value
+    .filter((s) => fechaLocalSesion(s.inicia_en, s.zona_horaria) === iso)
+    .sort((a, b) => a.inicia_en.localeCompare(b.inicia_en))
+}
+const diaSelInfo = computed(() => dias.value.find((d) => d.iso === diaSel.value) ?? dias.value[0])
+
+function completo(s: Sesion): boolean {
+  return s.capacidad !== null && s.ocupados >= s.capacidad
+}
+
+async function cargarReferencias(): Promise<void> {
   cargando.value = true
   error.value = null
   try {
-    const [o, s, se, m] = await Promise.all([
+    const [o, s, m] = await Promise.all([
       api.get<{ data: Oferta[] }>(`${base.value}/ofertas`),
       api.get<{ data: Sucursal[] }>(`${base.value}/sucursales`),
-      api.get<{ data: Sesion[] }>(`${base.value}/sesiones`),
       api.get<{ data: Miembro[] }>(`${base.value}/miembros`, { params: { tipo: 'miembro' } }),
     ])
     ofertas.value = o.data.data
     sucursales.value = s.data.data
-    sesiones.value = se.data.data
     miembros.value = m.data.data
-    // Solo el staff que gestiona la agenda puede listar/asignar instructores.
     if (puedeGestionar.value) {
       const i = await api.get<{ data: { id: string; nombre: string }[] }>(`${base.value}/instructores`)
       instructores.value = i.data.data
@@ -139,26 +169,62 @@ async function cargar(): Promise<void> {
   }
 }
 
-async function crearSesion(): Promise<void> {
-  creando.value = true
+async function cargarSesiones(): Promise<void> {
+  cargandoSesiones.value = true
   error.value = null
   try {
-    await api.post(`${base.value}/sesiones`, {
-      oferta_id: form.value.ofertaId,
-      sucursal_id: form.value.sucursalId,
-      instructor_id: form.value.instructorId !== '' ? form.value.instructorId : null,
-      inicia_en_local: form.value.fecha.replace('T', ' ') + ':00',
-      duracion_minutos: Number(form.value.duracion),
-      capacidad: form.value.capacidad !== '' ? Number(form.value.capacidad) : null,
-    })
-    form.value.fecha = ''
-    form.value.capacidad = ''
-    await cargar()
+    const params: Record<string, string> = {
+      desde: dias.value[0].iso,
+      hasta: dias.value[6].iso,
+    }
+    if (sucursalFiltro.value !== '') {
+      params.sucursal_id = sucursalFiltro.value
+    }
+    const { data } = await api.get<{ data: Sesion[] }>(`${base.value}/sesiones`, { params })
+    sesiones.value = data.data
   } catch (e) {
     error.value = mensajeDeError(e)
   } finally {
-    creando.value = false
+    cargandoSesiones.value = false
   }
+}
+
+// Recarga las sesiones al cambiar de semana o de sucursal.
+watch([semanaInicio, sucursalFiltro], cargarSesiones)
+
+function irSemana(delta: number): void {
+  semanaInicio.value = sumarDias(semanaInicio.value, delta * 7)
+}
+function irHoy(): void {
+  semanaInicio.value = lunesDe(new Date())
+  diaSel.value = isoDe(new Date())
+}
+
+// ---- Panel de detalle (reservas + asistencia + check-ins) ----
+const detalle = ref<Sesion | null>(null)
+const roster = ref<Reserva[]>([])
+const cargandoRoster = ref(false)
+const reservarModel = ref({ miembroId: '', esperar: false })
+const accionando = ref(false)
+const checkins = ref<Checkin[]>([])
+const checkinModel = ref({ proveedor: 'wellhub', codigo: '' })
+const registrandoCheckin = ref(false)
+const okCheckin = ref(false)
+
+async function abrirDetalle(s: Sesion): Promise<void> {
+  detalle.value = s
+  roster.value = []
+  checkins.value = []
+  reservarModel.value = { miembroId: '', esperar: false }
+  checkinModel.value = { proveedor: 'wellhub', codigo: '' }
+  okCheckin.value = false
+  await cargarRoster(s.id)
+  if (puedeCheckin.value) {
+    await cargarCheckins(s.id)
+  }
+}
+function cerrarDetalle(): void {
+  detalle.value = null
 }
 
 async function cargarRoster(id: string): Promise<void> {
@@ -172,7 +238,6 @@ async function cargarRoster(id: string): Promise<void> {
     cargandoRoster.value = false
   }
 }
-
 async function cargarCheckins(id: string): Promise<void> {
   try {
     const { data } = await api.get<{ data: Checkin[] }>(`${base.value}/sesiones/${id}/checkins`)
@@ -182,6 +247,80 @@ async function cargarCheckins(id: string): Promise<void> {
   }
 }
 
+async function refrescarTras(sesionId: string): Promise<void> {
+  await Promise.all([cargarRoster(sesionId), cargarSesiones()])
+  // Refresca el encabezado del panel (ocupados/cupo) con la sesion actualizada.
+  const actualizada = sesiones.value.find((s) => s.id === sesionId)
+  if (actualizada !== undefined && detalle.value !== null) {
+    detalle.value = actualizada
+  }
+}
+
+async function reservar(id: string): Promise<void> {
+  accionando.value = true
+  error.value = null
+  try {
+    await api.post(`${base.value}/sesiones/${id}/reservas`, {
+      persona_id: reservarModel.value.miembroId,
+      esperar: reservarModel.value.esperar,
+    })
+    reservarModel.value.miembroId = ''
+    await refrescarTras(id)
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    accionando.value = false
+  }
+}
+async function marcar(reservaId: string, estado: 'presente' | 'ausente', sesionId: string): Promise<void> {
+  accionando.value = true
+  error.value = null
+  try {
+    await api.post(`${base.value}/reservas/${reservaId}/asistencia`, { estado })
+    await cargarRoster(sesionId)
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    accionando.value = false
+  }
+}
+async function aceptar(reservaId: string, sesionId: string): Promise<void> {
+  accionando.value = true
+  error.value = null
+  try {
+    await api.post(`${base.value}/reservas/${reservaId}/aceptar`, {})
+    await refrescarTras(sesionId)
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    accionando.value = false
+  }
+}
+async function cancelarReserva(reservaId: string, sesionId: string): Promise<void> {
+  accionando.value = true
+  error.value = null
+  try {
+    await api.post(`${base.value}/reservas/${reservaId}/cancelar`, {})
+    await refrescarTras(sesionId)
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    accionando.value = false
+  }
+}
+async function cancelarSesion(id: string): Promise<void> {
+  accionando.value = true
+  error.value = null
+  try {
+    await api.post(`${base.value}/sesiones/${id}/cancelar`, {})
+    cerrarDetalle()
+    await cargarSesiones()
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    accionando.value = false
+  }
+}
 async function registrarCheckin(id: string): Promise<void> {
   registrandoCheckin.value = true
   okCheckin.value = false
@@ -202,97 +341,332 @@ async function registrarCheckin(id: string): Promise<void> {
   }
 }
 
-async function alternarRoster(s: Sesion): Promise<void> {
-  if (expandidaId.value === s.id) {
-    expandidaId.value = null
-    return
-  }
-  expandidaId.value = s.id
-  roster.value = []
-  checkins.value = []
-  reservarModel.value = { miembroId: '', esperar: false }
-  checkinModel.value = { proveedor: 'wellhub', codigo: '' }
-  okCheckin.value = false
-  await cargarRoster(s.id)
-  if (puedeCheckin.value) {
-    await cargarCheckins(s.id)
-  }
-}
+// ---- Nueva clase (modal) ----
+const mostrarNueva = ref(false)
+const form = ref({ ofertaId: '', sucursalId: '', instructorId: '', fecha: '', duracion: '60', capacidad: '' })
+const creando = ref(false)
 
-async function reservar(id: string): Promise<void> {
-  accionando.value = true
+async function crearSesion(): Promise<void> {
+  creando.value = true
   error.value = null
   try {
-    await api.post(`${base.value}/sesiones/${id}/reservas`, {
-      persona_id: reservarModel.value.miembroId,
-      esperar: reservarModel.value.esperar,
+    await api.post(`${base.value}/sesiones`, {
+      oferta_id: form.value.ofertaId,
+      sucursal_id: form.value.sucursalId,
+      instructor_id: form.value.instructorId !== '' ? form.value.instructorId : null,
+      inicia_en_local: form.value.fecha.replace('T', ' ') + ':00',
+      duracion_minutos: Number(form.value.duracion),
+      capacidad: form.value.capacidad !== '' ? Number(form.value.capacidad) : null,
     })
-    reservarModel.value.miembroId = ''
-    await cargarRoster(id)
+    form.value.fecha = ''
+    form.value.capacidad = ''
+    mostrarNueva.value = false
+    await cargarSesiones()
   } catch (e) {
     error.value = mensajeDeError(e)
   } finally {
-    accionando.value = false
+    creando.value = false
   }
 }
 
-async function marcar(reservaId: string, estado: 'presente' | 'ausente', sesionId: string): Promise<void> {
-  accionando.value = true
-  error.value = null
-  try {
-    await api.post(`${base.value}/reservas/${reservaId}/asistencia`, { estado })
-    await cargarRoster(sesionId)
-  } catch (e) {
-    error.value = mensajeDeError(e)
-  } finally {
-    accionando.value = false
-  }
-}
-
-async function cancelarReserva(reservaId: string, sesionId: string): Promise<void> {
-  accionando.value = true
-  error.value = null
-  try {
-    await api.post(`${base.value}/reservas/${reservaId}/cancelar`, {})
-    await cargarRoster(sesionId)
-  } catch (e) {
-    error.value = mensajeDeError(e)
-  } finally {
-    accionando.value = false
-  }
-}
-
-async function cancelarSesion(id: string): Promise<void> {
-  accionando.value = true
-  error.value = null
-  try {
-    await api.post(`${base.value}/sesiones/${id}/cancelar`, {})
-    await cargar()
-  } catch (e) {
-    error.value = mensajeDeError(e)
-  } finally {
-    accionando.value = false
-  }
-}
-
-onMounted(cargar)
+onMounted(async () => {
+  await cargarReferencias()
+  await cargarSesiones()
+})
 </script>
 
 <template>
-  <section class="mx-auto max-w-4xl px-4 py-10">
-    <EncabezadoSeccion
-      icono="agenda"
-      :titulo="$t('agenda.titulo')"
-      :subtitulo="$t('agenda.subtitulo')"
-    />
+  <section class="px-4 sm:px-6 py-8">
+    <div class="flex items-start justify-between gap-3 flex-wrap">
+      <EncabezadoSeccion icono="agenda" :titulo="$t('agenda.titulo')" :subtitulo="$t('agenda.subtitulo')" />
+      <button v-if="puedeGestionar" class="tu-btn tu-btn-primario" @click="mostrarNueva = true">
+        + {{ $t('agenda.nuevaClase') }}
+      </button>
+    </div>
 
     <p v-if="cargando" class="mt-8" :style="{ color: 'var(--texto-suave)' }">{{ $t('comun.cargando') }}</p>
     <p v-if="error" class="mt-4 text-sm" style="color: var(--error)">{{ error }}</p>
 
     <template v-if="!cargando">
-      <!-- Nueva clase -->
-      <div v-if="puedeGestionar" class="mt-6 tu-card p-6">
-        <h2 class="font-bold text-lg">{{ $t('agenda.nueva.titulo') }}</h2>
+      <!-- Barra de herramientas: filtros + navegacion + vista -->
+      <div class="mt-6 flex flex-wrap items-center gap-2 sm:gap-3">
+        <select v-model="sucursalFiltro" class="tu-input w-auto" :aria-label="$t('agenda.nueva.sucursal')">
+          <option value="">{{ $t('agenda.todasSucursales') }}</option>
+          <option v-for="s in sucursales" :key="s.id" :value="s.id">{{ s.nombre }}</option>
+        </select>
+        <select
+          v-if="instructores.length > 0"
+          v-model="instructorFiltro"
+          class="tu-input w-auto"
+          :aria-label="$t('agenda.nueva.instructor')"
+        >
+          <option value="">{{ $t('agenda.todosInstructores') }}</option>
+          <option v-for="i in instructores" :key="i.id" :value="i.id">{{ i.nombre }}</option>
+        </select>
+
+        <div class="flex items-center gap-1 ml-auto">
+          <button class="tu-icono-btn" :aria-label="$t('agenda.semanaAnterior')" @click="irSemana(-1)">‹</button>
+          <button class="tu-btn tu-btn-fantasma px-3 py-1.5" @click="irHoy">{{ $t('agenda.hoy') }}</button>
+          <button class="tu-icono-btn" :aria-label="$t('agenda.semanaSiguiente')" @click="irSemana(1)">›</button>
+          <span class="text-sm font-medium ml-1 hidden sm:inline" :style="{ color: 'var(--texto-suave)' }">{{ rangoTexto }}</span>
+        </div>
+
+        <!-- Alternar vista (solo escritorio; movil siempre es dia) -->
+        <div class="hidden lg:inline-flex rounded-xl overflow-hidden border" :style="{ borderColor: 'var(--borde)' }">
+          <button
+            class="px-3 py-1.5 text-sm"
+            :style="vista === 'semana' ? { background: 'var(--primario)', color: '#fff' } : {}"
+            @click="vista = 'semana'"
+          >
+            {{ $t('agenda.vistaSemana') }}
+          </button>
+          <button
+            class="px-3 py-1.5 text-sm"
+            :style="vista === 'dia' ? { background: 'var(--primario)', color: '#fff' } : {}"
+            @click="vista = 'dia'"
+          >
+            {{ $t('agenda.vistaDia') }}
+          </button>
+        </div>
+      </div>
+
+      <p v-if="cargandoSesiones" class="mt-4 text-sm" :style="{ color: 'var(--texto-suave)' }">{{ $t('comun.cargando') }}</p>
+
+      <!-- ===== Vista SEMANA (escritorio) ===== -->
+      <div v-if="vista === 'semana'" class="mt-4 hidden lg:grid grid-cols-7 gap-2">
+        <div
+          v-for="d in dias"
+          :key="d.iso"
+          class="rounded-xl border overflow-hidden flex flex-col"
+          :style="{ borderColor: 'var(--borde)', background: 'var(--superficie)' }"
+        >
+          <div
+            class="px-2 py-2 text-center border-b"
+            :style="{
+              borderColor: 'var(--borde)',
+              background: d.esHoy ? 'var(--primario-suave)' : 'transparent',
+            }"
+          >
+            <div class="text-xs uppercase" :style="{ color: 'var(--texto-suave)' }">{{ d.nombre }}</div>
+            <div class="text-lg font-bold" :style="{ color: d.esHoy ? 'var(--primario-fuerte)' : 'var(--texto)' }">
+              {{ d.dia }}
+            </div>
+          </div>
+          <div class="p-1.5 space-y-1.5 min-h-[8rem]">
+            <button
+              v-for="s in sesionesDe(d.iso)"
+              :key="s.id"
+              class="tu-clase w-full text-left"
+              :class="{ 'opacity-60': s.estado !== 'programada' }"
+              @click="abrirDetalle(s)"
+            >
+              <div class="flex items-center justify-between gap-1">
+                <span class="font-semibold text-[13px]">{{ horaCorta(s.inicia_en, s.zona_horaria) }}</span>
+                <span
+                  class="tu-badge text-[11px]"
+                  :class="completo(s) ? 'tu-badge-aviso' : 'tu-badge-exito'"
+                >{{ s.capacidad !== null ? `${s.ocupados}/${s.capacidad}` : s.ocupados }}</span>
+              </div>
+              <div class="text-[13px] font-medium truncate">{{ s.oferta ?? '—' }}</div>
+              <div v-if="s.instructor" class="text-[11px] truncate" :style="{ color: 'var(--texto-suave)' }">
+                {{ s.instructor }}
+              </div>
+            </button>
+            <p v-if="sesionesDe(d.iso).length === 0" class="text-[11px] text-center py-2" :style="{ color: 'var(--texto-suave)' }">
+              —
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Vista DIA (movil siempre; escritorio si vista dia) ===== -->
+      <div :class="vista === 'dia' ? 'mt-4' : 'mt-4 lg:hidden'">
+        <!-- Tira de dias -->
+        <div class="flex gap-1.5 overflow-x-auto pb-2">
+          <button
+            v-for="d in dias"
+            :key="d.iso"
+            class="flex-1 min-w-[3rem] rounded-xl border py-2 text-center"
+            :style="
+              diaSel === d.iso
+                ? { background: 'var(--primario)', color: '#fff', borderColor: 'var(--primario)' }
+                : { borderColor: 'var(--borde)', background: 'var(--superficie)' }
+            "
+            @click="diaSel = d.iso"
+          >
+            <div class="text-[11px] uppercase opacity-80">{{ d.nombre }}</div>
+            <div class="text-base font-bold">{{ d.dia }}</div>
+          </button>
+        </div>
+
+        <ul class="mt-3 space-y-2">
+          <li
+            v-for="s in sesionesDe(diaSelInfo.iso)"
+            :key="s.id"
+          >
+            <button
+              class="tu-card w-full text-left p-3 flex items-center justify-between gap-3"
+              :class="{ 'opacity-60': s.estado !== 'programada' }"
+              @click="abrirDetalle(s)"
+            >
+              <div class="min-w-0">
+                <div class="font-semibold">{{ horaCorta(s.inicia_en, s.zona_horaria) }} · {{ s.oferta ?? '—' }}</div>
+                <div v-if="s.instructor" class="text-sm truncate" :style="{ color: 'var(--texto-suave)' }">{{ s.instructor }}</div>
+              </div>
+              <span class="tu-badge shrink-0" :class="completo(s) ? 'tu-badge-aviso' : 'tu-badge-exito'">
+                {{ s.capacidad !== null ? `${s.ocupados}/${s.capacidad}` : s.ocupados }}
+              </span>
+            </button>
+          </li>
+        </ul>
+        <p v-if="sesionesDe(diaSelInfo.iso).length === 0" class="mt-6 text-center text-sm" :style="{ color: 'var(--texto-suave)' }">
+          {{ $t('agenda.sinClasesDia') }}
+        </p>
+      </div>
+    </template>
+
+    <!-- ===== Panel de detalle (drawer) ===== -->
+    <div v-if="detalle" class="fixed inset-0 z-50 flex justify-end">
+      <div class="absolute inset-0 bg-black/50" @click="cerrarDetalle" />
+      <aside
+        class="relative w-full max-w-md h-full overflow-y-auto p-5 shadow-xl"
+        :style="{ background: 'var(--superficie)' }"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold">{{ detalle.oferta ?? '—' }}</h2>
+            <p class="text-sm" :style="{ color: 'var(--texto-suave)' }">
+              {{ horaCorta(detalle.inicia_en, detalle.zona_horaria) }}–{{ horaCorta(detalle.termina_en, detalle.zona_horaria) }}
+              <span v-if="detalle.instructor"> · {{ detalle.instructor }}</span>
+            </p>
+            <span class="tu-badge mt-1 inline-block" :class="completo(detalle) ? 'tu-badge-aviso' : 'tu-badge-exito'">
+              {{ detalle.capacidad !== null ? `${detalle.ocupados}/${detalle.capacidad}` : `${detalle.ocupados}` }}
+              <span v-if="completo(detalle)"> · {{ $t('agenda.completo') }}</span>
+            </span>
+          </div>
+          <button class="tu-icono-btn" :aria-label="$t('agenda.cerrarDetalle')" @click="cerrarDetalle">✕</button>
+        </div>
+
+        <div v-if="detalle.estado === 'programada'" class="mt-4">
+          <!-- Reservar -->
+          <form
+            v-if="puedeReservar && miembros.length > 0"
+            class="flex flex-wrap items-end gap-2"
+            @submit.prevent="reservar(detalle.id)"
+          >
+            <div class="flex-1 min-w-[160px]">
+              <label class="tu-label" for="rm">{{ $t('agenda.reservar.miembro') }}</label>
+              <select id="rm" v-model="reservarModel.miembroId" class="tu-input" required>
+                <option value="" disabled>{{ $t('agenda.reservar.elegir') }}</option>
+                <option v-for="m in miembros" :key="m.id" :value="m.id">{{ nombreMiembro(m) }}</option>
+              </select>
+            </div>
+            <label class="flex items-center gap-1.5 text-sm pb-2.5">
+              <input v-model="reservarModel.esperar" type="checkbox" />
+              {{ $t('agenda.reservar.esperar') }}
+            </label>
+            <button class="tu-btn tu-btn-primario" type="submit" :disabled="accionando || reservarModel.miembroId === ''">
+              {{ $t('agenda.reservar.reservar') }}
+            </button>
+          </form>
+        </div>
+
+        <!-- Roster -->
+        <div class="mt-4 border-t pt-4" :style="{ borderColor: 'var(--borde)' }">
+          <h3 class="font-semibold text-sm">{{ $t('agenda.sesion.reservas') }}</h3>
+          <p v-if="cargandoRoster" class="mt-2 text-sm" :style="{ color: 'var(--texto-suave)' }">{{ $t('comun.cargando') }}</p>
+          <p v-else-if="roster.length === 0" class="mt-2 text-sm" :style="{ color: 'var(--texto-suave)' }">
+            {{ $t('agenda.roster.vacio') }}
+          </p>
+          <ul v-else class="mt-2 space-y-2">
+            <li v-for="r in roster" :key="r.id" class="flex items-center justify-between gap-2 text-sm">
+              <span class="flex items-center gap-2 min-w-0">
+                <span class="truncate">{{ r.persona ?? '—' }}</span>
+                <span
+                  class="tu-badge"
+                  :class="{
+                    'tu-badge-exito': r.estado === 'confirmada',
+                    'tu-badge-aviso': r.estado === 'en_espera' || r.estado === 'ofrecida',
+                  }"
+                >{{ $t(`agenda.roster.${r.estado}`) }}</span>
+                <span v-if="r.asistencia" class="tu-badge">{{ $t(`agenda.roster.${r.asistencia}`) }}</span>
+              </span>
+              <span class="flex items-center gap-2 shrink-0">
+                <button
+                  v-if="r.estado === 'ofrecida' && puedeReservar"
+                  class="tu-enlace"
+                  :disabled="accionando"
+                  @click="aceptar(r.id, detalle.id)"
+                >
+                  {{ $t('agenda.roster.aceptar') }}
+                </button>
+                <template v-if="r.estado === 'confirmada'">
+                  <button v-if="puedeMarcar" class="tu-enlace" :disabled="accionando" @click="marcar(r.id, 'presente', detalle.id)">
+                    {{ $t('agenda.roster.marcarPresente') }}
+                  </button>
+                  <button v-if="puedeMarcar" class="tu-enlace" :disabled="accionando" @click="marcar(r.id, 'ausente', detalle.id)">
+                    {{ $t('agenda.roster.marcarAusente') }}
+                  </button>
+                </template>
+                <button
+                  v-if="puedeReservar && r.estado !== 'cancelada'"
+                  class="tu-enlace"
+                  style="color: var(--error)"
+                  :disabled="accionando"
+                  @click="cancelarReserva(r.id, detalle.id)"
+                >
+                  {{ $t('agenda.roster.cancelarReserva') }}
+                </button>
+              </span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Check-ins de bienestar -->
+        <div v-if="puedeCheckin" class="mt-4 border-t pt-4" :style="{ borderColor: 'var(--borde)' }">
+          <h3 class="font-semibold text-sm">{{ $t('checkins.titulo') }}</h3>
+          <form class="mt-2 flex flex-wrap items-end gap-2" @submit.prevent="registrarCheckin(detalle.id)">
+            <div class="min-w-[130px]">
+              <label class="tu-label" for="cp">{{ $t('checkins.proveedor') }}</label>
+              <select id="cp" v-model="checkinModel.proveedor" class="tu-input">
+                <option value="wellhub">{{ $t('integraciones.proveedores.wellhub') }}</option>
+                <option value="totalpass">{{ $t('integraciones.proveedores.totalpass') }}</option>
+              </select>
+            </div>
+            <div class="flex-1 min-w-[150px]">
+              <label class="tu-label" for="cc">{{ $t('checkins.codigo') }}</label>
+              <input id="cc" v-model="checkinModel.codigo" class="tu-input" autocomplete="off" required />
+            </div>
+            <button class="tu-btn tu-btn-primario" type="submit" :disabled="registrandoCheckin || checkinModel.codigo === ''">
+              {{ registrandoCheckin ? $t('checkins.registrando') : $t('checkins.registrar') }}
+            </button>
+          </form>
+          <p v-if="okCheckin" class="mt-2 text-sm" :style="{ color: 'var(--exito)' }">{{ $t('checkins.ok') }}</p>
+          <ul v-if="checkins.length > 0" class="mt-3 space-y-2">
+            <li v-for="c in checkins" :key="c.id" class="flex items-center justify-between gap-2 text-sm">
+              <span class="truncate">{{ c.usuario ?? '—' }}</span>
+              <span class="tu-badge tu-badge-exito shrink-0">{{ $t(`checkins.${c.estado}`) }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Cancelar clase -->
+        <div v-if="puedeGestionar && detalle.estado === 'programada'" class="mt-5 border-t pt-4" :style="{ borderColor: 'var(--borde)' }">
+          <button class="tu-enlace text-sm" style="color: var(--error)" :disabled="accionando" @click="cancelarSesion(detalle.id)">
+            {{ $t('agenda.sesion.cancelar') }}
+          </button>
+        </div>
+      </aside>
+    </div>
+
+    <!-- ===== Modal Nueva clase ===== -->
+    <div v-if="mostrarNueva" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/50" @click="mostrarNueva = false" />
+      <div class="relative tu-card w-full max-w-lg p-6">
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold text-lg">{{ $t('agenda.nueva.titulo') }}</h2>
+          <button class="tu-icono-btn" :aria-label="$t('agenda.cerrarDetalle')" @click="mostrarNueva = false">✕</button>
+        </div>
         <p v-if="ofertas.length === 0" class="mt-2 text-sm" :style="{ color: 'var(--texto-suave)' }">
           {{ $t('agenda.nueva.sinOfertas') }}
         </p>
@@ -328,14 +702,15 @@ onMounted(cargar)
               <input id="ac" v-model="form.capacidad" class="tu-input" type="number" min="1" />
             </div>
           </div>
-          <div v-if="instructores.length > 0">
+          <div v-if="instructores.length > 0" class="sm:col-span-2">
             <label class="tu-label" for="ai">{{ $t('agenda.nueva.instructor') }}</label>
             <select id="ai" v-model="form.instructorId" class="tu-input">
               <option value="">{{ $t('agenda.nueva.sinInstructor') }}</option>
               <option v-for="i in instructores" :key="i.id" :value="i.id">{{ i.nombre }}</option>
             </select>
           </div>
-          <div class="sm:col-span-2">
+          <div class="sm:col-span-2 flex justify-end gap-2">
+            <button type="button" class="tu-btn tu-btn-fantasma" @click="mostrarNueva = false">{{ $t('comun.cancelar') }}</button>
             <button
               class="tu-btn tu-btn-primario"
               type="submit"
@@ -346,248 +721,25 @@ onMounted(cargar)
           </div>
         </form>
       </div>
-
-      <!-- Sesiones -->
-      <div v-if="sesiones.length > 0" class="mt-6">
-        <input
-          v-model="buscarSesion"
-          class="tu-input max-w-md"
-          type="search"
-          :placeholder="$t('agenda.buscar')"
-          :aria-label="$t('agenda.buscar')"
-        />
-      </div>
-
-      <p
-        v-if="sesiones.length === 0"
-        class="mt-8 text-center text-sm"
-        :style="{ color: 'var(--texto-suave)' }"
-      >
-        {{ $t('agenda.vacio') }}
-      </p>
-      <p
-        v-else-if="sesionesFiltradas.length === 0"
-        class="mt-6 text-center text-sm"
-        :style="{ color: 'var(--texto-suave)' }"
-      >
-        {{ $t('tabla.vacio') }}
-      </p>
-
-      <ul v-else class="mt-4 space-y-3">
-        <li v-for="s in sesionesPaginadas" :key="s.id" class="tu-card p-4">
-          <div class="flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <p class="font-semibold">{{ s.oferta ?? '—' }}</p>
-              <p class="text-sm" :style="{ color: 'var(--texto-suave)' }">
-                {{ horaLocal(s.inicia_en, s.zona_horaria) }}
-                <span v-if="s.instructor"> · {{ s.instructor }}</span>
-              </p>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="tu-badge">{{
-                s.capacidad !== null ? $t('agenda.sesion.cupo', { n: s.capacidad }) : $t('agenda.sesion.sinCupo')
-              }}</span>
-              <span
-                class="tu-badge"
-                :class="s.estado === 'programada' ? 'tu-badge-exito' : 'tu-badge-aviso'"
-                >{{ s.estado === 'programada' ? $t('agenda.sesion.programada') : $t('agenda.sesion.cancelada') }}</span
-              >
-            </div>
-          </div>
-
-          <div v-if="s.estado === 'programada'" class="mt-3 flex items-center gap-3">
-            <button class="tu-enlace text-sm" @click="alternarRoster(s)">
-              {{ expandidaId === s.id ? $t('agenda.sesion.ocultar') : $t('agenda.sesion.reservas') }}
-            </button>
-            <button
-              v-if="puedeGestionar"
-              class="tu-enlace text-sm"
-              style="color: var(--error)"
-              :disabled="accionando"
-              @click="cancelarSesion(s.id)"
-            >
-              {{ $t('agenda.sesion.cancelar') }}
-            </button>
-          </div>
-
-          <!-- Roster -->
-          <div
-            v-if="expandidaId === s.id"
-            class="mt-4 border-t pt-4"
-            :style="{ borderColor: 'var(--borde)' }"
-          >
-            <form
-              v-if="puedeReservar && miembros.length > 0"
-              class="flex flex-wrap items-end gap-2"
-              @submit.prevent="reservar(s.id)"
-            >
-              <div class="flex-1 min-w-[160px]">
-                <label class="tu-label" :for="'rm' + s.id">{{ $t('agenda.reservar.miembro') }}</label>
-                <select :id="'rm' + s.id" v-model="reservarModel.miembroId" class="tu-input" required>
-                  <option value="" disabled>{{ $t('agenda.reservar.elegir') }}</option>
-                  <option v-for="m in miembros" :key="m.id" :value="m.id">{{ nombreMiembro(m) }}</option>
-                </select>
-              </div>
-              <label class="flex items-center gap-1.5 text-sm pb-2.5">
-                <input v-model="reservarModel.esperar" type="checkbox" />
-                {{ $t('agenda.reservar.esperar') }}
-              </label>
-              <button
-                class="tu-btn tu-btn-primario"
-                type="submit"
-                :disabled="accionando || reservarModel.miembroId === ''"
-              >
-                {{ $t('agenda.reservar.reservar') }}
-              </button>
-            </form>
-            <p v-else-if="puedeReservar" class="text-sm" :style="{ color: 'var(--texto-suave)' }">
-              {{ $t('agenda.reservar.sinMiembros') }}
-            </p>
-
-            <p v-if="cargandoRoster" class="mt-3 text-sm" :style="{ color: 'var(--texto-suave)' }">
-              {{ $t('comun.cargando') }}
-            </p>
-            <p
-              v-else-if="roster.length === 0"
-              class="mt-3 text-sm"
-              :style="{ color: 'var(--texto-suave)' }"
-            >
-              {{ $t('agenda.roster.vacio') }}
-            </p>
-            <ul v-else class="mt-3 space-y-2">
-              <li
-                v-for="r in roster"
-                :key="r.id"
-                class="flex items-center justify-between gap-2 text-sm"
-              >
-                <span class="flex items-center gap-2 min-w-0">
-                  <span class="truncate">{{ r.persona ?? '—' }}</span>
-                  <span
-                    class="tu-badge"
-                    :class="{ 'tu-badge-exito': r.estado === 'confirmada', 'tu-badge-aviso': r.estado === 'en_espera' }"
-                    >{{ $t(`agenda.roster.${r.estado}`) }}</span
-                  >
-                  <span v-if="r.asistencia" class="tu-badge">{{ $t(`agenda.roster.${r.asistencia}`) }}</span>
-                </span>
-                <span v-if="r.estado === 'confirmada'" class="flex items-center gap-2 shrink-0">
-                  <button
-                    v-if="puedeMarcar"
-                    class="tu-enlace"
-                    :disabled="accionando"
-                    @click="marcar(r.id, 'presente', s.id)"
-                  >
-                    {{ $t('agenda.roster.marcarPresente') }}
-                  </button>
-                  <button
-                    v-if="puedeMarcar"
-                    class="tu-enlace"
-                    :disabled="accionando"
-                    @click="marcar(r.id, 'ausente', s.id)"
-                  >
-                    {{ $t('agenda.roster.marcarAusente') }}
-                  </button>
-                  <button
-                    v-if="puedeReservar"
-                    class="tu-enlace"
-                    style="color: var(--error)"
-                    :disabled="accionando"
-                    @click="cancelarReserva(r.id, s.id)"
-                  >
-                    {{ $t('agenda.roster.cancelarReserva') }}
-                  </button>
-                </span>
-              </li>
-            </ul>
-
-            <!-- Check-ins de bienestar (Wellhub / TotalPass) -->
-            <div
-              v-if="puedeCheckin"
-              class="mt-4 border-t pt-4"
-              :style="{ borderColor: 'var(--borde)' }"
-            >
-              <h3 class="font-semibold text-sm">{{ $t('checkins.titulo') }}</h3>
-              <form
-                class="mt-2 flex flex-wrap items-end gap-2"
-                @submit.prevent="registrarCheckin(s.id)"
-              >
-                <div class="min-w-[140px]">
-                  <label class="tu-label" :for="'cp' + s.id">{{ $t('checkins.proveedor') }}</label>
-                  <select :id="'cp' + s.id" v-model="checkinModel.proveedor" class="tu-input">
-                    <option value="wellhub">{{ $t('integraciones.proveedores.wellhub') }}</option>
-                    <option value="totalpass">{{ $t('integraciones.proveedores.totalpass') }}</option>
-                  </select>
-                </div>
-                <div class="flex-1 min-w-[160px]">
-                  <label class="tu-label" :for="'cc' + s.id">{{ $t('checkins.codigo') }}</label>
-                  <input
-                    :id="'cc' + s.id"
-                    v-model="checkinModel.codigo"
-                    class="tu-input"
-                    autocomplete="off"
-                    required
-                  />
-                </div>
-                <button
-                  class="tu-btn tu-btn-primario"
-                  type="submit"
-                  :disabled="registrandoCheckin || checkinModel.codigo === ''"
-                >
-                  {{ registrandoCheckin ? $t('checkins.registrando') : $t('checkins.registrar') }}
-                </button>
-              </form>
-              <p v-if="okCheckin" class="mt-2 text-sm" :style="{ color: 'var(--exito)' }">
-                {{ $t('checkins.ok') }}
-              </p>
-
-              <p
-                v-if="checkins.length === 0"
-                class="mt-3 text-sm"
-                :style="{ color: 'var(--texto-suave)' }"
-              >
-                {{ $t('checkins.vacio') }}
-              </p>
-              <ul v-else class="mt-3 space-y-2">
-                <li
-                  v-for="c in checkins"
-                  :key="c.id"
-                  class="flex items-center justify-between gap-2 text-sm"
-                >
-                  <span class="flex items-center gap-2 min-w-0">
-                    <span class="truncate">{{ c.usuario ?? '—' }}</span>
-                    <span class="tu-badge">{{ $t(`integraciones.proveedores.${c.proveedor}`) }}</span>
-                  </span>
-                  <span class="tu-badge tu-badge-exito shrink-0">{{ $t(`checkins.${c.estado}`) }}</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </li>
-      </ul>
-
-      <!-- Paginacion de sesiones -->
-      <div
-        v-if="sesionesFiltradas.length > POR_PAGINA_SESION"
-        class="mt-4 flex items-center justify-between gap-3 text-sm"
-        :style="{ color: 'var(--texto-suave)' }"
-      >
-        <span>{{ $t('tabla.pagina', { n: paginaSesionSegura, total: totalPaginasSesion }) }}</span>
-        <div class="flex items-center gap-2">
-          <button
-            class="tu-btn tu-btn-fantasma px-3 py-1.5"
-            :disabled="paginaSesionSegura <= 1"
-            @click="paginaSesion = Math.max(1, paginaSesionSegura - 1)"
-          >
-            {{ $t('tabla.anterior') }}
-          </button>
-          <button
-            class="tu-btn tu-btn-fantasma px-3 py-1.5"
-            :disabled="paginaSesionSegura >= totalPaginasSesion"
-            @click="paginaSesion = Math.min(totalPaginasSesion, paginaSesionSegura + 1)"
-          >
-            {{ $t('tabla.siguiente') }}
-          </button>
-        </div>
-      </div>
-    </template>
+    </div>
   </section>
 </template>
+
+<style scoped>
+.tu-clase {
+  border-radius: 0.6rem;
+  padding: 0.4rem 0.5rem;
+  background: var(--primario-suave);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    transform 0.05s ease;
+}
+.tu-clase:hover {
+  border-color: var(--primario);
+}
+.tu-clase:active {
+  transform: scale(0.99);
+}
+</style>

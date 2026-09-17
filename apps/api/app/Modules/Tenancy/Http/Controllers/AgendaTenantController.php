@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Tenancy\Http\Controllers;
 
+use App\Modules\Reservas\EstadoReserva;
 use App\Modules\Tenancy\Application\ReservasTenant;
 use App\Modules\Tenancy\Application\VerificarRecursoTenant;
 use App\Modules\Tenancy\EstadoSesionTenant;
@@ -96,7 +97,11 @@ class AgendaTenantController
 
     public function sesiones(Request $request): JsonResponse
     {
-        $consulta = SesionTenant::query()->with(['oferta', 'sucursal', 'instructor'])->orderBy('inicia_en');
+        $consulta = SesionTenant::query()
+            ->with(['oferta', 'sucursal', 'instructor'])
+            // Ocupacion = reservas que toman un lugar (confirmadas + ofrecidas).
+            ->withCount(['reservas as ocupados' => fn ($q) => $q->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::Ofrecida->value])])
+            ->orderBy('inicia_en');
 
         // Un instructor solo ve SUS sesiones asignadas.
         $usuario = $request->attributes->get('usuario_tenant');
@@ -108,6 +113,11 @@ class AgendaTenantController
         if (is_string($request->query('sucursal_id')) && $request->query('sucursal_id') !== '') {
             $sucursal = SucursalTenant::query()->where('ulid', $request->query('sucursal_id'))->first();
             $consulta->where('sucursal_id', $sucursal instanceof SucursalTenant ? $sucursal->getKey() : 0);
+        }
+
+        if (is_string($request->query('instructor_id')) && $request->query('instructor_id') !== '') {
+            $instructor = Usuario::query()->where('ulid', $request->query('instructor_id'))->first();
+            $consulta->where('instructor_id', $instructor instanceof Usuario ? $instructor->getKey() : 0);
         }
 
         if (is_string($request->query('desde')) && $request->query('desde') !== '') {
@@ -143,10 +153,12 @@ class AgendaTenantController
             'id' => $sesion->ulid,
             'oferta' => $sesion->oferta?->nombre,
             'instructor' => $sesion->instructor?->name,
+            'instructor_id' => $sesion->instructor?->ulid,
             'inicia_en' => $sesion->inicia_en->toIso8601String(),
             'termina_en' => $sesion->termina_en->toIso8601String(),
             'zona_horaria' => $sesion->zona_horaria,
             'capacidad' => $sesion->capacidad,
+            'ocupados' => (int) ($sesion->getAttribute('ocupados') ?? 0),
             'estado' => $sesion->estado->value,
         ];
     }
