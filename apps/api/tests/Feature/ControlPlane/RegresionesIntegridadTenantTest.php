@@ -104,8 +104,14 @@ it('la promocion de lista de espera consume el costo real de la reserva, no un v
         $rb = $svc->crear($sesionM, $pb, null, true, 2000);
         expect($rb->costo_unidades)->toBe(2000);
 
-        // A cancela (a tiempo) → se promueve B, que debe consumir SU costo real (2000).
+        // A cancela (a tiempo) → se OFRECE el cupo a B con SU costo real (2000) de hold.
         $svc->cancelar($ra);
+        $rb->refresh();
+        expect($rb->estado->value)->toBe('ofrecida');
+        expect($rb->unidades)->toBe(2000);
+
+        // B acepta la oferta → confirmada, conservando el hold de 2000.
+        $svc->aceptar($rb);
         $rb->refresh();
         expect($rb->estado->value)->toBe('confirmada');
         expect($rb->unidades)->toBe(2000);

@@ -9,6 +9,7 @@ use App\Modules\Creditos\OrigenMovimiento;
 use App\Modules\Reservas\EstadoReserva;
 use App\Modules\Reservas\Exceptions\CupoLleno;
 use App\Modules\Reservas\Exceptions\FueraDeVentana;
+use App\Modules\Reservas\Exceptions\OfertaNoDisponible;
 use App\Modules\Reservas\Exceptions\ReservaException;
 use App\Modules\Reservas\Exceptions\SesionNoReservable;
 use App\Modules\Reservas\Exceptions\SinDerechoDisponible;
@@ -31,6 +32,9 @@ class ReservasTenant
 {
     // Costo por defecto de una sesion: 1 credito = 1000 unidades escaladas.
     private const UNIDADES_POR_SESION = 1000;
+
+    // Ventana (min) para aceptar una oferta de lista de espera antes de que expire (R7).
+    private const VENTANA_OFERTA_MIN = 30;
 
     public function __construct(
         private readonly ResolverDerechoTenant $resolver,
@@ -70,7 +74,7 @@ class ReservasTenant
                 $activa = ReservaTenant::query()
                     ->where('sesion_id', $bloqueada->getKey())
                     ->where('persona_id', $persona->getKey())
-                    ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::EnEspera->value])
+                    ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::Ofrecida->value, EstadoReserva::EnEspera->value])
                     ->exists();
 
                 if ($activa) {
@@ -93,7 +97,7 @@ class ReservasTenant
                 ];
 
                 // Si hay cupo definido y esta lleno: lista de espera (sin hold) o rechazo.
-                if ($bloqueada->capacidad !== null && $this->confirmadas($bloqueada) >= $bloqueada->capacidad) {
+                if ($bloqueada->capacidad !== null && $this->ocupadas($bloqueada) >= $bloqueada->capacidad) {
                     if (! $permitirEspera) {
                         throw new CupoLleno('La sesion esta llena.');
                     }
@@ -179,7 +183,7 @@ class ReservasTenant
         $duplicada = ReservaTenant::query()
             ->where('sesion_id', $sesion->getKey())
             ->where('persona_id', $persona->getKey())
-            ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::EnEspera->value])
+            ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::Ofrecida->value, EstadoReserva::EnEspera->value])
             ->exists();
         $reglas['sin_reserva_previa'] = ! $duplicada;
         if ($duplicada) {
@@ -192,7 +196,7 @@ class ReservasTenant
             return DecisionReserva::rechazar('ENTITLEMENT_REQUIRED', 'No hay un derecho con saldo para esta sesion.', $reglas);
         }
 
-        $llena = $sesion->capacidad !== null && $this->confirmadas($sesion) >= $sesion->capacidad;
+        $llena = $sesion->capacidad !== null && $this->ocupadas($sesion) >= $sesion->capacidad;
         $reglas['con_cupo'] = ! $llena;
         $advertencias = [];
         if ($llena) {
@@ -246,6 +250,23 @@ class ReservasTenant
                 return $bloqueada;
             }
 
+            // Declinar una oferta (R7): libera el hold sin penalizar y re-ofrece el cupo.
+            if ($bloqueada->estado === EstadoReserva::Ofrecida) {
+                $sesion = SesionTenant::query()->whereKey($bloqueada->sesion_id)->lockForUpdate()->firstOrFail();
+                if ($bloqueada->retencion !== null) {
+                    $this->creditos->liberar($bloqueada->retencion);
+                }
+                $bloqueada->update([
+                    'estado' => EstadoReserva::Cancelada->value,
+                    'retencion_id' => null,
+                    'unidades' => 0,
+                    'oferta_expira_en' => null,
+                ]);
+                $this->promover($sesion);
+
+                return $bloqueada;
+            }
+
             // Bloquea la sesion para promover de forma segura tras liberar el cupo.
             $sesion = SesionTenant::query()->whereKey($bloqueada->sesion_id)->lockForUpdate()->firstOrFail();
 
@@ -284,8 +305,12 @@ class ReservasTenant
     }
 
     /**
-     * Promueve al siguiente en la lista de espera (FIFO) cuando se libera un cupo.
-     * Debe llamarse DENTRO de una transaccion con la sesion ya bloqueada.
+     * OFRECE el cupo liberado al siguiente de la lista de espera (FIFO), en vez de
+     * confirmarlo directamente (waitlist robusta, R7): toma el hold (reserva el credito
+     * durante la oferta), pasa la reserva a `ofrecida` con ventana de aceptacion y
+     * notifica (evento `reserva.ofrecida`). Si acepta a tiempo -> `aceptar()`; si no,
+     * el relay la expira y re-ofrece. Debe llamarse DENTRO de una transaccion con la
+     * sesion ya bloqueada.
      */
     public function promover(SesionTenant $sesion): ?ReservaTenant
     {
@@ -293,7 +318,7 @@ class ReservasTenant
             return null;
         }
 
-        if ($this->confirmadas($sesion) >= $sesion->capacidad) {
+        if ($this->ocupadas($sesion) >= $sesion->capacidad) {
             return null;
         }
 
@@ -311,26 +336,109 @@ class ReservasTenant
         $derecho = $siguiente->derecho;
         $retencion = null;
         $unidadesReservadas = 0;
-        // Consume el costo REAL con el que se creo la reserva (no un valor fijo).
+        // Reserva el costo REAL con el que se creo la reserva (no un valor fijo).
         $costo = $siguiente->costo_unidades ?? self::UNIDADES_POR_SESION;
 
         if ($derecho !== null && ! $derecho->ilimitado) {
             try {
-                $retencion = $this->creditos->retener($derecho, $costo, 'Promocion de lista de espera');
+                $retencion = $this->creditos->retener($derecho, $costo, 'Oferta de lista de espera');
                 $unidadesReservadas = $costo;
             } catch (SaldoInsuficiente) {
-                // Sin credito al promover: se queda en espera para intentar luego.
+                // Sin credito al ofrecer: se queda en espera para intentar luego.
                 return null;
             }
         }
 
         $siguiente->update([
-            'estado' => EstadoReserva::Confirmada->value,
+            'estado' => EstadoReserva::Ofrecida->value,
             'retencion_id' => $retencion?->getKey(),
             'unidades' => $unidadesReservadas,
+            'oferta_expira_en' => now()->addMinutes(self::VENTANA_OFERTA_MIN),
+        ]);
+
+        // Notificacion (outbox): "tienes un lugar, acepta antes de que expire".
+        $this->eventos->registrar('reserva.ofrecida', 'reserva', $siguiente->ulid, [
+            'sesion_id' => $sesion->ulid,
+            'persona_id' => $siguiente->persona?->ulid,
+            'expira_en' => $siguiente->oferta_expira_en?->toIso8601String(),
         ]);
 
         return $siguiente;
+    }
+
+    /**
+     * El ofrecido ACEPTA su lugar (R7): la reserva `ofrecida` (con hold ya tomado) pasa
+     * a `confirmada`. Idempotente si ya estaba confirmada. Rechaza si no esta ofrecida
+     * o si la ventana expiro (OFFER_NOT_AVAILABLE).
+     */
+    public function aceptar(ReservaTenant $reserva): ReservaTenant
+    {
+        return DB::connection('tenant')->transaction(function () use ($reserva): ReservaTenant {
+            $bloqueada = ReservaTenant::query()->whereKey($reserva->getKey())->lockForUpdate()->firstOrFail();
+
+            if ($bloqueada->estado === EstadoReserva::Confirmada) {
+                return $bloqueada;
+            }
+
+            if ($bloqueada->estado !== EstadoReserva::Ofrecida
+                || ($bloqueada->oferta_expira_en !== null && now()->greaterThan($bloqueada->oferta_expira_en))) {
+                throw new OfertaNoDisponible('La oferta no esta disponible o ya expiro.');
+            }
+
+            $bloqueada->update([
+                'estado' => EstadoReserva::Confirmada->value,
+                'oferta_expira_en' => null,
+            ]);
+
+            return $bloqueada;
+        });
+    }
+
+    /**
+     * Expira las ofertas vencidas de la BD del tenant (R7): libera su hold, las marca
+     * `expirada` y RE-OFRECE el cupo al siguiente. Idempotente (revalida bajo lock).
+     * Debe correr con la conexion del tenant activa (ver el comando que lo orquesta).
+     */
+    public function expirarOfertasVencidas(): int
+    {
+        $expiradas = 0;
+
+        ReservaTenant::query()
+            ->where('estado', EstadoReserva::Ofrecida->value)
+            ->whereNotNull('oferta_expira_en')
+            ->where('oferta_expira_en', '<', now())
+            ->orderBy('id')
+            ->pluck('id')
+            ->each(function ($id) use (&$expiradas): void {
+                DB::connection('tenant')->transaction(function () use ($id, &$expiradas): void {
+                    $oferta = ReservaTenant::query()->whereKey($id)->lockForUpdate()->first();
+                    if (! $oferta instanceof ReservaTenant || $oferta->estado !== EstadoReserva::Ofrecida) {
+                        return;
+                    }
+                    if ($oferta->oferta_expira_en === null || now()->lessThanOrEqualTo($oferta->oferta_expira_en)) {
+                        return;
+                    }
+
+                    $sesion = SesionTenant::query()->whereKey($oferta->sesion_id)->lockForUpdate()->firstOrFail();
+
+                    if ($oferta->retencion !== null) {
+                        $this->creditos->liberar($oferta->retencion);
+                    }
+
+                    $oferta->update([
+                        'estado' => EstadoReserva::Expirada->value,
+                        'retencion_id' => null,
+                        'unidades' => 0,
+                        'oferta_expira_en' => null,
+                    ]);
+                    $expiradas++;
+
+                    // El cupo liberado se re-ofrece al siguiente de la lista.
+                    $this->promover($sesion);
+                });
+            });
+
+        return $expiradas;
     }
 
     /**
@@ -350,7 +458,7 @@ class ReservasTenant
 
             $reservas = ReservaTenant::query()
                 ->where('sesion_id', $bloqueada->getKey())
-                ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::EnEspera->value])
+                ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::Ofrecida->value, EstadoReserva::EnEspera->value])
                 ->with('retencion')
                 ->lockForUpdate()
                 ->get();
@@ -381,11 +489,15 @@ class ReservasTenant
         ]);
     }
 
-    private function confirmadas(SesionTenant $sesion): int
+    /**
+     * Cupos OCUPADOS de una sesion: confirmadas MAS ofrecidas (una oferta vigente
+     * reserva el lugar mientras el ofrecido decide), para no ofrecer/confirmar de mas.
+     */
+    private function ocupadas(SesionTenant $sesion): int
     {
         return ReservaTenant::query()
             ->where('sesion_id', $sesion->getKey())
-            ->where('estado', EstadoReserva::Confirmada->value)
+            ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::Ofrecida->value])
             ->count();
     }
 }

@@ -107,15 +107,22 @@ it('cupo lleno rechaza (CAPACITY_FULL) o encola; al cancelar promueve al de la l
         ->assertCreated()->assertJsonPath('data.estado', 'en_espera');
     expect(saldoDerecho($e, $b['persona'])['disponible'])->toBe(8000);
 
-    // A cancela (a tiempo): libera su hold y promueve a B.
+    // A cancela (a tiempo): libera su hold y SE OFRECE el cupo a B (waitlist R7).
     $this->postJson("/api/v1/app/{$e['slug']}/reservas/{$reservaA}/cancelar", [], conBearer($e['bearer']))->assertOk();
     expect(saldoDerecho($e, $a['persona']))->toBe(['saldo' => 8000, 'disponible' => 8000]); // hold liberado
 
-    // B queda confirmado con su hold; el roster muestra 1 confirmada (B).
+    // B recibe la OFERTA con su hold; el roster la muestra 'ofrecida'.
+    $roster = $this->getJson("/api/v1/app/{$e['slug']}/sesiones/{$sesion}/reservas", conBearer($e['bearer']))->assertOk()->json('data');
+    $bOferta = collect($roster)->firstWhere('persona', 'Beto');
+    expect($bOferta['estado'])->toBe('ofrecida');
+    expect(saldoDerecho($e, $b['persona'])['disponible'])->toBe(7000); // hold de la oferta
+
+    // B acepta la oferta -> confirmada (conserva el hold).
+    $this->postJson("/api/v1/app/{$e['slug']}/reservas/{$bOferta['id']}/aceptar", [], conBearer($e['bearer']))->assertOk();
     $roster = $this->getJson("/api/v1/app/{$e['slug']}/sesiones/{$sesion}/reservas", conBearer($e['bearer']))->assertOk()->json('data');
     $bConfirmada = collect($roster)->firstWhere('persona', 'Beto');
     expect($bConfirmada['estado'])->toBe('confirmada');
-    expect(saldoDerecho($e, $b['persona'])['disponible'])->toBe(7000); // ahora con hold
+    expect(saldoDerecho($e, $b['persona'])['disponible'])->toBe(7000); // sigue con hold
 });
 
 it('cancelar a tiempo libera el hold y devuelve el disponible', function (): void {

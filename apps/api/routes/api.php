@@ -141,6 +141,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/mi/agenda', [MiTenantController::class, 'agenda'])->name('mi.agenda');
             Route::post('/mi/reservas', [MiTenantController::class, 'reservar'])->name('mi.reservas.store');
             Route::post('/mi/reservas/{reserva}/cancelar', [MiTenantController::class, 'cancelar'])->name('mi.reservas.cancelar');
+            Route::post('/mi/reservas/{reserva}/aceptar', [MiTenantController::class, 'aceptar'])->name('mi.reservas.aceptar');
 
             // Invitación de personal (crea usuario tenant-local con rol + activación).
             Route::post('/usuarios/invitar', [UsuariosTenantController::class, 'invitar'])->middleware('puede:usuarios.invitar')->name('usuarios.invitar');
@@ -253,6 +254,8 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/sesiones/{sesion}/reservas/preview', [ReservasTenantController::class, 'preview'])->middleware('puede:reservas.ver')->name('sesiones.reservas.preview');
             Route::post('/sesiones/{sesion}/reservas', [ReservasTenantController::class, 'reservar'])->middleware('puede:reservas.gestionar')->name('sesiones.reservas.store');
             Route::post('/reservas/{reserva}/cancelar', [ReservasTenantController::class, 'cancelar'])->middleware('puede:reservas.gestionar')->name('reservas.cancelar');
+            // Waitlist robusta (R7): el ofrecido acepta su cupo antes de que expire.
+            Route::post('/reservas/{reserva}/aceptar', [ReservasTenantController::class, 'aceptar'])->middleware('puede:reservas.gestionar')->name('reservas.aceptar');
             Route::post('/reservas/{reserva}/asistencia', [AsistenciaTenantController::class, 'marcar'])->middleware('puede:asistencia.marcar')->name('reservas.asistencia.store');
 
             // Politica de cancelacion/no-show (R8): la reserva congela la vigente al

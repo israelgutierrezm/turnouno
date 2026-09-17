@@ -48,7 +48,7 @@ class MiTenantController
 
         $reservas = ReservaTenant::query()
             ->where('persona_id', $persona->getKey())
-            ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::EnEspera->value])
+            ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::Ofrecida->value, EstadoReserva::EnEspera->value])
             ->with(['sesion.oferta'])
             ->get()
             ->filter(fn (ReservaTenant $r): bool => $r->sesion !== null && ! $r->sesion->inicia_en->isPast())
@@ -108,6 +108,19 @@ class MiTenantController
         abort_unless((int) $reserva->persona_id === (int) $persona->getKey(), 403, 'Esta reserva no es tuya.');
 
         $this->reservas->cancelar($reserva);
+
+        return response()->json(['data' => $this->presentarReserva($reserva->refresh()->load('sesion.oferta'))]);
+    }
+
+    public function aceptar(Request $request): JsonResponse
+    {
+        $persona = $this->persona($request);
+        abort_unless($persona instanceof PersonaTenant, 403);
+
+        $reserva = ReservaTenant::query()->where('ulid', (string) $request->route('reserva'))->firstOrFail();
+        abort_unless((int) $reserva->persona_id === (int) $persona->getKey(), 403, 'Esta reserva no es tuya.');
+
+        $this->reservas->aceptar($reserva);
 
         return response()->json(['data' => $this->presentarReserva($reserva->refresh()->load('sesion.oferta'))]);
     }

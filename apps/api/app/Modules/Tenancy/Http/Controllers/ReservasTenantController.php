@@ -37,7 +37,7 @@ class ReservasTenantController
 
         $reservas = ReservaTenant::query()
             ->where('sesion_id', $sesion->getKey())
-            ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::EnEspera->value])
+            ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::Ofrecida->value, EstadoReserva::EnEspera->value])
             ->with(['persona', 'sesion', 'asistencia'])
             ->orderBy('id')
             ->get();
@@ -96,6 +96,15 @@ class ReservasTenantController
         $reserva = ReservaTenant::query()->where('ulid', (string) $request->route('reserva'))->firstOrFail();
 
         $this->reservas->cancelar($reserva);
+
+        return response()->json(['data' => $this->presentar($reserva->refresh())]);
+    }
+
+    public function aceptar(Request $request): JsonResponse
+    {
+        $reserva = ReservaTenant::query()->where('ulid', (string) $request->route('reserva'))->firstOrFail();
+
+        $this->reservas->aceptar($reserva);
 
         return response()->json(['data' => $this->presentar($reserva->refresh())]);
     }
