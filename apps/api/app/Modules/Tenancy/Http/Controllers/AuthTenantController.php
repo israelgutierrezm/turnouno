@@ -147,6 +147,9 @@ class AuthTenantController
             'trial_termina_en' => $estudio->trial_termina_en?->toDateString(),
             'publicado' => $estudio->publicado,
             'en_directorio' => $estudio->enDirectorio(),
+            // Perfil de negocio (R35): el frontend adapta terminologia/flags sin forks.
+            'perfil' => $estudio->perfil_negocio->value,
+            'perfil_config' => $estudio->perfil_negocio->configuracion(),
         ];
     }
 }

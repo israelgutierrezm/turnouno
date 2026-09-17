@@ -6,6 +6,7 @@ namespace App\Modules\Tenancy\Models;
 
 use App\Modules\Tenancy\EstadoEstudio;
 use App\Modules\Tenancy\EstadoFacturacion;
+use App\Modules\Tenancy\PerfilNegocio;
 use App\Support\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 
@@ -25,6 +26,7 @@ class Estudio extends Model
         'tenant_legacy_id',
         'nombre',
         'slug',
+        'perfil_negocio',
         'logo_url',
         'estado',
         'paso_aprovisionamiento',
@@ -55,6 +57,7 @@ class Estudio extends Model
      */
     protected $casts = [
         'estado' => EstadoEstudio::class,
+        'perfil_negocio' => PerfilNegocio::class,
         'estado_facturacion' => EstadoFacturacion::class,
         'publicado' => 'boolean',
         'privado' => 'boolean',

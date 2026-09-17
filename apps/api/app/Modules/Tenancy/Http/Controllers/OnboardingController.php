@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Tenancy\Http\Controllers;
 
 use App\Modules\Tenancy\Models\Estudio;
+use App\Modules\Tenancy\PerfilNegocio;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -72,6 +73,26 @@ class OnboardingController
             'publicado' => $estudio->publicado,
             'privado' => $estudio->privado,
             'en_directorio' => $estudio->enDirectorio(),
+        ]]);
+    }
+
+    /**
+     * Cambia el perfil de negocio del estudio (R35): solo ajusta
+     * defaults/terminologia/feature-flags, sin forks.
+     */
+    public function perfil(Request $request): JsonResponse
+    {
+        $estudio = $this->estudio($request);
+
+        $validado = $request->validate([
+            'perfil_negocio' => ['required', Rule::enum(PerfilNegocio::class)],
+        ]);
+
+        $estudio->update(['perfil_negocio' => $validado['perfil_negocio']]);
+
+        return response()->json(['data' => [
+            'perfil' => $estudio->perfil_negocio->value,
+            'perfil_config' => $estudio->perfil_negocio->configuracion(),
         ]]);
     }
 

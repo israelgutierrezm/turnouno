@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
  * con el mismo slug no pueden coexistir; el perdedor recibe SLUG_TAKEN. No crea
  * la BD del tenant (eso lo hace {@see AprovisionarEstudio}).
  *
- * @phpstan-type DatosRegistro array{nombre: string, slug: string, contacto_nombre: string, contacto_email: string, contacto_telefono?: string|null, pais?: string|null, ciudad?: string|null, zona_horaria?: string|null}
+ * @phpstan-type DatosRegistro array{nombre: string, slug: string, perfil_negocio?: string|null, contacto_nombre: string, contacto_email: string, contacto_telefono?: string|null, pais?: string|null, ciudad?: string|null, zona_horaria?: string|null}
  */
 class RegistrarEstudio
 {
@@ -37,6 +37,7 @@ class RegistrarEstudio
             return Estudio::create([
                 'nombre' => $datos['nombre'],
                 'slug' => $slug,
+                'perfil_negocio' => $datos['perfil_negocio'] ?? 'general',
                 'estado' => EstadoEstudio::Provisioning->value,
                 'estado_facturacion' => EstadoFacturacion::Trial->value,
                 // Por defecto el estudio aparece en el directorio en cuanto queda

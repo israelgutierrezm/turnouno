@@ -40,6 +40,7 @@ class RegistroEstudioController
         $estudio = $this->registrar->ejecutar([
             'nombre' => (string) $request->validated('nombre'),
             'slug' => (string) $request->validated('slug'),
+            'perfil_negocio' => $request->validated('perfil_negocio'),
             'contacto_nombre' => (string) $request->validated('contacto_nombre'),
             'contacto_email' => (string) $request->validated('contacto_email'),
             'contacto_telefono' => $request->validated('contacto_telefono'),
@@ -58,6 +59,7 @@ class RegistroEstudioController
                 'estudio' => [
                     'slug' => $estudio->slug,
                     'nombre' => $estudio->nombre,
+                    'perfil' => $estudio->perfil_negocio->value,
                     'estado' => $estudio->estado->value,
                     'url' => url('/app/'.$estudio->slug),
                 ],
