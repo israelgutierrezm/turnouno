@@ -60,6 +60,7 @@ use App\Modules\Tenancy\Http\Controllers\FacturacionController;
 use App\Modules\Tenancy\Http\Controllers\FamiliasTenantController;
 use App\Modules\Tenancy\Http\Controllers\FormulariosController;
 use App\Modules\Tenancy\Http\Controllers\FrontDeskTenantController;
+use App\Modules\Tenancy\Http\Controllers\GruposTenantController;
 use App\Modules\Tenancy\Http\Controllers\IntegracionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\MarcaEstudioController;
 use App\Modules\Tenancy\Http\Controllers\MembresiasTenantController;
@@ -244,6 +245,13 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/excepciones-horario', [ExcepcionesHorarioTenantController::class, 'index'])->middleware('puede:agenda.ver')->name('excepciones-horario.index');
             Route::post('/excepciones-horario', [ExcepcionesHorarioTenantController::class, 'crear'])->middleware('puede:agenda.gestionar')->name('excepciones-horario.store');
             Route::delete('/excepciones-horario/{excepcion}', [ExcepcionesHorarioTenantController::class, 'eliminar'])->middleware('puede:agenda.gestionar')->name('excepciones-horario.eliminar');
+
+            // Grupos / cursos con inscripcion (R25): un grupo sigue una serie; inscribir
+            // auto-reserva las ocurrencias futuras.
+            Route::get('/grupos', [GruposTenantController::class, 'index'])->middleware('puede:agenda.ver')->name('grupos.index');
+            Route::post('/grupos', [GruposTenantController::class, 'crear'])->middleware('puede:agenda.gestionar')->name('grupos.store');
+            Route::get('/grupos/{grupo}/inscripciones', [GruposTenantController::class, 'inscripciones'])->middleware('puede:agenda.ver')->name('grupos.inscripciones.index');
+            Route::post('/grupos/{grupo}/inscripciones', [GruposTenantController::class, 'inscribir'])->middleware('puede:agenda.gestionar')->name('grupos.inscripciones.store');
 
             // Recursos reservables (R3): salas/canchas/carriles/equipos. El motor de
             // agenda evita sobre-reservarlos (unidad = 1; pool = capacidad).
