@@ -7,6 +7,7 @@ namespace App\Modules\Tenancy\Http\Controllers;
 use App\Modules\Tenancy\Models\DatosFiscalesTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Datos fiscales del emisor (el estudio) para CFDI, tenant-local. Cada tenant carga
@@ -44,6 +45,34 @@ class DatosFiscalesTenantController
     }
 
     /**
+     * Carga el sello digital (CSD): certificado .cer + llave .key + contraseña. Se
+     * guardan cifrados. Requiere datos fiscales previos.
+     */
+    public function subirSello(Request $request): JsonResponse
+    {
+        $request->validate([
+            'certificado' => ['required', 'file', 'max:64'],
+            'llave' => ['required', 'file', 'max:64'],
+            'password' => ['required', 'string', 'max:255'],
+        ]);
+
+        $datos = DatosFiscalesTenant::query()->firstOrNew([]);
+        if (! $datos->exists) {
+            throw ValidationException::withMessages([
+                'datos_fiscales' => ['Carga primero tus datos fiscales.'],
+            ]);
+        }
+
+        $datos->fill([
+            'sello_cer' => base64_encode((string) $request->file('certificado')?->get()),
+            'sello_key' => base64_encode((string) $request->file('llave')?->get()),
+            'sello_password' => (string) $request->input('password'),
+        ])->save();
+
+        return response()->json(['data' => $this->presentar($datos)]);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function presentar(DatosFiscalesTenant $datos): array
@@ -54,7 +83,8 @@ class DatosFiscalesTenantController
             'rfc' => $datos->rfc,
             'regimen_fiscal' => $datos->regimen_fiscal,
             'codigo_postal' => $datos->codigo_postal,
-            'facturapi_conectado' => $datos->facturapiConectado(),
+            // Estado del propio sello del tenant (no se expone nada del proveedor).
+            'sellos_cargados' => $datos->sellosCargados(),
         ];
     }
 }

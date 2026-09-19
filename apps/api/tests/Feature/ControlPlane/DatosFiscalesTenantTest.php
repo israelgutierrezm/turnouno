@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Tenancy\Database\GestorDeConexionTenant;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
 
 beforeEach(function (): void {
@@ -32,13 +33,43 @@ it('cada tenant carga y consulta sus propios datos fiscales', function (): void 
         ->assertJsonPath('data.rfc', 'ABC010101AB9') // normaliza a mayúsculas
         ->assertJsonPath('data.regimen_fiscal', '601')
         ->assertJsonPath('data.codigo_postal', '06700')
-        ->assertJsonPath('data.facturapi_conectado', false);
+        ->assertJsonPath('data.sellos_cargados', false);
 
-    // La llave FacturAPI nunca se expone.
+    // No se expone nada del proveedor de facturacion ni secretos.
     expect($r->json('data'))->not->toHaveKey('facturapi_llave');
+    expect($r->json('data'))->not->toHaveKey('facturapi_conectado');
+    expect($r->json('data'))->not->toHaveKey('sello_key');
 
     test()->getJson("/api/v1/app/{$e['slug']}/datos-fiscales", conBearer($e['bearer']))
         ->assertOk()->assertJsonPath('data.rfc', 'ABC010101AB9');
+});
+
+it('carga el sello digital (CSD) del emisor y refleja sellos_cargados', function (): void {
+    $e = estudioConSesion('estudio-a', 'a@correo.mx');
+
+    // Sin datos fiscales previos no deja subir el sello.
+    test()->post("/api/v1/app/{$e['slug']}/datos-fiscales/sello", [
+        'certificado' => UploadedFile::fake()->createWithContent('sello.cer', 'CERT'),
+        'llave' => UploadedFile::fake()->createWithContent('sello.key', 'KEY'),
+        'password' => 'clave-sello',
+    ], ['Accept' => 'application/json'] + conBearer($e['bearer']))->assertStatus(422);
+
+    test()->putJson("/api/v1/app/{$e['slug']}/datos-fiscales", [
+        'razon_social' => 'Estudio Demo SA de CV', 'rfc' => 'ABC010101AB9',
+        'regimen_fiscal' => '601', 'codigo_postal' => '06700',
+    ], conBearer($e['bearer']))->assertOk()->assertJsonPath('data.sellos_cargados', false);
+
+    // Con datos fiscales, sube el CSD (cifrado) y queda marcado como cargado.
+    test()->post("/api/v1/app/{$e['slug']}/datos-fiscales/sello", [
+        'certificado' => UploadedFile::fake()->createWithContent('sello.cer', 'CERT'),
+        'llave' => UploadedFile::fake()->createWithContent('sello.key', 'KEY'),
+        'password' => 'clave-sello',
+    ], ['Accept' => 'application/json'] + conBearer($e['bearer']))
+        ->assertOk()
+        ->assertJsonPath('data.sellos_cargados', true);
+
+    test()->getJson("/api/v1/app/{$e['slug']}/datos-fiscales", conBearer($e['bearer']))
+        ->assertOk()->assertJsonPath('data.sellos_cargados', true);
 });
 
 it('valida RFC, regimen y codigo postal', function (): void {

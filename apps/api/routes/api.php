@@ -358,6 +358,7 @@ Route::prefix('v1')->group(function (): void {
             // Datos fiscales del emisor (CFDI/FacturAPI): cada tenant carga los suyos.
             Route::get('/datos-fiscales', [DatosFiscalesTenantController::class, 'show'])->middleware('puede:estudio.gestionar')->name('datos-fiscales.show');
             Route::put('/datos-fiscales', [DatosFiscalesTenantController::class, 'guardar'])->middleware('puede:estudio.gestionar')->name('datos-fiscales.guardar');
+            Route::post('/datos-fiscales/sello', [DatosFiscalesTenantController::class, 'subirSello'])->middleware('puede:estudio.gestionar')->name('datos-fiscales.sello');
 
             // Facturas (CFDI): emitir/timbrar vía FacturAPI, listar y consultar.
             Route::get('/facturas', [FacturasTenantController::class, 'index'])->middleware('puede:ordenes.ver')->name('facturas.index');
