@@ -193,7 +193,11 @@ async function cargarSesiones(): Promise<void> {
 watch([semanaInicio, sucursalFiltro], cargarSesiones)
 
 function irSemana(delta: number): void {
+  // Preserva el día de la semana seleccionado (para que la vista de día en móvil
+  // avance al día equivalente de la nueva semana, no se quede en la anterior).
+  const offset = dias.value.findIndex((d) => d.iso === diaSel.value)
   semanaInicio.value = sumarDias(semanaInicio.value, delta * 7)
+  diaSel.value = isoDe(sumarDias(semanaInicio.value, offset >= 0 ? offset : 0))
 }
 function irHoy(): void {
   semanaInicio.value = lunesDe(new Date())

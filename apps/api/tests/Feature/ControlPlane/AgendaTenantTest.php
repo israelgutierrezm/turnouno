@@ -35,6 +35,25 @@ it('crea una sesion convirtiendo la hora local de la sucursal a UTC (con snapsho
         ->assertJsonPath('data.estado', 'programada');
 });
 
+it('incluye la clase del domingo por la tarde aunque en UTC caiga el lunes (borde de semana por zona)', function (): void {
+    $e = estudioConSesion('estudio-a', 'a@correo.mx');
+    $semilla = agendaSemilla($e);
+
+    // Domingo 2026-10-11 21:00 en Mexico (UTC-6) = 2026-10-12 03:00 UTC (lunes UTC).
+    $this->postJson("/api/v1/app/{$e['slug']}/sesiones", [
+        'oferta_id' => $semilla['oferta'],
+        'sucursal_id' => $semilla['sucursal'],
+        'inicia_en_local' => '2026-10-11 21:00:00',
+        'duracion_minutos' => 60,
+    ], conBearer($e['bearer']))->assertCreated()->assertJsonPath('data.inicia_en', '2026-10-12T03:00:00+00:00');
+
+    // La semana Lun 2026-10-05 .. Dom 2026-10-11 debe incluirla (no truncar en UTC).
+    $this->getJson("/api/v1/app/{$e['slug']}/sesiones?desde=2026-10-05&hasta=2026-10-11", conBearer($e['bearer']))
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.inicia_en', '2026-10-12T03:00:00+00:00');
+});
+
 it('lista y cancela sesiones del estudio', function (): void {
     $e = estudioConSesion('estudio-a', 'a@correo.mx');
     $semilla = agendaSemilla($e);

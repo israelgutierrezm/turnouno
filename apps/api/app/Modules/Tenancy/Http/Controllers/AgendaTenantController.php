@@ -120,11 +120,16 @@ class AgendaTenantController
             $consulta->where('instructor_id', $instructor instanceof Usuario ? $instructor->getKey() : 0);
         }
 
+        // La ventana se ensancha 1 dia por lado: `desde`/`hasta` llegan como fechas
+        // (dia local del estudio) pero `inicia_en` se guarda en UTC. Como el desfase
+        // de zona es < 24h, este superconjunto garantiza incluir las clases del borde
+        // (p. ej. domingo por la tarde en Mexico = lunes UTC); el frontend agrupa cada
+        // sesion por su fecha LOCAL, asi que descarta con precision lo que sobra.
         if (is_string($request->query('desde')) && $request->query('desde') !== '') {
-            $consulta->where('inicia_en', '>=', CarbonImmutable::parse((string) $request->query('desde'))->utc());
+            $consulta->where('inicia_en', '>=', CarbonImmutable::parse((string) $request->query('desde'))->subDay()->utc());
         }
         if (is_string($request->query('hasta')) && $request->query('hasta') !== '') {
-            $consulta->where('inicia_en', '<', CarbonImmutable::parse((string) $request->query('hasta'))->addDay()->utc());
+            $consulta->where('inicia_en', '<', CarbonImmutable::parse((string) $request->query('hasta'))->addDays(2)->utc());
         }
 
         $sesiones = $consulta->limit(self::LIMITE)->get();
