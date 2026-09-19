@@ -451,23 +451,72 @@ async function registrarCheckin(id: string): Promise<void> {
 
 // ---- Nueva clase (modal) ----
 const mostrarNueva = ref(false)
-const form = ref({ ofertaId: '', sucursalId: '', instructorId: '', fecha: '', duracion: '60', capacidad: '' })
+const form = ref({
+  ofertaId: '',
+  sucursalId: '',
+  instructorId: '',
+  fecha: '',
+  duracion: '60',
+  capacidad: '',
+  repetir: false,
+  dias: [] as number[],
+  repetirHasta: '',
+})
 const creando = ref(false)
+
+// Días de la semana en ISO (1 = lunes … 7 = domingo) para el selector de recurrencia.
+const DIAS_SEMANA = [
+  { n: 1, etiqueta: 'L' },
+  { n: 2, etiqueta: 'M' },
+  { n: 3, etiqueta: 'M' },
+  { n: 4, etiqueta: 'J' },
+  { n: 5, etiqueta: 'V' },
+  { n: 6, etiqueta: 'S' },
+  { n: 7, etiqueta: 'D' },
+]
+function diaIsoDe(ymd: string): number {
+  const [a, m, d] = ymd.split('-').map(Number)
+  return ((new Date(a, m - 1, d).getDay() + 6) % 7) + 1
+}
+function alternarDia(n: number): void {
+  const i = form.value.dias.indexOf(n)
+  if (i === -1) {
+    form.value.dias.push(n)
+  } else {
+    form.value.dias.splice(i, 1)
+  }
+}
+// Al activar "repetir", prefija el día de la semana de la fecha elegida.
+watch(
+  () => form.value.repetir,
+  (v) => {
+    if (v && form.value.dias.length === 0 && form.value.fecha !== '') {
+      form.value.dias = [diaIsoDe(form.value.fecha.slice(0, 10))]
+    }
+  },
+)
 
 async function crearSesion(): Promise<void> {
   creando.value = true
   error.value = null
   try {
-    await api.post(`${base.value}/sesiones`, {
-      oferta_id: form.value.ofertaId,
-      sucursal_id: form.value.sucursalId,
-      instructor_id: form.value.instructorId !== '' ? form.value.instructorId : null,
-      inicia_en_local: form.value.fecha.replace('T', ' ') + ':00',
-      duracion_minutos: Number(form.value.duracion),
-      capacidad: form.value.capacidad !== '' ? Number(form.value.capacidad) : null,
-    })
+    if (form.value.repetir) {
+      await crearRecurrente()
+    } else {
+      await api.post(`${base.value}/sesiones`, {
+        oferta_id: form.value.ofertaId,
+        sucursal_id: form.value.sucursalId,
+        instructor_id: form.value.instructorId !== '' ? form.value.instructorId : null,
+        inicia_en_local: form.value.fecha.replace('T', ' ') + ':00',
+        duracion_minutos: Number(form.value.duracion),
+        capacidad: form.value.capacidad !== '' ? Number(form.value.capacidad) : null,
+      })
+    }
     form.value.fecha = ''
     form.value.capacidad = ''
+    form.value.repetir = false
+    form.value.dias = []
+    form.value.repetirHasta = ''
     mostrarNueva.value = false
     await cargarSesiones()
   } catch (e) {
@@ -475,6 +524,28 @@ async function crearSesion(): Promise<void> {
   } finally {
     creando.value = false
   }
+}
+
+// Crea una plantilla de horario recurrente y materializa sus sesiones del rango.
+async function crearRecurrente(): Promise<void> {
+  const fechaYmd = form.value.fecha.slice(0, 10)
+  const hora = form.value.fecha.slice(11, 16)
+  const dias = form.value.dias.length > 0 ? [...form.value.dias].sort((a, b) => a - b) : [diaIsoDe(fechaYmd)]
+  const hasta = form.value.repetirHasta !== '' ? form.value.repetirHasta : isoDe(sumarDias(new Date(`${fechaYmd}T00:00:00`), 56))
+
+  const { data } = await api.post<{ data: { id: string } }>(`${base.value}/plantillas-horario`, {
+    oferta_id: form.value.ofertaId,
+    sucursal_id: form.value.sucursalId,
+    instructor_id: form.value.instructorId !== '' ? form.value.instructorId : null,
+    dias_semana: dias,
+    hora_local: hora,
+    duracion_minutos: Number(form.value.duracion),
+    capacidad: form.value.capacidad !== '' ? Number(form.value.capacidad) : null,
+    vigente_desde: fechaYmd,
+    vigente_hasta: form.value.repetirHasta !== '' ? form.value.repetirHasta : null,
+  })
+
+  await api.post(`${base.value}/plantillas-horario/${data.data.id}/generar`, { desde: fechaYmd, hasta })
 }
 
 onMounted(async () => {
@@ -838,6 +909,41 @@ onMounted(async () => {
               <option v-for="i in instructores" :key="i.id" :value="i.id">{{ i.nombre }}</option>
             </select>
           </div>
+
+          <!-- Recurrencia: "crear una clase todos los martes" (R5). -->
+          <div class="sm:col-span-2 rounded-lg border p-3" :style="{ borderColor: 'var(--borde)' }">
+            <label class="flex items-center gap-2 text-sm font-medium">
+              <input v-model="form.repetir" type="checkbox" />
+              {{ $t('agenda.nueva.repetir') }}
+            </label>
+            <div v-if="form.repetir" class="mt-3 space-y-3">
+              <div>
+                <span class="tu-label">{{ $t('agenda.nueva.diasSemana') }}</span>
+                <div class="flex gap-1 mt-1">
+                  <button
+                    v-for="d in DIAS_SEMANA"
+                    :key="d.n"
+                    type="button"
+                    class="h-9 w-9 rounded-full text-sm font-semibold"
+                    :style="
+                      form.dias.includes(d.n)
+                        ? { background: 'var(--primario)', color: '#fff' }
+                        : { background: 'var(--superficie-2)', color: 'var(--texto)' }
+                    "
+                    @click="alternarDia(d.n)"
+                  >
+                    {{ d.etiqueta }}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label class="tu-label" for="arh">{{ $t('agenda.nueva.repetirHasta') }}</label>
+                <input id="arh" v-model="form.repetirHasta" class="tu-input" type="date" />
+                <p class="mt-1 text-xs" :style="{ color: 'var(--texto-suave)' }">{{ $t('agenda.nueva.repetirAyuda') }}</p>
+              </div>
+            </div>
+          </div>
+
           <div class="sm:col-span-2 flex justify-end gap-2">
             <button type="button" class="tu-btn tu-btn-fantasma" @click="mostrarNueva = false">{{ $t('comun.cancelar') }}</button>
             <button

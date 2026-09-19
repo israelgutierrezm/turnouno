@@ -502,6 +502,10 @@ export default {
       creando: 'Programando…',
       sinOfertas: 'Primero crea una oferta (en Configurar mi estudio).',
       sinSucursales: 'Primero crea una sucursal.',
+      repetir: 'Repetir cada semana',
+      diasSemana: 'Días',
+      repetirHasta: 'Repetir hasta (opcional)',
+      repetirAyuda: 'Si lo dejas vacío, se programan las próximas 8 semanas y se extiende solo.',
     },
     vacio: 'Aun no hay clases programadas.',
     sesion: {
