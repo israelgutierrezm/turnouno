@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Modules\Tenancy\Http\Controllers;
 
 use App\Modules\Tenancy\Models\Estudio;
+use App\Modules\Tenancy\Models\PlantillaHorarioTenant;
+use App\Modules\Tenancy\Models\PoliticaCancelacionTenant;
+use App\Modules\Tenancy\Models\SesionTenant;
 use App\Modules\Tenancy\PerfilNegocio;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Wizard de onboarding del estudio (guardar y continuar) y publicación en el
@@ -43,6 +47,10 @@ class OnboardingController
             'datos' => ['nullable', 'array'],
         ]);
 
+        // No marcar como listos los pasos que requieren configuración real solo con
+        // "siguiente": deben existir los datos del módulo en la BD del tenant.
+        $this->exigirConfiguracion((string) $validado['paso']);
+
         $completados = $estudio->onboarding_pasos ?? [];
         $completados[(string) $validado['paso']] = $validado['datos'] ?? true;
 
@@ -53,6 +61,27 @@ class OnboardingController
             'completados' => array_keys($completados),
             'completo' => $completo,
         ]]);
+    }
+
+    /**
+     * Los pasos "horarios" y "politicas" no se pueden dar por terminados sin haberlos
+     * configurado de verdad (no basta un "siguiente").
+     */
+    private function exigirConfiguracion(string $paso): void
+    {
+        if ($paso === 'horarios'
+            && ! PlantillaHorarioTenant::query()->exists()
+            && ! SesionTenant::query()->exists()) {
+            throw ValidationException::withMessages([
+                'paso' => ['Programa al menos un horario recurrente o una clase antes de continuar.'],
+            ]);
+        }
+
+        if ($paso === 'politicas' && ! PoliticaCancelacionTenant::query()->exists()) {
+            throw ValidationException::withMessages([
+                'paso' => ['Define tu política de cancelación antes de continuar.'],
+            ]);
+        }
     }
 
     public function publicacion(Request $request): JsonResponse

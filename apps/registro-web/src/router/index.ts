@@ -100,6 +100,18 @@ const router = createRouter({
       meta: { requiereSesion: true },
     },
     {
+      path: '/recursos',
+      name: 'recursos',
+      component: () => import('@/views/RecursosView.vue'),
+      meta: { requiereSesion: true },
+    },
+    {
+      path: '/nomina',
+      name: 'nomina',
+      component: () => import('@/views/NominaView.vue'),
+      meta: { requiereSesion: true },
+    },
+    {
       path: '/pasarelas',
       name: 'pasarelas',
       component: () => import('@/views/PasarelasView.vue'),

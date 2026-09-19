@@ -50,7 +50,18 @@ it('onboarding: guardar y continuar registra el progreso hasta completarlo', fun
         ->assertJsonPath('data.completo', false)
         ->assertJsonFragment(['completados' => ['marca']]);
 
-    // Completar todos los pasos → onboarding completo.
+    // "horarios" y "politicas" exigen configuracion real (no basta "siguiente").
+    $this->putJson("/api/v1/app/{$e['slug']}/onboarding", ['paso' => 'horarios'], conBearer($e['bearer']))->assertStatus(422);
+    $this->putJson("/api/v1/app/{$e['slug']}/onboarding", ['paso' => 'politicas'], conBearer($e['bearer']))->assertStatus(422);
+
+    // Configura una clase y una politica de cancelacion.
+    $semilla = agendaSemilla($e);
+    crearSesionTenant($e, $semilla);
+    $this->putJson("/api/v1/app/{$e['slug']}/politicas-cancelacion", [
+        'horas_limite' => 12, 'penaliza_tarde' => true, 'penaliza_no_show' => true,
+    ], conBearer($e['bearer']))->assertCreated();
+
+    // Ahora si, completar todos los pasos → onboarding completo.
     foreach (['marca', 'sucursal', 'horarios', 'actividades', 'productos', 'politicas', 'pasarela', 'personal', 'publicacion'] as $paso) {
         $this->putJson("/api/v1/app/{$e['slug']}/onboarding", ['paso' => $paso], conBearer($e['bearer']))->assertOk();
     }
