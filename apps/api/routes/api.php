@@ -63,7 +63,9 @@ use App\Modules\Tenancy\Http\Controllers\FormulariosController;
 use App\Modules\Tenancy\Http\Controllers\FrontDeskTenantController;
 use App\Modules\Tenancy\Http\Controllers\GruposTenantController;
 use App\Modules\Tenancy\Http\Controllers\ImportacionesTenantController;
+use App\Modules\Tenancy\Http\Controllers\IntegracionApiTenantController;
 use App\Modules\Tenancy\Http\Controllers\IntegracionesTenantController;
+use App\Modules\Tenancy\Http\Controllers\LlavesApiTenantController;
 use App\Modules\Tenancy\Http\Controllers\MarcaEstudioController;
 use App\Modules\Tenancy\Http\Controllers\MembresiasTenantController;
 use App\Modules\Tenancy\Http\Controllers\MensajesTenantController;
@@ -355,6 +357,11 @@ Route::prefix('v1')->group(function (): void {
             Route::delete('/webhooks-salientes/{webhook}', [WebhooksSalientesTenantController::class, 'eliminar'])->middleware('puede:integraciones.configurar')->name('webhooks-salientes.eliminar');
             Route::get('/webhooks-salientes/{webhook}/entregas', [WebhooksSalientesTenantController::class, 'entregas'])->middleware('puede:integraciones.configurar')->name('webhooks-salientes.entregas');
 
+            // Llaves de API con scopes (R40): el secreto se muestra solo al crear.
+            Route::get('/llaves-api', [LlavesApiTenantController::class, 'index'])->middleware('puede:integraciones.configurar')->name('llaves-api.index');
+            Route::post('/llaves-api', [LlavesApiTenantController::class, 'store'])->middleware('puede:integraciones.configurar')->name('llaves-api.store');
+            Route::delete('/llaves-api/{llave}', [LlavesApiTenantController::class, 'destroy'])->middleware('puede:integraciones.configurar')->name('llaves-api.destroy');
+
             // Comunicaciones (R28): plantillas por evento/canal y el historial de
             // mensajes generados/enviados (consumidor del outbox).
             Route::get('/plantillas-mensaje', [PlantillasMensajeTenantController::class, 'index'])->middleware('puede:comunicaciones.gestionar')->name('plantillas-mensaje.index');
@@ -368,6 +375,13 @@ Route::prefix('v1')->group(function (): void {
             // (reserva vigente u OPEN_ACCESS por membresia ilimitada); deja bitacora.
             Route::post('/accesos', [AccesosTenantController::class, 'registrar'])->middleware('puede:checkins.registrar')->name('accesos.store');
             Route::get('/accesos', [AccesosTenantController::class, 'index'])->middleware('puede:checkins.registrar')->name('accesos.index');
+        });
+
+        // API de integracion de terceros (R40): autenticada por LLAVE DE API (no por
+        // sesion de usuario) y acotada por scopes. Solo lectura.
+        Route::middleware(['estudio.llave', 'throttle:tenant'])->prefix('integracion')->name('integracion.')->group(function (): void {
+            Route::get('/miembros', [IntegracionApiTenantController::class, 'miembros'])->middleware('alcance:miembros.ver')->name('miembros');
+            Route::get('/sesiones', [IntegracionApiTenantController::class, 'sesiones'])->middleware('alcance:agenda.ver')->name('sesiones');
         });
     };
 

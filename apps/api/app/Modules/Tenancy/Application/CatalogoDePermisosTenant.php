@@ -116,6 +116,17 @@ class CatalogoDePermisosTenant
     }
 
     /**
+     * Scopes que puede tener una llave de API de integración (R40). De solo lectura
+     * por ahora ("API keys initially"), acotados a datos operativos consultables.
+     *
+     * @return list<string>
+     */
+    public static function scopesApi(): array
+    {
+        return ['miembros.ver', 'agenda.ver', 'reservas.ver', 'derechos.ver', 'ordenes.ver'];
+    }
+
+    /**
      * Jerarquía de privilegio, del más alto al más bajo. Define el rol PRINCIPAL
      * cuando un usuario tiene varios.
      *
