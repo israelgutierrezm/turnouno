@@ -79,6 +79,7 @@ use App\Modules\Tenancy\Http\Controllers\OrganizacionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\PasarelasTenantController;
 use App\Modules\Tenancy\Http\Controllers\PlantillasHorarioTenantController;
 use App\Modules\Tenancy\Http\Controllers\PlantillasMensajeTenantController;
+use App\Modules\Tenancy\Http\Controllers\PlataformaController;
 use App\Modules\Tenancy\Http\Controllers\PoliticasCancelacionTenantController;
 use App\Modules\Tenancy\Http\Controllers\RecursosTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReembolsosTenantController;
@@ -127,6 +128,14 @@ Route::prefix('v1')->group(function (): void {
     Route::post('/registro', [RegistroEstudioController::class, 'store'])->middleware('throttle:login')->name('api.v1.registro');
     Route::get('/registro/slug', [RegistroEstudioController::class, 'disponibilidad'])->middleware('throttle:60,1')->name('api.v1.registro.slug');
     Route::get('/directorio', [DirectorioController::class, 'index'])->middleware('throttle:60,1')->name('api.v1.directorio');
+
+    // Administracion de plataforma (PlatformAdmin): token global, sin tenant. Ve todos
+    // los estudios y gestiona credenciales globales (cuenta FacturAPI).
+    Route::prefix('plataforma')->middleware(['plataforma.auth', 'throttle:60,1'])->name('api.v1.plataforma.')->group(function (): void {
+        Route::get('/estudios', [PlataformaController::class, 'estudios'])->name('estudios');
+        Route::get('/configuracion', [PlataformaController::class, 'configuracion'])->name('configuracion');
+        Route::put('/configuracion', [PlataformaController::class, 'guardarConfiguracion'])->name('configuracion.guardar');
+    });
 
     /*
     | Rutas tenant-local. Se montan de dos formas equivalentes: por RUTA

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Middleware\CorrelationId;
 use App\Modules\Tenancy\Http\Middleware\AlcanceLlaveApi;
 use App\Modules\Tenancy\Http\Middleware\AutenticarLlaveApi;
+use App\Modules\Tenancy\Http\Middleware\AutenticarPlataforma;
 use App\Modules\Tenancy\Http\Middleware\AutenticarTenant;
 use App\Modules\Tenancy\Http\Middleware\EnsureTenantContext;
 use App\Modules\Tenancy\Http\Middleware\PermisoTenant;
@@ -53,6 +54,8 @@ return Application::configure(basePath: dirname(__DIR__))
             // Integracion de terceros por llave de API con scopes (R40).
             'estudio.llave' => AutenticarLlaveApi::class,
             'alcance' => AlcanceLlaveApi::class,
+            // Operador de plataforma (PlatformAdmin): token global.
+            'plataforma.auth' => AutenticarPlataforma::class,
         ]);
 
         // Resolve the tenant (and its query scope) BEFORE route-model binding,

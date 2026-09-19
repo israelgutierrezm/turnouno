@@ -37,4 +37,14 @@ return [
         'base_url' => env('FACTURAPI_URL', 'https://www.facturapi.io/v2'),
     ],
 
+    /*
+    | Administración de plataforma (PlatformAdmin): el operador de TurnoUno ve
+    | todos los estudios y carga credenciales globales (p. ej. la cuenta
+    | FacturAPI). Se autentica con un token dedicado (env). Sin token, el apartado
+    | queda deshabilitado (todas sus rutas responden 401).
+    */
+    'plataforma' => [
+        'token' => env('PLATFORM_ADMIN_TOKEN'),
+    ],
+
 ];

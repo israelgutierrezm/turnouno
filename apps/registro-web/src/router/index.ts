@@ -123,6 +123,11 @@ const router = createRouter({
       component: () => import('@/views/MiCuentaView.vue'),
       meta: { requiereSesion: true },
     },
+    {
+      path: '/plataforma',
+      name: 'plataforma',
+      component: () => import('@/views/PlataformaView.vue'),
+    },
     { path: '/:pathMatch(.*)*', redirect: { name: 'inicio' } },
   ],
 })
