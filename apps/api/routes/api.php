@@ -147,6 +147,8 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/login', [AuthTenantController::class, 'store'])->middleware('throttle:login')->name('login');
         Route::post('/auth/google', [AuthTenantController::class, 'google'])->middleware('throttle:login')->name('auth.google');
         Route::post('/activar', [AuthTenantController::class, 'activar'])->middleware('throttle:login')->name('activar');
+        // Reenvío del correo de activación (público: el dueño aún no puede entrar).
+        Route::post('/reenviar-activacion', [AuthTenantController::class, 'reenviarActivacion'])->middleware('throttle:login')->name('reenviar-activacion');
 
         // Marca pública (branding): nombre + logo del estudio para la pantalla de
         // acceso (sin auth). Con throttle para mitigar sondeo de slugs.
@@ -168,6 +170,7 @@ Route::prefix('v1')->group(function (): void {
 
             // Invitación de personal (crea usuario tenant-local con rol + activación).
             Route::post('/usuarios/invitar', [UsuariosTenantController::class, 'invitar'])->middleware('puede:usuarios.invitar')->name('usuarios.invitar');
+            Route::post('/usuarios/{usuario}/reenviar', [UsuariosTenantController::class, 'reenviar'])->middleware('puede:usuarios.invitar')->name('usuarios.reenviar');
             Route::get('/instructores', [UsuariosTenantController::class, 'instructores'])->middleware('puede:agenda.gestionar')->name('instructores.index');
 
             // Apartado Usuarios: multi-rol por cuenta (rol de dueño protegido).

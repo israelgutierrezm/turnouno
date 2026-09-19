@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Tenancy\Http\Controllers;
 
-use App\Modules\Tenancy\Application\ActivacionPropietario;
 use App\Modules\Tenancy\Application\AprovisionarEstudio;
+use App\Modules\Tenancy\Application\EnviarActivacionTenant;
 use App\Modules\Tenancy\Application\RegistrarEstudio;
 use App\Modules\Tenancy\Http\Requests\RegistrarEstudioRequest;
 use App\Modules\Tenancy\Models\Estudio;
@@ -24,7 +24,7 @@ class RegistroEstudioController
     public function __construct(
         private readonly RegistrarEstudio $registrar,
         private readonly AprovisionarEstudio $aprovisionar,
-        private readonly ActivacionPropietario $activacion,
+        private readonly EnviarActivacionTenant $enviarActivacion,
     ) {}
 
     public function disponibilidad(Request $request): JsonResponse
@@ -52,7 +52,8 @@ class RegistroEstudioController
         // BD del tenant creada de forma síncrona (SQLite barato). En producción con
         // MySQL esto se despacharía a una cola; el estado permite reanudar.
         $this->aprovisionar->ejecutar($estudio);
-        $token = $this->activacion->generar($estudio);
+        // Genera el token y ENVÍA el correo de activación (cierra el alta autónoma).
+        $token = $this->enviarActivacion->enviar($estudio, (string) $estudio->contacto_email);
 
         return response()->json([
             'data' => [

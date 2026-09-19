@@ -109,6 +109,23 @@ async function guardar(): Promise<void> {
   }
 }
 
+const reenviandoId = ref<string | null>(null)
+const reenviadoId = ref<string | null>(null)
+
+async function reenviar(u: UsuarioRow): Promise<void> {
+  reenviandoId.value = u.id
+  reenviadoId.value = null
+  error.value = null
+  try {
+    await api.post(`${base.value}/usuarios/${u.id}/reenviar`)
+    reenviadoId.value = u.id
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    reenviandoId.value = null
+  }
+}
+
 onMounted(cargar)
 </script>
 
@@ -169,9 +186,26 @@ onMounted(cargar)
       </template>
 
       <template #col-acciones="{ fila }">
-        <button class="tu-btn tu-btn-fantasma text-sm" type="button" @click="abrirEdicion(fila as UsuarioRow)">
-          {{ $t('usuarios.editarRoles') }}
-        </button>
+        <div class="flex items-center justify-end gap-2">
+          <button
+            v-if="!(fila as UsuarioRow).activo"
+            class="tu-btn tu-btn-fantasma text-sm"
+            type="button"
+            :disabled="reenviandoId === (fila as UsuarioRow).id"
+            @click="reenviar(fila as UsuarioRow)"
+          >
+            {{
+              reenviadoId === (fila as UsuarioRow).id
+                ? $t('usuarios.reenviado')
+                : reenviandoId === (fila as UsuarioRow).id
+                  ? $t('usuarios.reenviando')
+                  : $t('usuarios.reenviar')
+            }}
+          </button>
+          <button class="tu-btn tu-btn-fantasma text-sm" type="button" @click="abrirEdicion(fila as UsuarioRow)">
+            {{ $t('usuarios.editarRoles') }}
+          </button>
+        </div>
       </template>
     </TablaDatos>
 

@@ -8,6 +8,7 @@ use App\Modules\Tenancy\Application\ActivacionPropietario;
 use App\Modules\Tenancy\Application\AutenticacionGoogleTenant;
 use App\Modules\Tenancy\Application\AutenticacionTenant;
 use App\Modules\Tenancy\Application\CatalogoDePermisosTenant;
+use App\Modules\Tenancy\Application\EnviarActivacionTenant;
 use App\Modules\Tenancy\Http\Requests\ActivarTenantRequest;
 use App\Modules\Tenancy\Http\Requests\LoginTenantRequest;
 use App\Modules\Tenancy\Models\Estudio;
@@ -28,7 +29,26 @@ class AuthTenantController
         private readonly AutenticacionTenant $auth,
         private readonly ActivacionPropietario $activacion,
         private readonly AutenticacionGoogleTenant $google,
+        private readonly EnviarActivacionTenant $enviarActivacion,
     ) {}
+
+    /**
+     * Reenvía el correo de activación al propietario/usuario que aún no activa su
+     * cuenta. Público (aún no puede iniciar sesión) y SIN enumeración: responde igual
+     * exista o no la cuenta.
+     */
+    public function reenviarActivacion(Request $request): JsonResponse
+    {
+        $estudio = $this->estudioDe($request);
+        $validado = $request->validate(['email' => ['required', 'email']]);
+
+        $usuario = Usuario::query()->where('email', (string) $validado['email'])->first();
+        if ($usuario instanceof Usuario && ! $usuario->activo) {
+            $this->enviarActivacion->enviar($estudio, (string) $usuario->email);
+        }
+
+        return response()->json(['data' => ['ok' => true]]);
+    }
 
     public function store(LoginTenantRequest $request): JsonResponse
     {

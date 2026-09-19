@@ -20,6 +20,9 @@ const error = ref<string | null>(null)
 
 const creado = ref<{ slug: string; nombre: string } | null>(null)
 const activacion = ref<{ email: string; token: string } | null>(null)
+const correo = ref('')
+const reenviando = ref(false)
+const reenviado = ref(false)
 
 function aSlug(valor: string): string {
   return valor
@@ -87,10 +90,27 @@ async function enviar(): Promise<void> {
     })
     creado.value = data.data.estudio
     activacion.value = data.data.activacion
+    correo.value = contactoEmail.value
   } catch (e) {
     error.value = mensajeDeError(e)
   } finally {
     enviando.value = false
+  }
+}
+
+async function reenviar(): Promise<void> {
+  if (creado.value === null) {
+    return
+  }
+  reenviando.value = true
+  reenviado.value = false
+  try {
+    await api.post(`/api/v1/app/${creado.value.slug}/reenviar-activacion`, { email: correo.value })
+    reenviado.value = true
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    reenviando.value = false
   }
 }
 
@@ -176,12 +196,23 @@ function irActivar(): void {
     </template>
 
     <div v-else class="tu-card p-8 text-center">
-      <div class="text-5xl" aria-hidden="true">🎉</div>
-      <h1 class="mt-3 text-2xl font-extrabold">{{ $t('registro.exitoTitulo') }}</h1>
+      <div class="text-5xl" aria-hidden="true">📬</div>
+      <h1 class="mt-3 text-2xl font-extrabold">{{ $t('registro.pendienteTitulo') }}</h1>
       <p class="mt-2" :style="{ color: 'var(--texto-suave)' }">
-        {{ $t('registro.exitoDesc', { email: activacion?.email ?? '' }) }}
+        {{ $t('registro.pendienteDesc', { email: correo }) }}
       </p>
 
+      <!-- Reenvío del correo de activación. -->
+      <div class="mt-5">
+        <button class="tu-btn tu-btn-fantasma" :disabled="reenviando" @click="reenviar">
+          {{ reenviando ? $t('registro.reenviando') : $t('registro.reenviar') }}
+        </button>
+        <p v-if="reenviado" class="mt-2 text-sm" :style="{ color: 'var(--exito)' }">
+          {{ $t('registro.reenviado', { email: correo }) }}
+        </p>
+      </div>
+
+      <!-- Solo en desarrollo: token para activar sin buzón de correo. -->
       <div
         v-if="activacion"
         class="mt-5 rounded-lg p-3 text-left text-sm break-all"
@@ -189,13 +220,13 @@ function irActivar(): void {
       >
         <p class="font-semibold mb-1">{{ $t('registro.tokenDev') }}</p>
         <code>{{ activacion.token }}</code>
+        <button class="tu-btn tu-btn-primario w-full mt-3" @click="irActivar">
+          {{ $t('registro.irActivar') }}
+        </button>
       </div>
 
-      <button class="tu-btn tu-btn-primario w-full mt-6" @click="irActivar">
-        {{ $t('registro.irActivar') }}
-      </button>
-      <RouterLink class="tu-enlace inline-block mt-3 text-sm" :to="{ name: 'directorio' }">
-        {{ $t('nav.directorio') }}
+      <RouterLink class="tu-enlace inline-block mt-4 text-sm" :to="{ name: 'entrar' }">
+        {{ $t('nav.entrar') }}
       </RouterLink>
     </div>
   </section>

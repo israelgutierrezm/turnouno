@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Modules\Tenancy\Http\Controllers;
 
 use App\Modules\Tenancy\Application\CatalogoDePermisosTenant;
+use App\Modules\Tenancy\Application\EnviarActivacionTenant;
+use App\Modules\Tenancy\Models\Estudio;
 use App\Modules\Tenancy\Models\Usuario;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -25,6 +26,8 @@ use Illuminate\Validation\ValidationException;
  */
 class UsuariosTenantController
 {
+    public function __construct(private readonly EnviarActivacionTenant $enviarActivacion) {}
+
     /**
      * Lista los instructores del estudio (usuarios con el rol instructor) para poder
      * asignarlos a sesiones. Solo ulid + nombre; nunca datos sensibles.
@@ -70,8 +73,6 @@ class UsuariosTenantController
             throw ValidationException::withMessages(['email' => ['Ya existe un usuario con ese correo en este estudio.']]);
         }
 
-        $token = Str::random(48);
-
         $usuario = Usuario::query()->create([
             'name' => $validado['nombre'],
             'email' => $validado['email'],
@@ -79,13 +80,42 @@ class UsuariosTenantController
             'roles' => [$validado['rol']],
             'activo' => false,
             'password' => null,
-            'activation_token' => hash('sha256', $token),
         ]);
+
+        // Genera el token y ENVÍA la invitación por correo.
+        $token = $this->enviarActivacion->enviar($this->estudioDe($request), (string) $usuario->email);
 
         return response()->json(['data' => [
             'usuario' => $this->presentar($usuario),
             'activacion' => app()->environment('production') ? null : ['email' => $usuario->email, 'token' => $token],
         ]], 201);
+    }
+
+    /**
+     * Reenvía la invitación/activación a un usuario que aún no ha activado su cuenta.
+     */
+    public function reenviar(Request $request): JsonResponse
+    {
+        $usuario = Usuario::query()->where('ulid', (string) $request->route('usuario'))->firstOrFail();
+
+        if ($usuario->activo) {
+            throw ValidationException::withMessages(['email' => ['Este usuario ya activó su cuenta.']]);
+        }
+
+        $token = $this->enviarActivacion->enviar($this->estudioDe($request), (string) $usuario->email);
+
+        return response()->json(['data' => [
+            'usuario' => $this->presentar($usuario),
+            'activacion' => app()->environment('production') ? null : ['email' => $usuario->email, 'token' => $token],
+        ]]);
+    }
+
+    private function estudioDe(Request $request): Estudio
+    {
+        $estudio = $request->attributes->get('estudio');
+        abort_unless($estudio instanceof Estudio, 404);
+
+        return $estudio;
     }
 
     /**

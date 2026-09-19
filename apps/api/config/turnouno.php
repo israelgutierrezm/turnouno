@@ -25,6 +25,12 @@ return [
     'dominio_base' => env('APP_TENANT_DOMAIN', 'turnouno.com'),
 
     /*
+    | URL base del panel web (SPA registro-web) para armar enlaces en correos
+    | (p. ej. el de activación de cuenta): {url_app}/activar/{slug}?email&token.
+    */
+    'url_app' => env('APP_SPA_URL', 'http://localhost:5175'),
+
+    /*
     | Facturación electrónica (CFDI) vía FacturAPI. La plataforma usa UNA cuenta
     | FacturAPI (multi-organización): su llave MAESTRA vive aquí (env, gestionada
     | por ops), y cada tenant carga sus propios datos fiscales que se materializan
