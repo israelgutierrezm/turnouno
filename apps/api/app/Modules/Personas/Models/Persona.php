@@ -26,6 +26,7 @@ use Illuminate\Support\Carbon;
  *
  * @property int|null $user_id
  * @property int|null $hogar_id
+ * @property string|null $apellidos
  * @property Carbon|null $fecha_nacimiento
  */
 class Persona extends Model

@@ -10,7 +10,10 @@ import { useSesionTenantStore } from '@/stores/sesionTenant'
 type Miembro = {
   id: string
   nombre: string
-  apellidos: string | null
+  segundo_nombre: string | null
+  primer_apellido: string | null
+  segundo_apellido: string | null
+  nombre_completo: string
   email: string | null
   tipo: string
   activo: boolean
@@ -27,7 +30,14 @@ const cargando = ref(true)
 const error = ref<string | null>(null)
 const mensaje = ref<string | null>(null)
 
-const form = ref({ nombre: '', apellidos: '', email: '', tipo: 'miembro' })
+const form = ref({
+  nombre: '',
+  segundo_nombre: '',
+  primer_apellido: '',
+  segundo_apellido: '',
+  email: '',
+  tipo: 'miembro',
+})
 const guardando = ref(false)
 
 const columnas = computed(() => [
@@ -58,12 +68,21 @@ async function crear(): Promise<void> {
   try {
     await api.post(`${base.value}/miembros`, {
       nombre: form.value.nombre,
-      apellidos: form.value.apellidos || null,
+      segundo_nombre: form.value.segundo_nombre || null,
+      primer_apellido: form.value.primer_apellido || null,
+      segundo_apellido: form.value.segundo_apellido || null,
       email: form.value.email || null,
       tipo: form.value.tipo,
     })
     mensaje.value = 'ok'
-    form.value = { nombre: '', apellidos: '', email: '', tipo: tipo.value }
+    form.value = {
+      nombre: '',
+      segundo_nombre: '',
+      primer_apellido: '',
+      segundo_apellido: '',
+      email: '',
+      tipo: tipo.value,
+    }
     // Si el nuevo miembro es del tipo que se ve, recargar la lista.
     if (form.value.tipo === tipo.value) {
       await cargar()
@@ -76,7 +95,10 @@ async function crear(): Promise<void> {
 }
 
 function nombreCompleto(m: Miembro): string {
-  return `${m.nombre} ${m.apellidos ?? ''}`.trim()
+  return (
+    m.nombre_completo ||
+    [m.nombre, m.segundo_nombre, m.primer_apellido, m.segundo_apellido].filter(Boolean).join(' ').trim()
+  )
 }
 
 watch(tipo, () => {
@@ -135,7 +157,7 @@ onMounted(() => {
           v-else
           :columnas="columnas"
           :filas="miembros"
-          :buscar-en="['nombre', 'apellidos', 'email']"
+          :buscar-en="['nombre', 'primer_apellido', 'segundo_apellido', 'nombre_completo', 'email']"
           :vacio="$t('miembros.vacio')"
         >
           <template #col-nombre="{ fila }">
@@ -169,8 +191,22 @@ onMounted(() => {
             <input id="mn" v-model="form.nombre" class="tu-input" required />
           </div>
           <div>
-            <label class="tu-label" for="ma">{{ $t('miembros.apellidos') }}</label>
-            <input id="ma" v-model="form.apellidos" class="tu-input" />
+            <label class="tu-label" for="msn"
+              >{{ $t('miembros.segundoNombre') }}
+              <span :style="{ color: 'var(--texto-suave)' }">({{ $t('miembros.opcional') }})</span></label
+            >
+            <input id="msn" v-model="form.segundo_nombre" class="tu-input" />
+          </div>
+          <div>
+            <label class="tu-label" for="mpa">{{ $t('miembros.primerApellido') }}</label>
+            <input id="mpa" v-model="form.primer_apellido" class="tu-input" />
+          </div>
+          <div>
+            <label class="tu-label" for="msa"
+              >{{ $t('miembros.segundoApellido') }}
+              <span :style="{ color: 'var(--texto-suave)' }">({{ $t('miembros.opcional') }})</span></label
+            >
+            <input id="msa" v-model="form.segundo_apellido" class="tu-input" />
           </div>
           <div>
             <label class="tu-label" for="me">{{ $t('miembros.email') }}</label>

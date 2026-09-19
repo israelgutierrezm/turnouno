@@ -42,7 +42,7 @@ class VincularUsuarioATenant
             ['tenant_id' => $tenant->id, 'user_id' => $user->id],
             [
                 'nombre' => $persona['nombre'] ?? $user->name,
-                'apellidos' => $persona['apellidos'] ?? null,
+                'primer_apellido' => $persona['apellidos'] ?? null,
                 'email' => $persona['email'] ?? $user->email,
             ],
         );

@@ -95,7 +95,7 @@ class MiTenantController
             ->values()->all();
 
         return response()->json(['data' => [
-            'persona' => ['nombre' => trim($persona->nombre.' '.($persona->apellidos ?? '')), 'email' => $persona->email],
+            'persona' => ['nombre' => $persona->nombreCompleto(), 'email' => $persona->email],
             'derechos' => $derechos,
             'reservas' => $reservas,
         ]]);

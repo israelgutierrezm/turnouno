@@ -126,7 +126,7 @@ class SembrarEstudioDemo extends Command
         // Perfil de alumna de Ana, enlazado a su usuario para el autoservicio.
         PersonaTenant::query()->updateOrCreate(
             ['email' => $miembroEmail],
-            ['nombre' => 'Ana', 'apellidos' => 'Alumna', 'tipo' => TipoPersonaTenant::Miembro->value,
+            ['nombre' => 'Ana', 'primer_apellido' => 'Alumna', 'tipo' => TipoPersonaTenant::Miembro->value,
                 'activo' => true, 'es_facturable' => true, 'archivado' => false, 'usuario_id' => $miembro->getKey()],
         );
 
@@ -138,10 +138,10 @@ class SembrarEstudioDemo extends Command
             ['Karla', 'Mena'], ['Luis', 'Prado'], ['Marina', 'Soto'], ['Nestor', 'Gil'],
             ['Olivia', 'Cano'], ['Pablo', 'Reyna'],
         ];
-        foreach ($alumnos as [$nombre, $apellidos]) {
+        foreach ($alumnos as [$nombre, $apellido]) {
             PersonaTenant::query()->firstOrCreate(
                 ['email' => mb_strtolower($nombre).'@demo.mx'],
-                ['nombre' => $nombre, 'apellidos' => $apellidos, 'tipo' => TipoPersonaTenant::Miembro->value,
+                ['nombre' => $nombre, 'primer_apellido' => $apellido, 'tipo' => TipoPersonaTenant::Miembro->value,
                     'activo' => true, 'es_facturable' => true, 'archivado' => false],
             );
         }

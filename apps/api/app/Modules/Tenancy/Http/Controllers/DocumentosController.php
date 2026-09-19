@@ -131,7 +131,7 @@ class DocumentosController
             'estado' => $documento->estado->value,
             'motivo' => $documento->motivo,
             'persona' => $documento->persona !== null
-                ? trim($documento->persona->nombre.' '.($documento->persona->apellidos ?? ''))
+                ? $documento->persona->nombreCompleto()
                 : null,
             'tipo' => $documento->tipo?->nombre,
             'subido_en' => $documento->subido_en?->toIso8601String(),

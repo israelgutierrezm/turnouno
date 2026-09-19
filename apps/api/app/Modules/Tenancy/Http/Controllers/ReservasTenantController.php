@@ -120,7 +120,7 @@ class ReservasTenantController
         return [
             'id' => $reserva->ulid,
             'estado' => $reserva->estado->value,
-            'persona' => $persona !== null ? trim($persona->nombre.' '.($persona->apellidos ?? '')) : null,
+            'persona' => $persona?->nombreCompleto(),
             'inicia_en' => $reserva->sesion?->inicia_en->toIso8601String(),
             'unidades' => $reserva->unidades,
             'asistencia' => $reserva->asistencia?->estado->value,

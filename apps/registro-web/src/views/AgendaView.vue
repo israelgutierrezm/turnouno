@@ -29,7 +29,7 @@ interface Sesion {
 interface Miembro {
   id: string
   nombre: string
-  apellidos: string | null
+  nombre_completo: string
 }
 interface Reserva {
   id: string
@@ -126,7 +126,7 @@ function horaCorta(iso: string, zona: string): string {
   }).format(new Date(iso))
 }
 function nombreMiembro(m: Miembro): string {
-  return `${m.nombre} ${m.apellidos ?? ''}`.trim()
+  return m.nombre_completo || m.nombre
 }
 
 // Instructor se filtra en cliente (el server ya filtra por sucursal + rango).

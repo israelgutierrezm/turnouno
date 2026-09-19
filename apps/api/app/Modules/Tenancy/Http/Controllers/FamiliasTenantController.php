@@ -37,7 +37,7 @@ class FamiliasTenantController
         return response()->json(['data' => [
             'hogar' => $hogar->ulid,
             'personas' => $hogar->personas()->get()->map(fn (PersonaTenant $p): array => [
-                'id' => $p->ulid, 'nombre' => trim($p->nombre.' '.($p->apellidos ?? '')),
+                'id' => $p->ulid, 'nombre' => $p->nombreCompleto(),
             ])->all(),
         ]]);
     }
@@ -75,7 +75,7 @@ class FamiliasTenantController
         return response()->json([
             'data' => $tutor->dependientes()->get()->map(fn (PersonaTenant $p): array => [
                 'id' => $p->ulid,
-                'nombre' => trim($p->nombre.' '.($p->apellidos ?? '')),
+                'nombre' => $p->nombreCompleto(),
                 'parentesco' => data_get($p, 'pivot.parentesco'),
             ])->all(),
         ]);

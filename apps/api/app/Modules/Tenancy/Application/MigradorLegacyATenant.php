@@ -182,7 +182,7 @@ class MigradorLegacyATenant
         foreach ($this->legacy(Persona::class, $legacy)->get() as $p) {
             $nuevo = PersonaTenant::query()->create([
                 'nombre' => $p->nombre,
-                'apellidos' => $p->apellidos,
+                'primer_apellido' => $p->apellidos,
                 'email' => $p->email,
                 'tipo' => 'miembro',
                 'activo' => true,

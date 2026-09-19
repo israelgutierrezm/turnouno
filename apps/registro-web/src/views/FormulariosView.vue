@@ -24,7 +24,7 @@ interface Formulario {
 interface Miembro {
   id: string
   nombre: string
-  apellidos: string | null
+  nombre_completo: string
 }
 
 const sesion = useSesionTenantStore()
@@ -55,7 +55,7 @@ const guardando = ref(false)
 const seleccionado = computed(() => formularios.value.find((f) => f.id === seleccionadoId.value) ?? null)
 
 function nombreMiembro(m: Miembro): string {
-  return `${m.nombre} ${m.apellidos ?? ''}`.trim()
+  return m.nombre_completo || m.nombre
 }
 
 async function cargar(): Promise<void> {

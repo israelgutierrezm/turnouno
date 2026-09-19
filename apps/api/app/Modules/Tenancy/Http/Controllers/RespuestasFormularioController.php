@@ -38,7 +38,7 @@ class RespuestasFormularioController
             'data' => $respuestas->map(static fn (RespuestaFormulario $respuesta): array => [
                 'id' => $respuesta->ulid,
                 'persona' => $respuesta->persona !== null
-                    ? trim($respuesta->persona->nombre.' '.($respuesta->persona->apellidos ?? ''))
+                    ? $respuesta->persona->nombreCompleto()
                     : null,
                 'valores' => $respuesta->valores,
             ])->all(),

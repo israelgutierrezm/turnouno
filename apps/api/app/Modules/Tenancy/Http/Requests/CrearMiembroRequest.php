@@ -20,7 +20,9 @@ class CrearMiembroRequest extends FormRequest
     {
         return [
             'nombre' => ['required', 'string', 'max:255'],
-            'apellidos' => ['nullable', 'string', 'max:255'],
+            'segundo_nombre' => ['nullable', 'string', 'max:255'],
+            'primer_apellido' => ['nullable', 'string', 'max:255'],
+            'segundo_apellido' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'tipo' => ['nullable', 'in:miembro,instructor,staff'],
             'es_facturable' => ['nullable', 'boolean'],

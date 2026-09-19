@@ -10,7 +10,7 @@ import { useSesionTenantStore } from '@/stores/sesionTenant'
 interface Miembro {
   id: string
   nombre: string
-  apellidos: string | null
+  nombre_completo: string
 }
 interface Producto {
   id: string
@@ -58,7 +58,7 @@ function dinero(minor: number, moneda: string): string {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: moneda }).format(minor / 100)
 }
 function nombreMiembro(m: Miembro): string {
-  return `${m.nombre} ${m.apellidos ?? ''}`.trim()
+  return m.nombre_completo || m.nombre
 }
 
 async function cargar(): Promise<void> {

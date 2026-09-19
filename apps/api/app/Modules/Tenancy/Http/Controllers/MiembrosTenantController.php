@@ -39,7 +39,9 @@ class MiembrosTenantController
     {
         $persona = PersonaTenant::query()->create([
             'nombre' => (string) $request->validated('nombre'),
-            'apellidos' => $request->validated('apellidos'),
+            'segundo_nombre' => $request->validated('segundo_nombre'),
+            'primer_apellido' => $request->validated('primer_apellido'),
+            'segundo_apellido' => $request->validated('segundo_apellido'),
             'email' => $request->validated('email'),
             'tipo' => (string) $request->validated('tipo', TipoPersonaTenant::Miembro->value),
             'activo' => true,
@@ -58,7 +60,10 @@ class MiembrosTenantController
         return [
             'id' => $persona->ulid,
             'nombre' => $persona->nombre,
-            'apellidos' => $persona->apellidos,
+            'segundo_nombre' => $persona->segundo_nombre,
+            'primer_apellido' => $persona->primer_apellido,
+            'segundo_apellido' => $persona->segundo_apellido,
+            'nombre_completo' => $persona->nombreCompleto(),
             'email' => $persona->email,
             'tipo' => $persona->tipo->value,
             'activo' => $persona->activo,

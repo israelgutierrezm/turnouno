@@ -22,7 +22,23 @@ class PersonaTenant extends Model
 
     protected $table = 'personas';
 
-    protected $fillable = ['hogar_id', 'nombre', 'apellidos', 'email', 'tipo', 'activo', 'es_facturable', 'archivado', 'usuario_id'];
+    protected $fillable = [
+        'hogar_id', 'nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido',
+        'email', 'tipo', 'activo', 'es_facturable', 'archivado', 'usuario_id',
+    ];
+
+    /**
+     * Nombre completo compuesto de sus partes (omite las vacias).
+     */
+    public function nombreCompleto(): string
+    {
+        return trim(implode(' ', array_filter([
+            $this->nombre,
+            $this->segundo_nombre,
+            $this->primer_apellido,
+            $this->segundo_apellido,
+        ])));
+    }
 
     /**
      * @var array<string, string>
