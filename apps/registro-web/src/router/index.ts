@@ -94,6 +94,12 @@ const router = createRouter({
       meta: { requiereSesion: true },
     },
     {
+      path: '/grupos',
+      name: 'grupos',
+      component: () => import('@/views/GruposView.vue'),
+      meta: { requiereSesion: true },
+    },
+    {
       path: '/pasarelas',
       name: 'pasarelas',
       component: () => import('@/views/PasarelasView.vue'),

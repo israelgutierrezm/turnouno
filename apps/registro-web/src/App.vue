@@ -38,6 +38,7 @@ const MENU: MenuItem[] = [
     hijos: [
       { clave: 'agenda', etiqueta: 'nav.agenda', icono: 'agenda', ruta: 'agenda', permiso: 'agenda.ver' },
       { clave: 'recepcion', etiqueta: 'nav.recepcion', icono: 'recepcion', ruta: 'recepcion', permiso: 'agenda.ver' },
+      { clave: 'grupos', etiqueta: 'nav.cursos', icono: 'grupos', ruta: 'grupos', permiso: 'agenda.ver' },
     ],
   },
   {
