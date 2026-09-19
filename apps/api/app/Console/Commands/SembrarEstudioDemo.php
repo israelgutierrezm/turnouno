@@ -96,6 +96,7 @@ class SembrarEstudioDemo extends Command
         $gestor->ejecutarEn($estudio, function () use ($password, $ownerEmail, $instructorEmail, $miembroEmail): void {
             $this->sembrarPersonal($password, $ownerEmail, $instructorEmail, $miembroEmail);
             [$oferta, $sucursal] = $this->sembrarCatalogoYSucursal();
+            $this->asignarSucursalDeCasa($sucursal);
             $this->venderPack($miembroEmail);
             $this->sembrarClases($oferta, $sucursal, $instructorEmail);
         });
@@ -164,8 +165,21 @@ class SembrarEstudioDemo extends Command
             ['nombre' => 'Roma Norte'],
             ['zona_horaria' => 'America/Mexico_City'],
         );
+        // Multi-sucursal (R18): la sucursal como unidad de negocio (moneda + IVA 16%).
+        $sucursal->fill(['region' => 'Centro', 'moneda' => 'MXN', 'impuesto_tasa_bps' => 1600])->save();
 
         return [$oferta, $sucursal];
+    }
+
+    /**
+     * Asigna la sucursal de casa (home) a los alumnos que aun no la tienen (R18).
+     */
+    private function asignarSucursalDeCasa(SucursalTenant $sucursal): void
+    {
+        PersonaTenant::query()
+            ->where('tipo', TipoPersonaTenant::Miembro->value)
+            ->whereNull('sucursal_id')
+            ->update(['sucursal_id' => $sucursal->getKey()]);
     }
 
     private function venderPack(string $miembroEmail): void

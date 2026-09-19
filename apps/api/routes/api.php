@@ -77,6 +77,7 @@ use App\Modules\Tenancy\Http\Controllers\PoliticasCancelacionTenantController;
 use App\Modules\Tenancy\Http\Controllers\RecursosTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReembolsosTenantController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
+use App\Modules\Tenancy\Http\Controllers\ReporteSucursalesTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReservasTenantController;
 use App\Modules\Tenancy\Http\Controllers\RespuestasFormularioController;
 use App\Modules\Tenancy\Http\Controllers\StaffTenantController;
@@ -230,6 +231,10 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/organizaciones', [OrganizacionesTenantController::class, 'crearOrganizacion'])->middleware('puede:organizaciones.gestionar')->name('organizaciones.store');
             Route::post('/organizaciones/{organizacion}/sucursales', [OrganizacionesTenantController::class, 'crearSucursal'])->middleware('puede:sucursales.gestionar')->name('sucursales.store');
             Route::get('/sucursales', [OrganizacionesTenantController::class, 'sucursales'])->middleware('puede:sucursales.ver')->name('sucursales.index');
+            // Multi-sucursal (R18): editar la sucursal como unidad de negocio (moneda/impuesto/region).
+            Route::put('/sucursales/{sucursal}', [OrganizacionesTenantController::class, 'actualizarSucursal'])->middleware('puede:sucursales.gestionar')->name('sucursales.update');
+            // Reporte consolidado por sucursal (R18).
+            Route::get('/reportes/sucursales', ReporteSucursalesTenantController::class)->middleware('puede:facturacion.ver')->name('reportes.sucursales');
 
             // Agenda (data plane del tenant): materializa una Oferta en una Sucursal
             // a una hora concreta. La hora local (zona de la sucursal) se guarda en UTC

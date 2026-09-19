@@ -42,17 +42,40 @@ class OrganizacionesTenantController
     {
         $organizacion = OrganizacionTenant::query()->where('ulid', (string) $request->route('organizacion'))->firstOrFail();
 
-        $validado = $request->validate([
-            'nombre' => ['required', 'string', 'max:255'],
-            'zona_horaria' => ['nullable', 'timezone'],
-        ]);
+        $validado = $this->validarSucursal($request, obligarNombre: true);
 
         $sucursal = $organizacion->sucursales()->create([
             'nombre' => $validado['nombre'],
             'zona_horaria' => $validado['zona_horaria'] ?? 'America/Mexico_City',
+            'region' => $validado['region'] ?? null,
+            'moneda' => $validado['moneda'] ?? null,
+            'impuesto_tasa_bps' => $validado['impuesto_tasa_bps'] ?? 0,
         ]);
 
         return response()->json(['data' => $this->presentarSucursal($sucursal)], 201);
+    }
+
+    public function actualizarSucursal(Request $request): JsonResponse
+    {
+        $sucursal = SucursalTenant::query()->where('ulid', (string) $request->route('sucursal'))->firstOrFail();
+
+        $validado = $this->validarSucursal($request, obligarNombre: false);
+
+        // Solo pisa lo enviado (edición parcial de la unidad de negocio).
+        $sucursal->fill(array_filter([
+            'nombre' => $validado['nombre'] ?? null,
+            'zona_horaria' => $validado['zona_horaria'] ?? null,
+            'region' => $validado['region'] ?? null,
+            'moneda' => $validado['moneda'] ?? null,
+        ], static fn ($v): bool => $v !== null));
+
+        if (array_key_exists('impuesto_tasa_bps', $validado)) {
+            $sucursal->impuesto_tasa_bps = (int) $validado['impuesto_tasa_bps'];
+        }
+
+        $sucursal->save();
+
+        return response()->json(['data' => $this->presentarSucursal($sucursal)]);
     }
 
     public function sucursales(): JsonResponse
@@ -67,12 +90,29 @@ class OrganizacionesTenantController
     /**
      * @return array<string, mixed>
      */
+    private function validarSucursal(Request $request, bool $obligarNombre): array
+    {
+        return $request->validate([
+            'nombre' => [$obligarNombre ? 'required' : 'sometimes', 'string', 'max:255'],
+            'zona_horaria' => ['nullable', 'timezone'],
+            'region' => ['nullable', 'string', 'max:255'],
+            'moneda' => ['nullable', 'string', 'size:3'],
+            'impuesto_tasa_bps' => ['nullable', 'integer', 'min:0', 'max:100000'],
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private function presentarSucursal(SucursalTenant $sucursal): array
     {
         return [
             'id' => $sucursal->ulid,
             'nombre' => $sucursal->nombre,
             'zona_horaria' => $sucursal->zona_horaria,
+            'region' => $sucursal->region,
+            'moneda' => $sucursal->moneda !== null ? mb_strtoupper((string) $sucursal->moneda) : null,
+            'impuesto_tasa_bps' => (int) $sucursal->impuesto_tasa_bps,
         ];
     }
 }

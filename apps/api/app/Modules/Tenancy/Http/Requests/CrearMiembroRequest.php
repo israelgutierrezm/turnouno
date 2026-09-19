@@ -26,6 +26,7 @@ class CrearMiembroRequest extends FormRequest
             'email' => ['nullable', 'email', 'max:255'],
             'tipo' => ['nullable', 'in:miembro,instructor,staff'],
             'es_facturable' => ['nullable', 'boolean'],
+            'sucursal_id' => ['nullable', 'string'],
         ];
     }
 }

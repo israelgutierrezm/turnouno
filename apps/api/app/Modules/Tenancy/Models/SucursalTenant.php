@@ -10,7 +10,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Sucursal del estudio (con zona horaria), tenant-local. Base para materializar la
- * agenda en UTC según su zona.
+ * agenda en UTC según su zona. Multi-sucursal (R18): unidad de negocio con su propia
+ * moneda e impuesto, opcionalmente agrupada por región.
+ *
+ * @property int|null $impuesto_tasa_bps
  */
 class SucursalTenant extends Model
 {
@@ -20,7 +23,14 @@ class SucursalTenant extends Model
 
     protected $table = 'sucursales';
 
-    protected $fillable = ['organizacion_id', 'nombre', 'zona_horaria'];
+    protected $fillable = ['organizacion_id', 'nombre', 'zona_horaria', 'region', 'moneda', 'impuesto_tasa_bps'];
+
+    /**
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'impuesto_tasa_bps' => 'integer',
+    ];
 
     /**
      * @return BelongsTo<OrganizacionTenant, $this>

@@ -6,6 +6,7 @@ namespace App\Modules\Tenancy\Http\Controllers;
 
 use App\Modules\Tenancy\Http\Requests\CrearMiembroRequest;
 use App\Modules\Tenancy\Models\PersonaTenant;
+use App\Modules\Tenancy\Models\SucursalTenant;
 use App\Modules\Tenancy\TipoPersonaTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,8 +25,11 @@ class MiembrosTenantController
         $tipo = (string) $request->query('tipo', TipoPersonaTenant::Miembro->value);
 
         $personas = PersonaTenant::query()
+            ->with('sucursal')
             ->where('tipo', $tipo)
             ->where('archivado', false)
+            // Filtro opcional por sucursal de casa (R18).
+            ->when($this->sucursalIdDe((string) $request->query('sucursal_id', '')), fn ($q, int $id) => $q->where('sucursal_id', $id))
             ->orderByDesc('id')
             ->limit(self::LIMITE)
             ->get();
@@ -47,9 +51,24 @@ class MiembrosTenantController
             'activo' => true,
             'es_facturable' => (bool) $request->validated('es_facturable', true),
             'archivado' => false,
+            'sucursal_id' => $this->sucursalIdDe((string) $request->validated('sucursal_id', '')),
         ]);
 
-        return response()->json(['data' => $this->presentar($persona)], 201);
+        return response()->json(['data' => $this->presentar($persona->load('sucursal'))], 201);
+    }
+
+    /**
+     * Resuelve el ULID de una sucursal a su id interno tenant-local (o null).
+     */
+    private function sucursalIdDe(string $ulid): ?int
+    {
+        if ($ulid === '') {
+            return null;
+        }
+
+        $id = SucursalTenant::query()->where('ulid', $ulid)->value('id');
+
+        return $id !== null ? (int) $id : null;
     }
 
     /**
@@ -68,6 +87,9 @@ class MiembrosTenantController
             'tipo' => $persona->tipo->value,
             'activo' => $persona->activo,
             'es_facturable' => $persona->es_facturable,
+            'sucursal' => $persona->sucursal !== null
+                ? ['id' => $persona->sucursal->ulid, 'nombre' => $persona->sucursal->nombre]
+                : null,
         ];
     }
 }

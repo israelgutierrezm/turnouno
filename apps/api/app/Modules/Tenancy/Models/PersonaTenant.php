@@ -23,7 +23,7 @@ class PersonaTenant extends Model
     protected $table = 'personas';
 
     protected $fillable = [
-        'hogar_id', 'nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido',
+        'hogar_id', 'sucursal_id', 'nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido',
         'email', 'tipo', 'activo', 'es_facturable', 'archivado', 'usuario_id',
     ];
 
@@ -56,6 +56,16 @@ class PersonaTenant extends Model
     public function hogar(): BelongsTo
     {
         return $this->belongsTo(HogarTenant::class, 'hogar_id');
+    }
+
+    /**
+     * Sucursal de casa (home) de la persona. R18.
+     *
+     * @return BelongsTo<SucursalTenant, $this>
+     */
+    public function sucursal(): BelongsTo
+    {
+        return $this->belongsTo(SucursalTenant::class, 'sucursal_id');
     }
 
     /**
