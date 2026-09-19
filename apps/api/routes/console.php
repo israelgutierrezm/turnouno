@@ -28,3 +28,6 @@ Schedule::command('turnouno:generar-agenda')->dailyAt('00:30');
 
 // Expira las ofertas de lista de espera vencidas y re-ofrece el cupo (R7).
 Schedule::command('turnouno:expirar-ofertas')->everyMinute()->withoutOverlapping();
+
+// Escala el dunning: suspende las membresias morosas cuya gracia vencio (R10).
+Schedule::command('turnouno:escalar-dunning')->dailyAt('01:00');

@@ -55,6 +55,7 @@ use App\Modules\Tenancy\Http\Controllers\CheckinsTenantController;
 use App\Modules\Tenancy\Http\Controllers\CreditosTenantController;
 use App\Modules\Tenancy\Http\Controllers\DirectorioController;
 use App\Modules\Tenancy\Http\Controllers\DocumentosController;
+use App\Modules\Tenancy\Http\Controllers\DunningTenantController;
 use App\Modules\Tenancy\Http\Controllers\ExcepcionesHorarioTenantController;
 use App\Modules\Tenancy\Http\Controllers\FacturacionController;
 use App\Modules\Tenancy\Http\Controllers\FamiliasTenantController;
@@ -283,6 +284,10 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/productos', [MembresiasTenantController::class, 'productos'])->middleware('puede:productos.ver')->name('productos.index');
             Route::post('/productos', [MembresiasTenantController::class, 'crearProducto'])->middleware('puede:productos.gestionar')->name('productos.store');
             Route::post('/acuerdos', [MembresiasTenantController::class, 'vender'])->middleware('puede:membresias.gestionar')->name('acuerdos.store');
+            // Dunning (R10): morosidad de la membresia ante fallo de cobro.
+            Route::get('/dunning', [DunningTenantController::class, 'index'])->middleware('puede:facturacion.ver')->name('dunning.index');
+            Route::post('/acuerdos/{acuerdo}/cobro-fallido', [DunningTenantController::class, 'registrarFallo'])->middleware('puede:ordenes.gestionar')->name('acuerdos.cobro-fallido');
+            Route::post('/acuerdos/{acuerdo}/regularizar', [DunningTenantController::class, 'regularizar'])->middleware('puede:ordenes.gestionar')->name('acuerdos.regularizar');
             Route::get('/miembros/{persona}/derechos', [MembresiasTenantController::class, 'derechos'])->middleware('puede:derechos.ver')->name('miembros.derechos.index');
             Route::post('/derechos/{derecho}/topups', [MembresiasTenantController::class, 'topUp'])->middleware('puede:membresias.gestionar')->name('derechos.topups.store');
 
