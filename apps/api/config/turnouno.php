@@ -24,4 +24,17 @@ return [
     */
     'dominio_base' => env('APP_TENANT_DOMAIN', 'turnouno.com'),
 
+    /*
+    | Facturación electrónica (CFDI) vía FacturAPI. La plataforma usa UNA cuenta
+    | FacturAPI (multi-organización): su llave MAESTRA vive aquí (env, gestionada
+    | por ops), y cada tenant carga sus propios datos fiscales que se materializan
+    | como una "Organization" bajo esa cuenta. La llave por tenant (de su
+    | organización) se guarda cifrada en su propia BD. Sin `llave` la facturación
+    | opera en modo no-configurado (no timbra).
+    */
+    'facturapi' => [
+        'llave' => env('FACTURAPI_LLAVE'),
+        'base_url' => env('FACTURAPI_URL', 'https://www.facturapi.io/v2'),
+    ],
+
 ];
