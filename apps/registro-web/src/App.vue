@@ -35,7 +35,10 @@ const MENU: MenuItem[] = [
     clave: 'operacion',
     etiqueta: 'nav.grupos.operacion',
     icono: 'operacion',
-    hijos: [{ clave: 'agenda', etiqueta: 'nav.agenda', icono: 'agenda', ruta: 'agenda', permiso: 'agenda.ver' }],
+    hijos: [
+      { clave: 'agenda', etiqueta: 'nav.agenda', icono: 'agenda', ruta: 'agenda', permiso: 'agenda.ver' },
+      { clave: 'recepcion', etiqueta: 'nav.recepcion', icono: 'recepcion', ruta: 'recepcion', permiso: 'agenda.ver' },
+    ],
   },
   {
     clave: 'comercio',

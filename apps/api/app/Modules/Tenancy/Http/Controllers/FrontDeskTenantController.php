@@ -34,10 +34,13 @@ class FrontDeskTenantController
         ]);
 
         $sucursal = null;
-        $zona = (string) config('app.timezone', 'UTC');
         if (($validado['sucursal_id'] ?? '') !== '') {
             $sucursal = SucursalTenant::query()->where('ulid', $validado['sucursal_id'])->firstOrFail();
             $zona = (string) $sucursal->zona_horaria;
+        } else {
+            // "Todas": interpreta el día en la zona de una sucursal del estudio (no UTC),
+            // para no dejar fuera las clases de la tarde cuya hora en UTC cae al día siguiente.
+            $zona = (string) (SucursalTenant::query()->value('zona_horaria') ?? config('app.timezone', 'UTC'));
         }
 
         // El dia se interpreta en la zona de la sucursal (o del sistema) y se acota en UTC.
@@ -95,6 +98,7 @@ class FrontDeskTenantController
             'sucursal' => $sesion->sucursal?->nombre,
             'instructor' => $sesion->instructor?->name,
             'inicia_en' => $sesion->inicia_en->toIso8601String(),
+            'zona_horaria' => $sesion->zona_horaria,
             'estado' => $sesion->estado->value,
             'capacidad' => $sesion->capacidad,
             'confirmadas' => $porEstado(EstadoReserva::Confirmada),
