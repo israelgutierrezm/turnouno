@@ -146,6 +146,110 @@ function completo(s: Sesion): boolean {
   return s.capacidad !== null && s.ocupados >= s.capacidad
 }
 
+// ---- Cuadricula horaria (vista semana escritorio) ----
+const HORA_ALTO = 52 // px por hora
+
+function minutosLocal(iso: string, zona: string): number {
+  const partes = new Intl.DateTimeFormat('en-GB', {
+    timeZone: zona,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date(iso))
+  const h = Number(partes.find((p) => p.type === 'hour')?.value ?? '0')
+  const m = Number(partes.find((p) => p.type === 'minute')?.value ?? '0')
+  return h * 60 + m
+}
+function duracionMin(s: Sesion): number {
+  return Math.round((new Date(s.termina_en).getTime() - new Date(s.inicia_en).getTime()) / 60000)
+}
+
+// Rango de horas visible: por defecto 8–21, ampliado para abarcar todas las clases.
+const rango = computed(() => {
+  const visibles = sesionesVisibles.value.filter((s) =>
+    dias.value.some((d) => d.iso === fechaLocalSesion(s.inicia_en, s.zona_horaria)),
+  )
+  let ini = 8 * 60
+  let fin = 21 * 60
+  for (const s of visibles) {
+    const desde = minutosLocal(s.inicia_en, s.zona_horaria)
+    const hasta = desde + Math.max(15, duracionMin(s))
+    ini = Math.min(ini, Math.floor(desde / 60) * 60)
+    fin = Math.max(fin, Math.ceil(hasta / 60) * 60)
+  }
+  return { inicioMin: ini, finMin: Math.min(fin, 24 * 60) }
+})
+const horas = computed(() => {
+  const out: { min: number; etiqueta: string }[] = []
+  for (let m = rango.value.inicioMin; m < rango.value.finMin; m += 60) {
+    out.push({ min: m, etiqueta: `${pad2(Math.floor(m / 60))}:00` })
+  }
+  return out
+})
+const totalAlto = computed(() => ((rango.value.finMin - rango.value.inicioMin) / 60) * HORA_ALTO)
+
+type Bloque = { sesion: Sesion; top: number; alto: number; izq: number; ancho: number }
+
+// Posiciona las clases de un día y reparte en carriles las que se solapan.
+function bloquesDe(iso: string): Bloque[] {
+  const items = sesionesDe(iso)
+    .map((s) => {
+      const ini = minutosLocal(s.inicia_en, s.zona_horaria)
+      return { s, ini, fin: ini + Math.max(15, duracionMin(s)) }
+    })
+    .sort((a, b) => a.ini - b.ini || a.fin - b.fin)
+
+  const bloques: Bloque[] = []
+  let grupo: { s: Sesion; ini: number; fin: number; carril: number }[] = []
+  let grupoFin = -1
+
+  const cerrar = (): void => {
+    const carriles: number[] = [] // fin de la última clase en cada carril
+    for (const it of grupo) {
+      let carril = carriles.findIndex((f) => f <= it.ini)
+      if (carril === -1) {
+        carril = carriles.length
+        carriles.push(it.fin)
+      } else {
+        carriles[carril] = it.fin
+      }
+      it.carril = carril
+    }
+    const n = Math.max(1, carriles.length)
+    for (const it of grupo) {
+      bloques.push({
+        sesion: it.s,
+        top: ((it.ini - rango.value.inicioMin) / 60) * HORA_ALTO,
+        alto: Math.max(22, ((it.fin - it.ini) / 60) * HORA_ALTO - 2),
+        izq: (it.carril / n) * 100,
+        ancho: (1 / n) * 100,
+      })
+    }
+  }
+
+  for (const it of items) {
+    if (grupo.length > 0 && it.ini >= grupoFin) {
+      cerrar()
+      grupo = []
+      grupoFin = -1
+    }
+    grupo.push({ ...it, carril: 0 })
+    grupoFin = Math.max(grupoFin, it.fin)
+  }
+  if (grupo.length > 0) {
+    cerrar()
+  }
+  return bloques
+}
+
+// Estado visual de la clase (color + etiqueta): cancelada / completa / programada.
+function estadoClase(s: Sesion): 'cancelada' | 'completa' | 'programada' {
+  if (s.estado !== 'programada') {
+    return 'cancelada'
+  }
+  return completo(s) ? 'completa' : 'programada'
+}
+
 async function cargarReferencias(): Promise<void> {
   cargando.value = true
   error.value = null
@@ -436,49 +540,70 @@ onMounted(async () => {
 
       <p v-if="cargandoSesiones" class="mt-4 text-sm" :style="{ color: 'var(--texto-suave)' }">{{ $t('comun.cargando') }}</p>
 
-      <!-- ===== Vista SEMANA (escritorio) ===== -->
-      <div v-if="vista === 'semana'" class="mt-4 hidden lg:grid grid-cols-7 gap-2">
-        <div
-          v-for="d in dias"
-          :key="d.iso"
-          class="rounded-xl border overflow-hidden flex flex-col"
-          :style="{ borderColor: 'var(--borde)', background: 'var(--superficie)' }"
-        >
-          <div
-            class="px-2 py-2 text-center border-b"
-            :style="{
-              borderColor: 'var(--borde)',
-              background: d.esHoy ? 'var(--primario-suave)' : 'transparent',
-            }"
-          >
-            <div class="text-xs uppercase" :style="{ color: 'var(--texto-suave)' }">{{ d.nombre }}</div>
-            <div class="text-lg font-bold" :style="{ color: d.esHoy ? 'var(--primario-fuerte)' : 'var(--texto)' }">
-              {{ d.dia }}
+      <!-- ===== Vista SEMANA (escritorio): cuadricula horaria ===== -->
+      <div v-if="vista === 'semana'" class="mt-4 hidden lg:block">
+        <!-- Leyenda de estados -->
+        <div class="flex items-center gap-4 mb-2 text-xs" :style="{ color: 'var(--texto-suave)' }">
+          <span class="inline-flex items-center gap-1.5"><span class="tu-punto tu-bloque--programada" />{{ $t('agenda.estados.programada') }}</span>
+          <span class="inline-flex items-center gap-1.5"><span class="tu-punto tu-bloque--completa" />{{ $t('agenda.estados.completa') }}</span>
+          <span class="inline-flex items-center gap-1.5"><span class="tu-punto tu-bloque--cancelada" />{{ $t('agenda.estados.cancelada') }}</span>
+        </div>
+
+        <div class="rounded-xl border overflow-hidden" :style="{ borderColor: 'var(--borde)', background: 'var(--superficie)' }">
+          <!-- Encabezado de dias -->
+          <div class="grid" style="grid-template-columns: 3.5rem repeat(7, minmax(0, 1fr))">
+            <div class="border-b" :style="{ borderColor: 'var(--borde)' }" />
+            <div
+              v-for="d in dias"
+              :key="d.iso"
+              class="px-1 py-2 text-center border-b border-l"
+              :style="{ borderColor: 'var(--borde)', background: d.esHoy ? 'var(--primario-suave)' : 'transparent' }"
+            >
+              <div class="text-[11px] uppercase" :style="{ color: 'var(--texto-suave)' }">{{ d.nombre }}</div>
+              <div class="text-base font-bold" :style="{ color: d.esHoy ? 'var(--primario-fuerte)' : 'var(--texto)' }">{{ d.dia }}</div>
             </div>
           </div>
-          <div class="p-1.5 space-y-1.5 min-h-[8rem]">
-            <button
-              v-for="s in sesionesDe(d.iso)"
-              :key="s.id"
-              class="tu-clase w-full text-left"
-              :class="{ 'opacity-60': s.estado !== 'programada' }"
-              @click="abrirDetalle(s)"
+          <!-- Cuerpo: eje de horas + 7 columnas -->
+          <div class="grid" style="grid-template-columns: 3.5rem repeat(7, minmax(0, 1fr))">
+            <div class="relative" :style="{ height: totalAlto + 'px' }">
+              <div
+                v-for="h in horas"
+                :key="h.min"
+                class="absolute right-1.5 text-[11px]"
+                :style="{ top: ((h.min - rango.inicioMin) / 60 * HORA_ALTO) + 'px', color: 'var(--texto-suave)' }"
+              >{{ h.etiqueta }}</div>
+            </div>
+            <div
+              v-for="d in dias"
+              :key="d.iso"
+              class="relative border-l"
+              :style="{
+                borderColor: 'var(--borde)',
+                height: totalAlto + 'px',
+                background: d.esHoy ? 'color-mix(in srgb, var(--primario) 6%, transparent)' : 'transparent',
+              }"
             >
-              <div class="flex items-center justify-between gap-1">
-                <span class="font-semibold text-[13px]">{{ horaCorta(s.inicia_en, s.zona_horaria) }}</span>
-                <span
-                  class="tu-badge text-[11px]"
-                  :class="completo(s) ? 'tu-badge-aviso' : 'tu-badge-exito'"
-                >{{ s.capacidad !== null ? `${s.ocupados}/${s.capacidad}` : s.ocupados }}</span>
-              </div>
-              <div class="text-[13px] font-medium truncate">{{ s.oferta ?? '—' }}</div>
-              <div v-if="s.instructor" class="text-[11px] truncate" :style="{ color: 'var(--texto-suave)' }">
-                {{ s.instructor }}
-              </div>
-            </button>
-            <p v-if="sesionesDe(d.iso).length === 0" class="text-[11px] text-center py-2" :style="{ color: 'var(--texto-suave)' }">
-              —
-            </p>
+              <div
+                v-for="h in horas"
+                :key="h.min"
+                class="absolute left-0 right-0 border-t"
+                :style="{ top: ((h.min - rango.inicioMin) / 60 * HORA_ALTO) + 'px', borderColor: 'var(--borde)', opacity: 0.5 }"
+              />
+              <button
+                v-for="b in bloquesDe(d.iso)"
+                :key="b.sesion.id"
+                class="tu-bloque"
+                :class="`tu-bloque--${estadoClase(b.sesion)}`"
+                :style="{ top: b.top + 'px', height: b.alto + 'px', left: `calc(${b.izq}% + 2px)`, width: `calc(${b.ancho}% - 4px)` }"
+                @click="abrirDetalle(b.sesion)"
+              >
+                <div class="font-semibold text-[11px] leading-tight">{{ horaCorta(b.sesion.inicia_en, b.sesion.zona_horaria) }}</div>
+                <div class="text-[12px] font-medium leading-tight truncate">{{ b.sesion.oferta ?? '—' }}</div>
+                <div class="text-[10px] leading-tight truncate" :style="{ opacity: 0.85 }">
+                  {{ b.sesion.capacidad !== null ? `${b.sesion.ocupados}/${b.sesion.capacidad}` : b.sesion.ocupados }}<span v-if="b.sesion.instructor"> · {{ b.sesion.instructor }}</span>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -730,20 +855,44 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.tu-clase {
-  border-radius: 0.6rem;
-  padding: 0.4rem 0.5rem;
-  background: var(--primario-suave);
-  border: 1px solid transparent;
+.tu-bloque {
+  position: absolute;
+  border-radius: 0.5rem;
+  padding: 0.2rem 0.4rem;
+  overflow: hidden;
   cursor: pointer;
+  text-align: left;
+  border-left: 3px solid var(--primario);
+  background: var(--primario-suave);
+  color: var(--texto);
   transition:
-    border-color 0.15s ease,
+    filter 0.1s ease,
     transform 0.05s ease;
 }
-.tu-clase:hover {
+.tu-bloque:hover {
+  filter: brightness(0.97);
+}
+.tu-bloque:active {
+  transform: scale(0.99);
+}
+.tu-bloque--programada {
+  background: var(--primario-suave);
   border-color: var(--primario);
 }
-.tu-clase:active {
-  transform: scale(0.99);
+.tu-bloque--completa {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: #f59e0b;
+}
+.tu-bloque--cancelada {
+  background: var(--superficie-2);
+  border-color: var(--texto-suave);
+  color: var(--texto-suave);
+  text-decoration: line-through;
+}
+.tu-punto {
+  display: inline-block;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 0.25rem;
 }
 </style>

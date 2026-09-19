@@ -482,6 +482,11 @@ export default {
     ocupacionSinCupo: '{ocupados} · sin límite',
     lugares: '{n} lugares',
     completo: 'Completo',
+    estados: {
+      programada: 'Con lugar',
+      completa: 'Llena',
+      cancelada: 'Cancelada',
+    },
     cerrarDetalle: 'Cerrar',
     detalle: 'Detalle de la clase',
     nueva: {
