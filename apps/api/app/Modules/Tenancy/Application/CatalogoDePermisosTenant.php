@@ -30,7 +30,7 @@ class CatalogoDePermisosTenant
                 'membresias.gestionar', 'creditos.gestionar', 'derechos.ver',
                 'reservas.ver', 'reservas.gestionar', 'asistencia.marcar', 'checkins.registrar',
                 'ordenes.ver', 'ordenes.gestionar', 'pagos.reembolsar',
-                'facturacion.ver', 'usuarios.invitar', 'auditoria.ver',
+                'facturacion.ver', 'usuarios.invitar', 'usuarios.gestionar', 'auditoria.ver',
                 'comunicaciones.gestionar', 'comunicaciones.ver',
             ],
             'recepcionista' => [
@@ -59,6 +59,42 @@ class CatalogoDePermisosTenant
     }
 
     /**
+     * ¿Alguno de los roles concede el permiso? (unión de permisos multi-rol).
+     *
+     * @param  list<string>  $roles
+     */
+    public static function puedeAlguno(array $roles, string $permiso): bool
+    {
+        foreach ($roles as $rol) {
+            if (self::puede($rol, $permiso)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Unión de permisos de un conjunto de roles. Si alguno es total (`*`), devuelve `['*']`.
+     *
+     * @param  list<string>  $roles
+     * @return list<string>
+     */
+    public static function permisosDe(array $roles): array
+    {
+        $union = [];
+        foreach ($roles as $rol) {
+            $permisos = self::roles()[$rol] ?? [];
+            if (in_array('*', $permisos, true)) {
+                return ['*'];
+            }
+            $union = array_merge($union, $permisos);
+        }
+
+        return array_values(array_unique($union));
+    }
+
+    /**
      * Roles que el estudio puede asignar al invitar personal (nunca `propietario`).
      *
      * @return list<string>
@@ -66,5 +102,43 @@ class CatalogoDePermisosTenant
     public static function rolesAsignables(): array
     {
         return ['admin', 'recepcionista', 'instructor', 'miembro'];
+    }
+
+    /**
+     * Todos los roles del catálogo, incluido `propietario` (asignables desde el
+     * apartado Usuarios; conceder/quitar `propietario` está protegido en el controlador).
+     *
+     * @return list<string>
+     */
+    public static function todosLosRoles(): array
+    {
+        return array_keys(self::roles());
+    }
+
+    /**
+     * Jerarquía de privilegio, del más alto al más bajo. Define el rol PRINCIPAL
+     * cuando un usuario tiene varios.
+     *
+     * @return list<string>
+     */
+    public static function jerarquia(): array
+    {
+        return ['propietario', 'admin', 'recepcionista', 'instructor', 'miembro'];
+    }
+
+    /**
+     * Rol principal (el más privilegiado) de un conjunto de roles.
+     *
+     * @param  list<string>  $roles
+     */
+    public static function rolPrincipal(array $roles): string
+    {
+        foreach (self::jerarquia() as $rol) {
+            if (in_array($rol, $roles, true)) {
+                return $rol;
+            }
+        }
+
+        return $roles[0] ?? 'miembro';
     }
 }

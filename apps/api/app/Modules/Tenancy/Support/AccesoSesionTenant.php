@@ -26,7 +26,7 @@ class AccesoSesionTenant
             return false;
         }
 
-        if ((string) $usuario->rol !== 'instructor') {
+        if (! $this->esInstructorAcotado($usuario)) {
             return true;
         }
 
@@ -40,10 +40,19 @@ class AccesoSesionTenant
     }
 
     /**
-     * ¿El usuario es un instructor (cuyo alcance se limita a sus sesiones)?
+     * ¿El usuario es instructor ACOTADO (alcance limitado a sus propias sesiones)?
+     * Solo lo está si `instructor` es su rol operativo más alto: si además tiene un
+     * rol de staff amplio (propietario/admin/recepcionista), opera sobre todas.
      */
     public function esInstructorAcotado(?Usuario $usuario): bool
     {
-        return $usuario instanceof Usuario && (string) $usuario->rol === 'instructor';
+        if (! $usuario instanceof Usuario) {
+            return false;
+        }
+
+        $roles = $usuario->rolesEfectivos();
+        $amplios = ['propietario', 'admin', 'recepcionista'];
+
+        return in_array('instructor', $roles, true) && array_intersect($amplios, $roles) === [];
     }
 }

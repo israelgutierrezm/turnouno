@@ -8,6 +8,7 @@ export interface UsuarioTenant {
   nombre: string
   email: string
   rol: string
+  roles?: string[]
   permisos?: string[]
 }
 

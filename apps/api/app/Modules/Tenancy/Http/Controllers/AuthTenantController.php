@@ -124,12 +124,15 @@ class AuthTenantController
      */
     private function presentarUsuario(Usuario $usuario): array
     {
+        $roles = $usuario->rolesEfectivos();
+
         return [
             'ulid' => $usuario->ulid,
             'nombre' => $usuario->name,
             'email' => $usuario->email,
-            'rol' => $usuario->rol,
-            'permisos' => CatalogoDePermisosTenant::roles()[(string) $usuario->rol] ?? [],
+            'rol' => CatalogoDePermisosTenant::rolPrincipal($roles),
+            'roles' => $roles,
+            'permisos' => CatalogoDePermisosTenant::permisosDe($roles),
         ];
     }
 

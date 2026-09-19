@@ -110,17 +110,17 @@ class SembrarEstudioDemo extends Command
         // Dueño (aprovisionar ya lo crea inactivo; aquí lo activamos con contraseña).
         Usuario::query()->updateOrCreate(
             ['email' => $ownerEmail],
-            ['name' => 'Dueño Demo', 'rol' => 'propietario', 'activo' => true, 'password' => $password, 'activation_token' => null],
+            ['name' => 'Dueño Demo', 'rol' => 'propietario', 'roles' => ['propietario'], 'activo' => true, 'password' => $password, 'activation_token' => null],
         );
 
         Usuario::query()->updateOrCreate(
             ['email' => $instructorEmail],
-            ['name' => 'Beto Instructor', 'rol' => 'instructor', 'activo' => true, 'password' => $password, 'activation_token' => null],
+            ['name' => 'Beto Instructor', 'rol' => 'instructor', 'roles' => ['instructor'], 'activo' => true, 'password' => $password, 'activation_token' => null],
         );
 
         $miembro = Usuario::query()->updateOrCreate(
             ['email' => $miembroEmail],
-            ['name' => 'Ana Alumna', 'rol' => 'miembro', 'activo' => true, 'password' => $password, 'activation_token' => null],
+            ['name' => 'Ana Alumna', 'rol' => 'miembro', 'roles' => ['miembro'], 'activo' => true, 'password' => $password, 'activation_token' => null],
         );
 
         // Perfil de alumna de Ana, enlazado a su usuario para el autoservicio.

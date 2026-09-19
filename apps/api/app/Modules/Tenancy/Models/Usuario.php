@@ -14,6 +14,13 @@ use Illuminate\Notifications\Notifiable;
  * (conexión `tenant`). El email es único por tenant, así que el mismo correo en
  * otro estudio es una cuenta distinta. Reemplaza, en el data plane, al `User`
  * global del esquema compartido (que queda solo durante la transición).
+ *
+ * Multi-rol: una misma persona puede tener varios roles a la vez (p. ej. miembro y
+ * profesor). `roles` es la fuente de verdad; `rol` se conserva como rol PRINCIPAL
+ * (el más privilegiado) para compatibilidad.
+ *
+ * @property string|null $rol
+ * @property list<string>|null $roles
  */
 class Usuario extends Authenticatable
 {
@@ -24,14 +31,41 @@ class Usuario extends Authenticatable
 
     protected $table = 'users';
 
-    protected $fillable = ['name', 'email', 'password', 'google_id', 'activo', 'activation_token', 'rol'];
+    protected $fillable = ['name', 'email', 'password', 'google_id', 'activo', 'activation_token', 'rol', 'roles'];
 
     /**
-     * ¿El usuario tiene el permiso dado según su rol tenant-local?
+     * ¿El usuario tiene el permiso dado por CUALQUIERA de sus roles (unión)?
      */
     public function puede(string $permiso): bool
     {
-        return CatalogoDePermisosTenant::puede((string) $this->rol, $permiso);
+        return CatalogoDePermisosTenant::puedeAlguno($this->rolesEfectivos(), $permiso);
+    }
+
+    /**
+     * Roles vigentes del usuario. Usa `roles` (multi) y, si aún no está poblado,
+     * cae al rol único `rol` (compatibilidad durante la transición).
+     *
+     * @return list<string>
+     */
+    public function rolesEfectivos(): array
+    {
+        $roles = $this->roles;
+        if (is_array($roles)) {
+            $limpios = array_values(array_filter($roles, static fn (string $r): bool => $r !== ''));
+            if ($limpios !== []) {
+                return $limpios;
+            }
+        }
+
+        return $this->rol !== null && $this->rol !== '' ? [(string) $this->rol] : [];
+    }
+
+    /**
+     * ¿El usuario tiene el rol dado entre sus roles vigentes?
+     */
+    public function tieneRol(string $rol): bool
+    {
+        return in_array($rol, $this->rolesEfectivos(), true);
     }
 
     /**
@@ -48,6 +82,7 @@ class Usuario extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'activo' => 'boolean',
+            'roles' => 'array',
         ];
     }
 }

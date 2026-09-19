@@ -34,10 +34,24 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-/** Extrae un mensaje legible del contrato de error de la API `{code,message}`. */
+/**
+ * Extrae un mensaje legible del contrato de error de la API
+ * `{code, message, meta:{errors}}`. Prefiere el primer error de campo (más
+ * específico) cuando la respuesta es de validación; si no, usa `message`.
+ */
 export function mensajeDeError(e: unknown, porDefecto = 'Ocurrio un error inesperado.'): string {
   if (axios.isAxiosError(e)) {
-    const data = e.response?.data as { message?: string } | undefined
+    const data = e.response?.data as
+      | { message?: string; meta?: { errors?: Record<string, string[]> } }
+      | undefined
+
+    const errores = data?.meta?.errors
+    if (errores) {
+      const primero = Object.values(errores)[0]?.[0]
+      if (typeof primero === 'string' && primero !== '') {
+        return primero
+      }
+    }
 
     return data?.message ?? porDefecto
   }

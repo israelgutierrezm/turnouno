@@ -160,6 +160,7 @@ class MigradorLegacyATenant
 
         foreach ($usuarios as $user) {
             $rolLegacy = $user->getRoleNames()->first();
+            $rol = $this->mapearRol(is_string($rolLegacy) ? $rolLegacy : 'miembro');
             $nuevo = Usuario::query()->create([
                 'name' => $user->name,
                 'email' => $user->email,
@@ -167,7 +168,8 @@ class MigradorLegacyATenant
                 'google_id' => null, // Google se enlaza despues via SSO
                 'activo' => true,
                 'activation_token' => null,
-                'rol' => $this->mapearRol(is_string($rolLegacy) ? $rolLegacy : 'miembro'),
+                'rol' => $rol,
+                'roles' => [$rol],
             ]);
             $this->recordar('usuarios', (int) $user->id, (int) $nuevo->getKey());
             $n++;
