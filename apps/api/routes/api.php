@@ -62,6 +62,7 @@ use App\Modules\Tenancy\Http\Controllers\FamiliasTenantController;
 use App\Modules\Tenancy\Http\Controllers\FormulariosController;
 use App\Modules\Tenancy\Http\Controllers\FrontDeskTenantController;
 use App\Modules\Tenancy\Http\Controllers\GruposTenantController;
+use App\Modules\Tenancy\Http\Controllers\ImportacionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\IntegracionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\MarcaEstudioController;
 use App\Modules\Tenancy\Http\Controllers\MembresiasTenantController;
@@ -169,6 +170,9 @@ Route::prefix('v1')->group(function (): void {
             // Operación tenant-local: alta de alumnos (data plane del estudio).
             Route::get('/miembros', [MiembrosTenantController::class, 'index'])->middleware('puede:miembros.ver')->name('miembros.index');
             Route::post('/miembros', [MiembrosTenantController::class, 'store'])->middleware('puede:miembros.gestionar')->name('miembros.store');
+            // Importacion CSV de miembros (R37): preview (valida) e import (todo-o-nada).
+            Route::post('/importaciones/miembros/preview', [ImportacionesTenantController::class, 'previewMiembros'])->middleware('puede:miembros.gestionar')->name('importaciones.miembros.preview');
+            Route::post('/importaciones/miembros', [ImportacionesTenantController::class, 'importarMiembros'])->middleware('puede:miembros.gestionar')->name('importaciones.miembros.store');
 
             // Familias (R26): hogares y tutelas (tutor -> dependiente).
             Route::post('/hogares', [FamiliasTenantController::class, 'crearHogar'])->middleware('puede:miembros.gestionar')->name('hogares.store');
