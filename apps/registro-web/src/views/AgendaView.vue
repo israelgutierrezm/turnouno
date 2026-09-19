@@ -319,16 +319,61 @@ const checkinModel = ref({ proveedor: 'wellhub', codigo: '' })
 const registrandoCheckin = ref(false)
 const okCheckin = ref(false)
 
+// Staff de la sesión (R17): asignación con rol y sustitución.
+interface StaffSesion {
+  id: string
+  usuario: string | null
+  rol: string
+  sustituye_a: number | null
+}
+const staffSesion = ref<StaffSesion[]>([])
+const staffModel = ref({ usuarioId: '', rol: 'instructor', sustituyeA: '' })
+const asignandoStaff = ref(false)
+
 async function abrirDetalle(s: Sesion): Promise<void> {
   detalle.value = s
   roster.value = []
   checkins.value = []
+  staffSesion.value = []
   reservarModel.value = { miembroId: '', esperar: false }
   checkinModel.value = { proveedor: 'wellhub', codigo: '' }
+  staffModel.value = { usuarioId: '', rol: 'instructor', sustituyeA: '' }
   okCheckin.value = false
   await cargarRoster(s.id)
   if (puedeCheckin.value) {
     await cargarCheckins(s.id)
+  }
+  if (puedeGestionar.value) {
+    await cargarStaffSesion(s.id)
+  }
+}
+
+async function cargarStaffSesion(id: string): Promise<void> {
+  try {
+    const { data } = await api.get<{ data: StaffSesion[] }>(`${base.value}/sesiones/${id}/staff`)
+    staffSesion.value = data.data
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  }
+}
+async function asignarStaff(id: string): Promise<void> {
+  if (staffModel.value.usuarioId === '') {
+    return
+  }
+  asignandoStaff.value = true
+  error.value = null
+  try {
+    await api.post(`${base.value}/sesiones/${id}/staff`, {
+      usuario_id: staffModel.value.usuarioId,
+      rol: staffModel.value.rol,
+      sustituye_a: staffModel.value.sustituyeA !== '' ? staffModel.value.sustituyeA : null,
+    })
+    staffModel.value = { usuarioId: '', rol: 'instructor', sustituyeA: '' }
+    await cargarStaffSesion(id)
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    asignandoStaff.value = false
   }
 }
 function cerrarDetalle(): void {
@@ -848,6 +893,50 @@ onMounted(async () => {
               <span class="tu-badge tu-badge-exito shrink-0">{{ $t(`checkins.${c.estado}`) }}</span>
             </li>
           </ul>
+        </div>
+
+        <!-- Staff / sustituciones (R17) -->
+        <div v-if="puedeGestionar" class="mt-4 border-t pt-4" :style="{ borderColor: 'var(--borde)' }">
+          <h3 class="font-semibold text-sm">{{ $t('agenda.staff.titulo') }}</h3>
+          <ul v-if="staffSesion.length > 0" class="mt-2 space-y-1.5">
+            <li v-for="a in staffSesion" :key="a.id" class="flex items-center gap-2 text-sm">
+              <span>{{ a.usuario ?? '—' }}</span>
+              <span class="tu-badge">{{ $t(`agenda.staff.rol.${a.rol}`) }}</span>
+            </li>
+          </ul>
+          <form
+            v-if="detalle.estado === 'programada' && instructores.length > 0"
+            class="mt-3 grid grid-cols-2 gap-2 items-end"
+            @submit.prevent="asignarStaff(detalle.id)"
+          >
+            <div class="col-span-2">
+              <label class="tu-label" for="stu">{{ $t('agenda.staff.persona') }}</label>
+              <select id="stu" v-model="staffModel.usuarioId" class="tu-input" required>
+                <option value="" disabled>{{ $t('agenda.reservar.elegir') }}</option>
+                <option v-for="i in instructores" :key="i.id" :value="i.id">{{ i.nombre }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="tu-label" for="srol">{{ $t('agenda.staff.rolLabel') }}</label>
+              <select id="srol" v-model="staffModel.rol" class="tu-input">
+                <option value="instructor">{{ $t('agenda.staff.rol.instructor') }}</option>
+                <option value="asistente">{{ $t('agenda.staff.rol.asistente') }}</option>
+                <option value="sustituto">{{ $t('agenda.staff.rol.sustituto') }}</option>
+              </select>
+            </div>
+            <div v-if="staffModel.rol === 'sustituto'">
+              <label class="tu-label" for="ssub">{{ $t('agenda.staff.sustituye') }}</label>
+              <select id="ssub" v-model="staffModel.sustituyeA" class="tu-input">
+                <option value="">—</option>
+                <option v-for="i in instructores" :key="i.id" :value="i.id">{{ i.nombre }}</option>
+              </select>
+            </div>
+            <div class="col-span-2 flex justify-end">
+              <button class="tu-btn tu-btn-fantasma text-sm" type="submit" :disabled="asignandoStaff || staffModel.usuarioId === ''">
+                {{ $t('agenda.staff.asignar') }}
+              </button>
+            </div>
+          </form>
         </div>
 
         <!-- Cancelar clase -->

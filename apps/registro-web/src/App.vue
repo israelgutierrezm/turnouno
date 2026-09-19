@@ -39,6 +39,7 @@ const MENU: MenuItem[] = [
       { clave: 'agenda', etiqueta: 'nav.agenda', icono: 'agenda', ruta: 'agenda', permiso: 'agenda.ver' },
       { clave: 'recepcion', etiqueta: 'nav.recepcion', icono: 'recepcion', ruta: 'recepcion', permiso: 'agenda.ver' },
       { clave: 'grupos', etiqueta: 'nav.cursos', icono: 'grupos', ruta: 'grupos', permiso: 'agenda.ver' },
+      { clave: 'recursos', etiqueta: 'nav.recursos', icono: 'recursos', ruta: 'recursos', permiso: 'agenda.ver' },
     ],
   },
   {
@@ -65,6 +66,7 @@ const MENU: MenuItem[] = [
     etiqueta: 'nav.grupos.ajustes',
     icono: 'ajustes',
     hijos: [
+      { clave: 'nomina', etiqueta: 'nav.nomina', icono: 'nomina', ruta: 'nomina', permiso: 'estudio.gestionar' },
       { clave: 'integraciones', etiqueta: 'nav.integraciones', icono: 'integraciones', ruta: 'integraciones', permiso: 'integraciones.configurar' },
       { clave: 'datos-fiscales', etiqueta: 'nav.datosFiscales', icono: 'datosFiscales', ruta: 'datos-fiscales', permiso: 'estudio.gestionar' },
       { clave: 'configuracion', etiqueta: 'nav.configuracion', icono: 'configuracion', ruta: 'configuracion', permiso: 'estudio.gestionar' },
