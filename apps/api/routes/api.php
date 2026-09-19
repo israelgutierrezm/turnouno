@@ -59,6 +59,7 @@ use App\Modules\Tenancy\Http\Controllers\DocumentosController;
 use App\Modules\Tenancy\Http\Controllers\DunningTenantController;
 use App\Modules\Tenancy\Http\Controllers\ExcepcionesHorarioTenantController;
 use App\Modules\Tenancy\Http\Controllers\FacturacionController;
+use App\Modules\Tenancy\Http\Controllers\FacturasTenantController;
 use App\Modules\Tenancy\Http\Controllers\FamiliasTenantController;
 use App\Modules\Tenancy\Http\Controllers\FormulariosController;
 use App\Modules\Tenancy\Http\Controllers\FrontDeskTenantController;
@@ -348,6 +349,11 @@ Route::prefix('v1')->group(function (): void {
             // Datos fiscales del emisor (CFDI/FacturAPI): cada tenant carga los suyos.
             Route::get('/datos-fiscales', [DatosFiscalesTenantController::class, 'show'])->middleware('puede:estudio.gestionar')->name('datos-fiscales.show');
             Route::put('/datos-fiscales', [DatosFiscalesTenantController::class, 'guardar'])->middleware('puede:estudio.gestionar')->name('datos-fiscales.guardar');
+
+            // Facturas (CFDI): emitir/timbrar vía FacturAPI, listar y consultar.
+            Route::get('/facturas', [FacturasTenantController::class, 'index'])->middleware('puede:ordenes.ver')->name('facturas.index');
+            Route::post('/facturas', [FacturasTenantController::class, 'emitir'])->middleware('puede:ordenes.gestionar')->name('facturas.store');
+            Route::get('/facturas/{factura}', [FacturasTenantController::class, 'show'])->middleware('puede:ordenes.ver')->name('facturas.show');
 
             // Integraciones de bienestar (Wellhub / TotalPass): el propietario conecta
             // llaves (cifradas); el staff valida check-ins de esos usuarios en clases

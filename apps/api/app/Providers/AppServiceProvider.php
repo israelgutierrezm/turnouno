@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Modules\Tenancy\Events\EventoDeDominioTenant;
+use App\Modules\Tenancy\Facturacion\ClienteFacturacion;
+use App\Modules\Tenancy\Facturacion\FacturacionFalsa;
+use App\Modules\Tenancy\Facturacion\FacturApiHttp;
 use App\Modules\Tenancy\Listeners\EnviarWebhooksSalientes;
 use App\Modules\Tenancy\Listeners\GenerarComunicaciones;
 use App\Modules\Tenancy\Models\Usuario;
@@ -22,7 +25,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Proveedor de facturación (CFDI): FacturAPI real si hay llave maestra de
+        // plataforma; si no, el falso (dev/test y modo no-configurado).
+        $this->app->bind(ClienteFacturacion::class, function (): ClienteFacturacion {
+            $llave = config('turnouno.facturapi.llave');
+
+            return is_string($llave) && $llave !== ''
+                ? new FacturApiHttp((string) config('turnouno.facturapi.base_url'))
+                : new FacturacionFalsa;
+        });
     }
 
     /**
