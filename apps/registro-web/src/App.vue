@@ -43,6 +43,7 @@ const MENU: MenuItem[] = [
     icono: 'comercio',
     hijos: [
       { clave: 'ventas', etiqueta: 'nav.ventas', icono: 'ventas', ruta: 'ventas', permiso: 'productos.ver' },
+      { clave: 'facturas', etiqueta: 'nav.facturas', icono: 'facturas', ruta: 'facturas', permiso: 'ordenes.ver' },
       { clave: 'pasarelas', etiqueta: 'nav.pasarelas', icono: 'pasarelas', ruta: 'pasarelas', permiso: 'pagos.configurar' },
     ],
   },
@@ -61,6 +62,7 @@ const MENU: MenuItem[] = [
     icono: 'ajustes',
     hijos: [
       { clave: 'integraciones', etiqueta: 'nav.integraciones', icono: 'integraciones', ruta: 'integraciones', permiso: 'integraciones.configurar' },
+      { clave: 'datos-fiscales', etiqueta: 'nav.datosFiscales', icono: 'datosFiscales', ruta: 'datos-fiscales', permiso: 'estudio.gestionar' },
       { clave: 'configuracion', etiqueta: 'nav.configuracion', icono: 'configuracion', ruta: 'configuracion', permiso: 'estudio.gestionar' },
     ],
   },

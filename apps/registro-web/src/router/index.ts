@@ -70,6 +70,18 @@ const router = createRouter({
       meta: { requiereSesion: true },
     },
     {
+      path: '/facturas',
+      name: 'facturas',
+      component: () => import('@/views/FacturasView.vue'),
+      meta: { requiereSesion: true },
+    },
+    {
+      path: '/datos-fiscales',
+      name: 'datos-fiscales',
+      component: () => import('@/views/DatosFiscalesView.vue'),
+      meta: { requiereSesion: true },
+    },
+    {
       path: '/agenda',
       name: 'agenda',
       component: () => import('@/views/AgendaView.vue'),
