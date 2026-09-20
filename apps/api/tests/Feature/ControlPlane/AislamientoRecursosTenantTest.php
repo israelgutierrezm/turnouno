@@ -83,6 +83,10 @@ it('los jobs capturan el estudio activo en su payload (aislamiento de colas)', f
     [$a] = dosEstudios();
     $gestor = app(GestorDeConexionTenant::class);
 
+    // El alta encola correos de activacion (transaccionales); aqui solo interesa el
+    // job que despachamos, asi que aislamos la tabla antes de encolarlo.
+    DB::table('jobs')->delete();
+
     $gestor->ejecutarEn($a, function (): void {
         dispatch(function (): void {
             // noop: solo interesa el payload capturado al encolar.
