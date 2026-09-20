@@ -40,11 +40,41 @@ const form = ref({
 })
 const guardando = ref(false)
 
-const columnas = computed(() => [
-  { clave: 'nombre', etiqueta: t('miembros.colNombre') },
-  { clave: 'email', etiqueta: t('miembros.colCorreo') },
-  { clave: 'activo', etiqueta: t('miembros.colEstado') },
-])
+const puedeInvitar = computed(() => sesion.puede('usuarios.invitar'))
+const invitandoId = ref<string | null>(null)
+const invitados = ref<Set<string>>(new Set())
+
+const columnas = computed(() => {
+  const cols = [
+    { clave: 'nombre', etiqueta: t('miembros.colNombre') },
+    { clave: 'email', etiqueta: t('miembros.colCorreo') },
+    { clave: 'activo', etiqueta: t('miembros.colEstado') },
+  ]
+  if (puedeInvitar.value && tipo.value === 'miembro') {
+    cols.push({ clave: 'acciones', etiqueta: '' })
+  }
+  return cols
+})
+
+async function invitar(m: Miembro): Promise<void> {
+  if (m.email === null || m.email === '') {
+    return
+  }
+  invitandoId.value = m.id
+  error.value = null
+  try {
+    await api.post(`${base.value}/usuarios/invitar`, {
+      nombre: m.nombre_completo,
+      email: m.email,
+      rol: 'miembro',
+    })
+    invitados.value = new Set(invitados.value).add(m.id)
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    invitandoId.value = null
+  }
+}
 
 async function cargar(): Promise<void> {
   cargando.value = true
@@ -178,6 +208,21 @@ onMounted(() => {
             <span class="tu-badge" :class="valor ? 'tu-badge-exito' : ''">
               {{ valor ? $t('miembros.activo') : $t('miembros.inactivo') }}
             </span>
+          </template>
+          <template #col-acciones="{ fila }">
+            <span v-if="invitados.has((fila as Miembro).id)" class="tu-badge tu-badge-exito">
+              {{ $t('miembros.invitado') }}
+            </span>
+            <button
+              v-else-if="(fila as Miembro).email"
+              class="tu-btn tu-btn-fantasma text-sm"
+              type="button"
+              :disabled="invitandoId === (fila as Miembro).id"
+              @click="invitar(fila as Miembro)"
+            >
+              {{ invitandoId === (fila as Miembro).id ? $t('miembros.invitando') : $t('miembros.invitar') }}
+            </button>
+            <span v-else class="text-xs" :style="{ color: 'var(--texto-suave)' }">{{ $t('miembros.sinCorreoInvitar') }}</span>
           </template>
         </TablaDatos>
       </div>

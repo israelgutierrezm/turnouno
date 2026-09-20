@@ -10,6 +10,7 @@ use App\Modules\Tenancy\Application\ReservasTenant;
 use App\Modules\Tenancy\Application\WaiversTenant;
 use App\Modules\Tenancy\Models\DerechoTenant;
 use App\Modules\Tenancy\Models\PersonaTenant;
+use App\Modules\Tenancy\Models\PoliticaCancelacionTenant;
 use App\Modules\Tenancy\Models\ReservaTenant;
 use App\Modules\Tenancy\Models\SesionTenant;
 use App\Modules\Tenancy\Models\Usuario;
@@ -94,10 +95,18 @@ class MiTenantController
             ->map(fn (ReservaTenant $r): array => $this->presentarReserva($r))
             ->values()->all();
 
+        // Política de cancelación global (para mostrar las reglas al miembro).
+        $politica = PoliticaCancelacionTenant::query()->whereNull('actividad_id')->first();
+
         return response()->json(['data' => [
             'persona' => ['nombre' => $persona->nombreCompleto(), 'email' => $persona->email],
             'derechos' => $derechos,
             'reservas' => $reservas,
+            'politica_cancelacion' => $politica instanceof PoliticaCancelacionTenant ? [
+                'horas_limite' => $politica->horas_limite,
+                'penaliza_tarde' => (bool) $politica->penaliza_tarde,
+                'penaliza_no_show' => (bool) $politica->penaliza_no_show,
+            ] : null,
         ]]);
     }
 
@@ -106,7 +115,9 @@ class MiTenantController
         $sesiones = SesionTenant::query()
             ->where('estado', 'programada')
             ->where('inicia_en', '>=', CarbonImmutable::now())
-            ->with('oferta')
+            ->with(['oferta', 'sucursal'])
+            // Cupo ocupado = reservas que toman lugar (confirmadas + ofrecidas).
+            ->withCount(['reservas as ocupados' => fn ($q) => $q->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::Ofrecida->value])])
             ->orderBy('inicia_en')
             ->limit(100)
             ->get();
@@ -115,9 +126,11 @@ class MiTenantController
             'data' => $sesiones->map(fn (SesionTenant $s): array => [
                 'id' => $s->ulid,
                 'oferta' => $s->oferta?->nombre,
+                'sucursal' => $s->sucursal?->nombre,
                 'inicia_en' => $s->inicia_en->toIso8601String(),
                 'zona_horaria' => $s->zona_horaria,
                 'capacidad' => $s->capacidad,
+                'ocupados' => (int) ($s->getAttribute('ocupados') ?? 0),
             ])->all(),
         ]);
     }
