@@ -32,7 +32,7 @@ it('un top-up de creditos queda registrado en la bitacora (actor, entidad, antes
     expect($bitacora[0]['accion'])->toBe('credito.top_up');
     expect($bitacora[0]['entidad_tipo'])->toBe('derecho');
     expect($bitacora[0]['entidad_id'])->toBe($vp['derecho']);
-    expect($bitacora[0]['actor'])->toBe('Dueño');
+    expect($bitacora[0]['actor'])->toBe('Dueño Demo');
     expect($bitacora[0]['despues']['unidades'])->toBe(2000);
     expect($bitacora[0]['despues']['saldo_nuevo'])->toBe(10000); // 8000 + 2000
     expect($bitacora[0]['motivo'])->toBe('Cortesia');

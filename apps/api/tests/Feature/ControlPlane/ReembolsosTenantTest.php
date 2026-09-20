@@ -70,7 +70,7 @@ it('una devolucion total revierte el entitlement, cancela la orden y registra el
     expect($reembolso['estado'])->toBe('aprobado');
     expect($reembolso['monto_minor'])->toBe(89900);
     expect($reembolso['revirtio_creditos'])->toBeTrue();
-    expect($reembolso['actor'])->toBe('Dueño');
+    expect($reembolso['actor'])->toBe('Dueño Demo');
     expect($reembolso['motivo'])->toBe('Cliente se dio de baja');
 
     // Entitlement revertido a 0.

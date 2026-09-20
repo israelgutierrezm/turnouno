@@ -33,7 +33,7 @@ it('la venta de un pack asienta la concesion con origen, persona, saldo_posterio
     expect($mov[0]['origen'])->toBe('venta');
     expect($mov[0]['unidades'])->toBe(8000);
     expect($mov[0]['saldo_posterior'])->toBe(8000);
-    expect($mov[0]['actor'])->toBe('Dueño');
+    expect($mov[0]['actor'])->toBe('Dueño Demo');
     expect($mov[0]['referencia_tipo'])->toBe('acuerdo');
     expect($mov[0]['referencia_id'])->not->toBeEmpty();
 });
@@ -53,7 +53,7 @@ it('un top-up asienta origen top_up, el actor y el saldo_posterior acumulado', f
     expect($mov[0]['origen'])->toBe('top_up');
     expect($mov[0]['unidades'])->toBe(2000);
     expect($mov[0]['saldo_posterior'])->toBe(10000);
-    expect($mov[0]['actor'])->toBe('Dueño');
+    expect($mov[0]['actor'])->toBe('Dueño Demo');
 });
 
 it('el consumo por asistencia asienta origen reserva, la reserva referida y el saldo_posterior descendente', function (): void {
