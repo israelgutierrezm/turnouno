@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Tenancy\Http\Controllers;
 
+use App\Modules\Reservas\CanalReserva;
 use App\Modules\Reservas\EstadoReserva;
 use App\Modules\Tenancy\Application\ReservasTenant;
 use App\Modules\Tenancy\Models\PersonaTenant;
@@ -13,6 +14,7 @@ use App\Modules\Tenancy\Models\Usuario;
 use App\Modules\Tenancy\Support\AccesoSesionTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
  * Reservas (booking) del estudio, tenant-local: roster de una sesion (confirmadas +
@@ -55,6 +57,7 @@ class ReservasTenantController
             'persona_id' => ['required', 'string'],
             'idempotency_key' => ['nullable', 'string', 'max:255'],
             'esperar' => ['boolean'],
+            'canal' => ['nullable', Rule::enum(CanalReserva::class)],
         ]);
 
         $persona = PersonaTenant::query()->where('ulid', $validado['persona_id'])->firstOrFail();
@@ -65,6 +68,8 @@ class ReservasTenantController
             $persona,
             is_string($idempotencyKey) && $idempotencyKey !== '' ? $idempotencyKey : null,
             (bool) ($validado['esperar'] ?? false),
+            null,
+            $validado['canal'] ?? CanalReserva::Directo->value,
         );
 
         return response()->json(['data' => $this->presentar($reserva)], 201);
@@ -82,11 +87,18 @@ class ReservasTenantController
         $validado = $request->validate([
             'persona_id' => ['required', 'string'],
             'esperar' => ['boolean'],
+            'canal' => ['nullable', Rule::enum(CanalReserva::class)],
         ]);
 
         $persona = PersonaTenant::query()->where('ulid', $validado['persona_id'])->firstOrFail();
 
-        $decision = $this->reservas->evaluar($sesion, $persona, null, (bool) ($validado['esperar'] ?? false));
+        $decision = $this->reservas->evaluar(
+            $sesion,
+            $persona,
+            null,
+            (bool) ($validado['esperar'] ?? false),
+            $validado['canal'] ?? CanalReserva::Directo->value,
+        );
 
         return response()->json(['data' => $decision->aArreglo()]);
     }
@@ -134,6 +146,7 @@ class ReservasTenantController
         return [
             'id' => $reserva->ulid,
             'estado' => $reserva->estado->value,
+            'canal' => $reserva->canal,
             'persona' => $persona?->nombreCompleto(),
             'inicia_en' => $reserva->sesion?->inicia_en->toIso8601String(),
             'unidades' => $reserva->unidades,

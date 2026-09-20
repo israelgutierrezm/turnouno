@@ -157,6 +157,7 @@ class AgendaTenantController
         return [
             'id' => $sesion->ulid,
             'oferta' => $sesion->oferta?->nombre,
+            'oferta_id' => $sesion->oferta?->ulid,
             'instructor' => $sesion->instructor?->name,
             'instructor_id' => $sesion->instructor?->ulid,
             'inicia_en' => $sesion->inicia_en->toIso8601String(),

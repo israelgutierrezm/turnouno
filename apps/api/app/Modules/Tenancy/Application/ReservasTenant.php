@@ -17,9 +17,11 @@ use App\Modules\Reservas\Exceptions\TransferenciaInvalida;
 use App\Modules\Reservas\Exceptions\YaReservado;
 use App\Modules\Tenancy\EstadoSesionTenant;
 use App\Modules\Tenancy\Models\PersonaTenant;
+use App\Modules\Tenancy\Models\ReglaCapacidadCanalTenant;
 use App\Modules\Tenancy\Models\ReservaTenant;
 use App\Modules\Tenancy\Models\SesionTenant;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -44,7 +46,7 @@ class ReservasTenant
         private readonly RegistrarEventoTenant $eventos,
     ) {}
 
-    public function crear(SesionTenant $sesion, PersonaTenant $persona, ?string $idempotencyKey = null, bool $permitirEspera = false, ?int $unidades = null): ReservaTenant
+    public function crear(SesionTenant $sesion, PersonaTenant $persona, ?string $idempotencyKey = null, bool $permitirEspera = false, ?int $unidades = null, string $canal = 'directo'): ReservaTenant
     {
         $costo = $unidades ?? self::UNIDADES_POR_SESION;
 
@@ -59,13 +61,13 @@ class ReservasTenant
         // Pre-check con el motor: decision estructurada + fail-fast. Traduce el codigo
         // estable a la excepcion de dominio. La transaccion re-valida lo critico bajo
         // lock (concurrencia). Ver evaluar() y docs/BOOKING_ENGINE.md.
-        $decision = $this->evaluar($sesion, $persona, $costo, $permitirEspera);
+        $decision = $this->evaluar($sesion, $persona, $costo, $permitirEspera, $canal);
         if (! $decision->permitida) {
             throw $this->excepcionDe((string) $decision->codigo, (string) $decision->mensaje);
         }
 
         try {
-            return DB::connection('tenant')->transaction(function () use ($sesion, $persona, $idempotencyKey, $permitirEspera, $costo): ReservaTenant {
+            return DB::connection('tenant')->transaction(function () use ($sesion, $persona, $idempotencyKey, $permitirEspera, $costo, $canal): ReservaTenant {
                 $bloqueada = SesionTenant::query()->whereKey($sesion->getKey())->lockForUpdate()->firstOrFail();
 
                 if ($bloqueada->estado !== EstadoSesionTenant::Programada) {
@@ -97,8 +99,10 @@ class ReservasTenant
                     'penaliza_no_show' => $politica->penalizaNoShow,
                 ];
 
-                // Si hay cupo definido y esta lleno: lista de espera (sin hold) o rechazo.
-                if ($bloqueada->capacidad !== null && $this->ocupadas($bloqueada) >= $bloqueada->capacidad) {
+                // Si hay cupo definido y esta lleno PARA ESTE CANAL: lista de espera
+                // (sin hold) o rechazo. La disponibilidad descuenta los cupos que otras
+                // reglas de canal (R20) aun tienen reservados y sin usar.
+                if ($bloqueada->capacidad !== null && $this->disponiblesParaCanal($bloqueada, $canal) <= 0) {
                     if (! $permitirEspera) {
                         throw new CupoLleno('La sesion esta llena.');
                     }
@@ -109,6 +113,7 @@ class ReservasTenant
                         'derecho_id' => $derecho->getKey(),
                         'retencion_id' => null,
                         'estado' => EstadoReserva::EnEspera->value,
+                        'canal' => $canal,
                         'unidades' => 0,
                         'costo_unidades' => $costo,
                         'idempotency_key' => $idempotencyKey,
@@ -134,6 +139,7 @@ class ReservasTenant
                     'derecho_id' => $derecho->getKey(),
                     'retencion_id' => $retencion?->getKey(),
                     'estado' => EstadoReserva::Confirmada->value,
+                    'canal' => $canal,
                     'unidades' => $unidadesReservadas,
                     'costo_unidades' => $costo,
                     'idempotency_key' => $idempotencyKey,
@@ -166,7 +172,7 @@ class ReservasTenant
      *
      * @param  int|null  $unidades  costo en unidades escaladas (por defecto 1 credito)
      */
-    public function evaluar(SesionTenant $sesion, PersonaTenant $persona, ?int $unidades = null, bool $permitirEspera = false): DecisionReserva
+    public function evaluar(SesionTenant $sesion, PersonaTenant $persona, ?int $unidades = null, bool $permitirEspera = false, string $canal = 'directo'): DecisionReserva
     {
         $costo = $unidades ?? self::UNIDADES_POR_SESION;
         $reglas = [];
@@ -197,7 +203,7 @@ class ReservasTenant
             return DecisionReserva::rechazar('ENTITLEMENT_REQUIRED', 'No hay un derecho con saldo para esta sesion.', $reglas);
         }
 
-        $llena = $sesion->capacidad !== null && $this->ocupadas($sesion) >= $sesion->capacidad;
+        $llena = $sesion->capacidad !== null && $this->disponiblesParaCanal($sesion, $canal) <= 0;
         $reglas['con_cupo'] = ! $llena;
         $advertencias = [];
         if ($llena) {
@@ -536,5 +542,65 @@ class ReservasTenant
             ->where('sesion_id', $sesion->getKey())
             ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::Ofrecida->value])
             ->count();
+    }
+
+    /**
+     * Cupos disponibles de una sesion PARA UN CANAL (R20): los libres del pool general
+     * menos los que otras reglas de canal aun tienen reservados y sin usar. El canal
+     * solicitante nunca se descuenta a si mismo (su reserva de cupos es un piso
+     * garantizado, no un tope). Sin cupo definido = ilimitado. El resultado nunca supera
+     * `capacidad - ocupadas`, de modo que el invariante de no-sobreventa se mantiene.
+     */
+    private function disponiblesParaCanal(SesionTenant $sesion, string $canal): int
+    {
+        if ($sesion->capacidad === null) {
+            return PHP_INT_MAX;
+        }
+
+        $libres = $sesion->capacidad - $this->ocupadas($sesion);
+        if ($libres <= 0) {
+            return 0;
+        }
+
+        return max(0, $libres - $this->cuposReservadosOtrosCanales($sesion, $canal));
+    }
+
+    /**
+     * Suma de cupos que OTROS canales (distintos de `$canal`) tienen reservados por regla
+     * activa y aun no han usado, siempre que la regla siga vigente (aun no llega su
+     * ventana de liberacion `liberar_horas_antes` antes del inicio). Liberacion
+     * progresiva (R20): pasada esa ventana, esos cupos vuelven al pool general.
+     */
+    private function cuposReservadosOtrosCanales(SesionTenant $sesion, string $canal): int
+    {
+        $reglas = ReglaCapacidadCanalTenant::query()
+            ->where('oferta_id', $sesion->oferta_id)
+            ->where('activa', true)
+            ->where('canal', '!=', $canal)
+            ->get();
+
+        if ($reglas->isEmpty()) {
+            return 0;
+        }
+
+        $ahora = Carbon::now();
+        $total = 0;
+
+        foreach ($reglas as $regla) {
+            $liberaEn = $sesion->inicia_en->copy()->subHours($regla->liberar_horas_antes);
+            if ($ahora->greaterThanOrEqualTo($liberaEn)) {
+                continue; // ya se liberaron esos cupos al pool general
+            }
+
+            $usados = ReservaTenant::query()
+                ->where('sesion_id', $sesion->getKey())
+                ->where('canal', $regla->canal->value)
+                ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::Ofrecida->value])
+                ->count();
+
+            $total += max(0, $regla->cupos - $usados);
+        }
+
+        return $total;
     }
 }

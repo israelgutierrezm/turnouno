@@ -17,6 +17,7 @@ interface Sucursal {
 interface Sesion {
   id: string
   oferta: string | null
+  oferta_id: string | null
   instructor: string | null
   instructor_id: string | null
   inicia_en: string
@@ -34,9 +35,17 @@ interface Miembro {
 interface Reserva {
   id: string
   estado: string
+  canal: string
   persona: string | null
   unidades: number
   asistencia: string | null
+}
+interface ReglaCanal {
+  id: string
+  canal: string
+  cupos: number
+  liberar_horas_antes: number
+  activa: boolean
 }
 interface Checkin {
   id: string
@@ -52,6 +61,9 @@ const puedeGestionar = computed(() => sesion.puede('agenda.gestionar'))
 const puedeReservar = computed(() => sesion.puede('reservas.gestionar'))
 const puedeMarcar = computed(() => sesion.puede('asistencia.marcar'))
 const puedeCheckin = computed(() => sesion.puede('checkins.registrar'))
+
+// Canales de reserva (booking source) para R20.
+const CANALES = ['directo', 'wellhub', 'totalpass', 'classpass', 'otro'] as const
 
 const ofertas = ref<Oferta[]>([])
 const sucursales = ref<Sucursal[]>([])
@@ -312,9 +324,13 @@ function irHoy(): void {
 const detalle = ref<Sesion | null>(null)
 const roster = ref<Reserva[]>([])
 const cargandoRoster = ref(false)
-const reservarModel = ref({ miembroId: '', esperar: false })
+const reservarModel = ref({ miembroId: '', esperar: false, canal: 'directo' })
 // Transferir (regalar) el lugar de una reserva a otro miembro (R9): selector inline por fila.
 const transferirModel = ref({ reservaId: '', personaId: '' })
+// Cupos por canal / marketplace (R20): reglas de la oferta de la sesion abierta.
+const reglasCanal = ref<ReglaCanal[]>([])
+const reglaCanalModel = ref({ canal: 'wellhub', cupos: 0, liberar_horas_antes: 0 })
+const guardandoCanal = ref(false)
 const accionando = ref(false)
 const checkins = ref<Checkin[]>([])
 const checkinModel = ref({ proveedor: 'wellhub', codigo: '' })
@@ -337,8 +353,10 @@ async function abrirDetalle(s: Sesion): Promise<void> {
   roster.value = []
   checkins.value = []
   staffSesion.value = []
-  reservarModel.value = { miembroId: '', esperar: false }
+  reservarModel.value = { miembroId: '', esperar: false, canal: 'directo' }
   transferirModel.value = { reservaId: '', personaId: '' }
+  reglasCanal.value = []
+  reglaCanalModel.value = { canal: 'wellhub', cupos: 0, liberar_horas_antes: 0 }
   checkinModel.value = { proveedor: 'wellhub', codigo: '' }
   staffModel.value = { usuarioId: '', rol: 'instructor', sustituyeA: '' }
   okCheckin.value = false
@@ -348,6 +366,55 @@ async function abrirDetalle(s: Sesion): Promise<void> {
   }
   if (puedeGestionar.value) {
     await cargarStaffSesion(s.id)
+    if (s.oferta_id !== null) {
+      await cargarReglasCanal(s.oferta_id)
+    }
+  }
+}
+
+async function cargarReglasCanal(ofertaId: string): Promise<void> {
+  try {
+    const { data } = await api.get<{ data: ReglaCanal[] }>(`${base.value}/ofertas/${ofertaId}/capacidad-canal`)
+    reglasCanal.value = data.data
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  }
+}
+
+async function guardarReglaCanal(): Promise<void> {
+  if (detalle.value === null || detalle.value.oferta_id === null) {
+    return
+  }
+  guardandoCanal.value = true
+  error.value = null
+  try {
+    await api.put(`${base.value}/ofertas/${detalle.value.oferta_id}/capacidad-canal`, {
+      canal: reglaCanalModel.value.canal,
+      cupos: Number(reglaCanalModel.value.cupos) || 0,
+      liberar_horas_antes: Number(reglaCanalModel.value.liberar_horas_antes) || 0,
+    })
+    reglaCanalModel.value = { canal: 'wellhub', cupos: 0, liberar_horas_antes: 0 }
+    await cargarReglasCanal(detalle.value.oferta_id)
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    guardandoCanal.value = false
+  }
+}
+
+async function eliminarReglaCanal(r: ReglaCanal): Promise<void> {
+  if (detalle.value === null || detalle.value.oferta_id === null) {
+    return
+  }
+  guardandoCanal.value = true
+  error.value = null
+  try {
+    await api.delete(`${base.value}/capacidad-canal/${r.id}`)
+    await cargarReglasCanal(detalle.value.oferta_id)
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    guardandoCanal.value = false
   }
 }
 
@@ -419,6 +486,7 @@ async function reservar(id: string): Promise<void> {
     await api.post(`${base.value}/sesiones/${id}/reservas`, {
       persona_id: reservarModel.value.miembroId,
       esperar: reservarModel.value.esperar,
+      canal: reservarModel.value.canal,
     })
     reservarModel.value.miembroId = ''
     await refrescarTras(id)
@@ -828,6 +896,12 @@ onMounted(async () => {
                 <option v-for="m in miembros" :key="m.id" :value="m.id">{{ nombreMiembro(m) }}</option>
               </select>
             </div>
+            <div class="min-w-[120px]">
+              <label class="tu-label" for="rcanal">{{ $t('agenda.reservar.canal') }}</label>
+              <select id="rcanal" v-model="reservarModel.canal" class="tu-input">
+                <option v-for="c in CANALES" :key="c" :value="c">{{ $t(`agenda.canales.${c}`) }}</option>
+              </select>
+            </div>
             <label class="flex items-center gap-1.5 text-sm pb-2.5">
               <input v-model="reservarModel.esperar" type="checkbox" />
               {{ $t('agenda.reservar.esperar') }}
@@ -858,6 +932,7 @@ onMounted(async () => {
                     }"
                   >{{ $t(`agenda.roster.${r.estado}`) }}</span>
                   <span v-if="r.asistencia" class="tu-badge">{{ $t(`agenda.roster.${r.asistencia}`) }}</span>
+                  <span v-if="r.canal && r.canal !== 'directo'" class="tu-badge">{{ $t(`agenda.canales.${r.canal}`) }}</span>
                 </span>
                 <span class="flex items-center gap-2 shrink-0">
                   <button
@@ -918,6 +993,43 @@ onMounted(async () => {
               </form>
             </li>
           </ul>
+        </div>
+
+        <!-- Cupos por canal / marketplace (R20) -->
+        <div v-if="puedeGestionar && detalle.oferta_id" class="mt-4 border-t pt-4" :style="{ borderColor: 'var(--borde)' }">
+          <h3 class="font-semibold text-sm">{{ $t('agenda.cuposCanal.titulo') }}</h3>
+          <p class="text-xs mt-1" :style="{ color: 'var(--texto-suave)' }">{{ $t('agenda.cuposCanal.ayuda') }}</p>
+
+          <ul v-if="reglasCanal.length > 0" class="mt-2 space-y-1">
+            <li v-for="rc in reglasCanal" :key="rc.id" class="flex items-center justify-between gap-2 text-sm">
+              <span>
+                <span class="tu-badge">{{ $t(`agenda.canales.${rc.canal}`) }}</span>
+                {{ $t('agenda.cuposCanal.cupos', { n: rc.cupos }) }}
+                <span v-if="rc.liberar_horas_antes > 0" :style="{ color: 'var(--texto-suave)' }">· {{ $t('agenda.cuposCanal.libera', { h: rc.liberar_horas_antes }) }}</span>
+              </span>
+              <button class="tu-enlace" style="color: var(--error)" type="button" :disabled="guardandoCanal" @click="eliminarReglaCanal(rc)">
+                {{ $t('comun.eliminar') }}
+              </button>
+            </li>
+          </ul>
+
+          <form class="mt-2 flex flex-wrap items-end gap-2" @submit.prevent="guardarReglaCanal">
+            <div class="min-w-[110px]">
+              <label class="tu-label" for="rc-canal">{{ $t('agenda.reservar.canal') }}</label>
+              <select id="rc-canal" v-model="reglaCanalModel.canal" class="tu-input">
+                <option v-for="c in CANALES.filter((x) => x !== 'directo')" :key="c" :value="c">{{ $t(`agenda.canales.${c}`) }}</option>
+              </select>
+            </div>
+            <div class="w-20">
+              <label class="tu-label" for="rc-cupos">{{ $t('agenda.cuposCanal.campoCupos') }}</label>
+              <input id="rc-cupos" v-model.number="reglaCanalModel.cupos" type="number" min="0" class="tu-input" />
+            </div>
+            <div class="w-24">
+              <label class="tu-label" for="rc-libera">{{ $t('agenda.cuposCanal.campoLibera') }}</label>
+              <input id="rc-libera" v-model.number="reglaCanalModel.liberar_horas_antes" type="number" min="0" class="tu-input" />
+            </div>
+            <button class="tu-btn tu-btn-fantasma" type="submit" :disabled="guardandoCanal">{{ $t('agenda.cuposCanal.guardar') }}</button>
+          </form>
         </div>
 
         <!-- Check-ins de bienestar -->
