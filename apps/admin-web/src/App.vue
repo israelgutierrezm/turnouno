@@ -21,7 +21,6 @@ interface Enlace {
 const enlaces: Enlace[] = [
   { to: '/', clave: 'inicio', permiso: null },
   { to: '/miembros', clave: 'miembros', permiso: 'miembros.ver' },
-  { to: '/familias', clave: 'familias', permiso: 'miembros.ver' },
   { to: '/organizaciones', clave: 'organizaciones', permiso: 'organizaciones.ver' },
   { to: '/sucursales', clave: 'sucursales', permiso: 'sucursales.ver' },
   { to: '/personal', clave: 'personal', permiso: 'personal.gestionar' },

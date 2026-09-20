@@ -40,7 +40,7 @@ it('pole: pack de créditos, clase grupal, reserva con hold y asistencia', funct
     expect($libro->disponible($derecho))->toBe(7000);
 });
 
-it('natación: tutor registra dependiente, clase reducida y reserva del menor', function (): void {
+it('natación: clase reducida y reserva del menor', function (): void {
     $tenant = crearTenant('AquaKids');
     $owner = User::factory()->create();
     vincularUsuario($tenant, $owner, ['propietario']);
@@ -51,13 +51,10 @@ it('natación: tutor registra dependiente, clase reducida y reserva del menor', 
 
     Sanctum::actingAs($owner);
 
-    // Comprador (tutor) != participante (menor): el tutor registra al dependiente.
-    $tutor = $this->postJson('/api/v1/personas', ['nombre' => 'María', 'apellidos' => 'López'])
-        ->assertCreated()->json('data.id');
-    $menor = $this->postJson("/api/v1/personas/{$tutor}/dependientes", ['nombre' => 'Sofía', 'parentesco' => 'hija'])
+    // El menor participa; el derecho (pack) vive en el participante.
+    $menor = $this->postJson('/api/v1/personas', ['nombre' => 'Sofía', 'apellidos' => 'López'])
         ->assertCreated()->json('data.id');
 
-    // El derecho (pack) vive en el participante (el menor).
     $producto = $this->postJson('/api/v1/productos', [
         'nombre' => 'Pack natación 4',
         'tipo' => 'paquete',

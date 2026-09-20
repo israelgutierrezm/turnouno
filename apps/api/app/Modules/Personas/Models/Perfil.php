@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Un rol que ostenta una Persona (Miembro, Tutor, ...). Miembro != Persona:
+ * Un rol que ostenta una Persona (Miembro, Instructor, ...). Miembro != Persona:
  * el perfil "miembro" es solo uno de los roles que una persona puede tener.
  */
 class Perfil extends Model

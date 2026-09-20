@@ -6,7 +6,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-// Perfil: un rol que ostenta una persona (Miembro, Tutor, Instructor, ...).
+// Perfil: un rol que ostenta una persona (Miembro, Instructor, ...).
 // Una persona puede tener varios perfiles simultáneamente.
 return new class extends Migration
 {

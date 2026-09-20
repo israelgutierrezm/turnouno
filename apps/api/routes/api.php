@@ -13,7 +13,6 @@ use App\Modules\Catalogo\Http\Controllers\OfertaController;
 use App\Modules\Catalogo\Http\Controllers\ProgramaController;
 use App\Modules\Creditos\Http\Controllers\ConsumoController;
 use App\Modules\Creditos\Http\Controllers\RetencionController;
-use App\Modules\Hogares\Http\Controllers\HogarController;
 use App\Modules\Identity\Http\Controllers\Auth\SessionController;
 use App\Modules\Identity\Http\Controllers\Auth\TokenController;
 use App\Modules\Identity\Http\Controllers\MeController;
@@ -33,7 +32,6 @@ use App\Modules\Pagos\Http\Controllers\WebhookMercadoPagoController;
 use App\Modules\Pagos\Http\Controllers\WebhookOpenPayController;
 use App\Modules\Pagos\Http\Controllers\WebhookPagoController;
 use App\Modules\Pagos\Http\Controllers\WebhookStripeController;
-use App\Modules\Personas\Http\Controllers\DependientePersonaController;
 use App\Modules\Personas\Http\Controllers\PerfilPersonaController;
 use App\Modules\Personas\Http\Controllers\PersonaController;
 use App\Modules\Platform\Http\Controllers\HealthController;
@@ -63,7 +61,6 @@ use App\Modules\Tenancy\Http\Controllers\ExcepcionesHorarioTenantController;
 use App\Modules\Tenancy\Http\Controllers\FacturacionController;
 use App\Modules\Tenancy\Http\Controllers\FacturaRentaController;
 use App\Modules\Tenancy\Http\Controllers\FacturasTenantController;
-use App\Modules\Tenancy\Http\Controllers\FamiliasTenantController;
 use App\Modules\Tenancy\Http\Controllers\FormulariosController;
 use App\Modules\Tenancy\Http\Controllers\FrontDeskTenantController;
 use App\Modules\Tenancy\Http\Controllers\GruposTenantController;
@@ -223,12 +220,6 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/automatizaciones', [AutomatizacionesTenantController::class, 'store'])->middleware('puede:automatizaciones.gestionar')->name('automatizaciones.store');
             Route::put('/automatizaciones/{regla}', [AutomatizacionesTenantController::class, 'actualizar'])->middleware('puede:automatizaciones.gestionar')->name('automatizaciones.update');
             Route::delete('/automatizaciones/{regla}', [AutomatizacionesTenantController::class, 'eliminar'])->middleware('puede:automatizaciones.gestionar')->name('automatizaciones.destroy');
-
-            // Familias (R26): hogares y tutelas (tutor -> dependiente).
-            Route::post('/hogares', [FamiliasTenantController::class, 'crearHogar'])->middleware('puede:miembros.gestionar')->name('hogares.store');
-            Route::post('/hogares/{hogar}/personas', [FamiliasTenantController::class, 'asignarPersona'])->middleware('puede:miembros.gestionar')->name('hogares.personas.store');
-            Route::post('/tutelas', [FamiliasTenantController::class, 'crearTutela'])->middleware('puede:miembros.gestionar')->name('tutelas.store');
-            Route::get('/miembros/{persona}/dependientes', [FamiliasTenantController::class, 'dependientes'])->middleware('puede:miembros.ver')->name('miembros.dependientes.index');
 
             // Facturación SaaS del estudio (control plane; separada de pagos de alumnos).
             Route::get('/facturacion', [FacturacionController::class, 'show'])->middleware('puede:facturacion.ver')->name('facturacion');
@@ -522,11 +513,6 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('/personas', [PersonaController::class, 'store'])->name('api.v1.personas.store');
                 Route::get('/personas/{persona}', [PersonaController::class, 'show'])->name('api.v1.personas.show');
                 Route::post('/personas/{persona}/perfiles', [PerfilPersonaController::class, 'store'])->name('api.v1.personas.perfiles.store');
-                Route::post('/personas/{persona}/dependientes', [DependientePersonaController::class, 'store'])->name('api.v1.personas.dependientes.store');
-
-                Route::get('/hogares', [HogarController::class, 'index'])->name('api.v1.hogares.index');
-                Route::post('/hogares', [HogarController::class, 'store'])->name('api.v1.hogares.store');
-                Route::get('/hogares/{hogar}', [HogarController::class, 'show'])->name('api.v1.hogares.show');
 
                 // Catálogo: Programa → Actividad → (Nivel, Oferta).
                 Route::get('/programas', [ProgramaController::class, 'index'])->name('api.v1.programas.index');

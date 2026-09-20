@@ -13,16 +13,8 @@ interface Miembro {
   perfiles: string[]
 }
 
-interface Relacion {
-  id: string
-  nombre: string
-}
-
 interface PersonaDetalle extends Miembro {
   fecha_nacimiento: string | null
-  hogar: Relacion | null
-  tutores: Relacion[]
-  dependientes: Relacion[]
 }
 
 interface DerechoItem {
@@ -176,20 +168,7 @@ onMounted(() => void cargar())
               <dt class="text-slate-500">{{ t('miembros.perfiles') }}</dt>
               <dd>{{ detalle.perfiles.join(', ') || '—' }}</dd>
             </div>
-            <div class="flex justify-between gap-2">
-              <dt class="text-slate-500">{{ t('miembros.hogar') }}</dt>
-              <dd>{{ detalle.hogar?.nombre ?? '—' }}</dd>
-            </div>
           </dl>
-
-          <div v-if="detalle.tutores.length > 0">
-            <p class="text-xs font-medium text-slate-500">{{ t('miembros.tutores') }}</p>
-            <p>{{ detalle.tutores.map((x) => x.nombre).join(', ') }}</p>
-          </div>
-          <div v-if="detalle.dependientes.length > 0">
-            <p class="text-xs font-medium text-slate-500">{{ t('miembros.dependientes') }}</p>
-            <p>{{ detalle.dependientes.map((x) => x.nombre).join(', ') }}</p>
-          </div>
 
           <div v-if="puedeVerDerechos" class="border-t border-slate-100 pt-2">
             <p class="text-xs font-medium text-slate-500">{{ t('miembros.derechos') }}</p>

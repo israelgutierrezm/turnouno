@@ -93,10 +93,9 @@ it('concede el derecho al beneficiario cuando difiere del comprador', function (
     Sanctum::actingAs($owner);
 
     $producto = crearProductoPack();
-    // La madre compra; la hija (dependiente) es la beneficiaria.
+    // La madre compra; otra persona (la hija) es la beneficiaria (comprador != participante).
     $madre = $this->postJson('/api/v1/personas', ['nombre' => 'María'])->assertCreated()->json('data.id');
-    $hija = $this->postJson("/api/v1/personas/{$madre}/dependientes", ['nombre' => 'Sofía'])
-        ->assertCreated()->json('data.id');
+    $hija = $this->postJson('/api/v1/personas', ['nombre' => 'Sofía'])->assertCreated()->json('data.id');
 
     $orden = $this->postJson('/api/v1/ordenes', [
         'persona_id' => $madre,

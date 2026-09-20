@@ -27,12 +27,6 @@ const router = createRouter({
       meta: { permiso: 'miembros.ver' },
     },
     {
-      path: '/familias',
-      name: 'familias',
-      component: () => import('@/views/FamiliasView.vue'),
-      meta: { permiso: 'miembros.ver' },
-    },
-    {
       path: '/organizaciones',
       name: 'organizaciones',
       component: () => import('@/views/OrganizacionesView.vue'),

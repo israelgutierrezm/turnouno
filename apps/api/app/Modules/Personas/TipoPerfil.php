@@ -11,7 +11,6 @@ namespace App\Modules\Personas;
 enum TipoPerfil: string
 {
     case Miembro = 'miembro';
-    case Tutor = 'tutor';
     case Instructor = 'instructor';
     case Personal = 'personal';
     case Lead = 'lead';

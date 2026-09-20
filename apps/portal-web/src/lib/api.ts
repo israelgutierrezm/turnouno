@@ -3,7 +3,7 @@ import axios from 'axios'
 import { getCorrelationId } from '@/lib/correlationId'
 
 /**
- * Cliente HTTP del portal del miembro/tutor.
+ * Cliente HTTP del portal del miembro.
  *
  * - `withCredentials` + `withXSRFToken` habilitan la autenticación por cookie de
  *   Sanctum (mismo sitio), enviando el token XSRF también entre puertos.

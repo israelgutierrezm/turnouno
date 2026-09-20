@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Personas\Http\Controllers;
 
-use App\Modules\Hogares\Models\Hogar;
 use App\Modules\Personas\Application\CrearPersona;
 use App\Modules\Personas\Http\Requests\CrearPersonaRequest;
 use App\Modules\Personas\Models\Perfil;
@@ -42,26 +41,20 @@ class PersonaController
     {
         Gate::authorize('miembros.ver');
 
-        $persona->load(['perfiles', 'hogar', 'tutores', 'dependientes']);
+        $persona->load('perfiles');
 
-        return response()->json(['data' => $this->presentarDetalle($persona)]);
+        return response()->json(['data' => $this->presentar($persona)]);
     }
 
     public function store(CrearPersonaRequest $request, CrearPersona $crearPersona): JsonResponse
     {
         Gate::authorize('miembros.crear');
 
-        $hogarUlid = $request->validated('hogar_id');
-        $hogar = is_string($hogarUlid) && $hogarUlid !== ''
-            ? Hogar::query()->where('ulid', $hogarUlid)->firstOrFail()
-            : null;
-
         $persona = $crearPersona->ejecutar(
             (string) $request->validated('nombre'),
             $this->comoTexto($request->validated('apellidos')),
             $this->comoTexto($request->validated('email')),
             $this->comoTexto($request->validated('fecha_nacimiento')),
-            $hogar,
             $this->comoListaDeTextos($request->validated('perfiles')),
         );
 
@@ -96,23 +89,5 @@ class PersonaController
                 ->map(static fn (Perfil $perfil): string => $perfil->tipo->value)
                 ->all(),
         ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function presentarDetalle(Persona $persona): array
-    {
-        return array_merge($this->presentar($persona), [
-            'hogar' => $persona->hogar instanceof Hogar
-                ? ['id' => $persona->hogar->ulid, 'nombre' => $persona->hogar->nombre]
-                : null,
-            'tutores' => $persona->tutores
-                ->map(static fn (Persona $tutor): array => ['id' => $tutor->ulid, 'nombre' => $tutor->nombre])
-                ->all(),
-            'dependientes' => $persona->dependientes
-                ->map(static fn (Persona $dependiente): array => ['id' => $dependiente->ulid, 'nombre' => $dependiente->nombre])
-                ->all(),
-        ]);
     }
 }

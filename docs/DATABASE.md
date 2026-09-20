@@ -24,8 +24,6 @@ términos en español que usamos en el código y la base de datos.
 | Branch | Sucursal | `Sucursal` | `sucursales` |
 | Staff assignment | Asignación de personal | `AsignacionPersonal` | `asignaciones_personal` |
 | Member (perfil) | Miembro | `Miembro` | `miembros` |
-| Household | Hogar | `Hogar` | `hogares` |
-| Guardian | Tutor | `Tutor` | `tutores` |
 | Membership (comercial) | Membresía | `Membresia` | `membresias` |
 | Booking | Reserva | `Reserva` | `reservas` |
 | Schedule template | Plantilla de horario | `PlantillaHorario` | `plantillas_horario` |
@@ -52,10 +50,8 @@ términos en español que usamos en el código y la base de datos.
   `role_has_permissions` — con `tenant_id` como `team_foreign_key` (ADR-0006)
 
 ### Dominio *(nombres en español)*
-- `personas` (`id`, `ulid`, `tenant_id`, `user_id?`, `hogar_id?`, `nombre`, `apellidos?`, `email?`, `fecha_nacimiento?`)
-- `perfiles` (`id`, `ulid`, `tenant_id`, `persona_id`, `tipo`) — roles de una persona (miembro, tutor, …); `unique(persona_id, tipo)`
-- `hogares` (`id`, `ulid`, `tenant_id`, `nombre`)
-- `tutelas` (`id`, `ulid`, `tenant_id`, `tutor_id`, `dependiente_id`, `parentesco?`) — tutor → dependiente
+- `personas` (`id`, `ulid`, `tenant_id`, `user_id?`, `nombre`, `apellidos?`, `email?`, `fecha_nacimiento?`)
+- `perfiles` (`id`, `ulid`, `tenant_id`, `persona_id`, `tipo`) — roles de una persona (miembro, instructor, …); `unique(persona_id, tipo)`
 - `organizaciones` (`id`, `ulid`, `tenant_id`, `nombre`, `slug`)
 - `marcas` (`id`, `ulid`, `tenant_id`, `organizacion_id`, `nombre`, `slug`)
 - `sucursales` (`id`, `ulid`, `tenant_id`, `marca_id`, `nombre`, `slug`, `zona_horaria?`, `estado`)
@@ -82,8 +78,7 @@ términos en español que usamos en el código y la base de datos.
 - `pagos` (`id`, `ulid`, `tenant_id`, `orden_id`, `proveedor`, `metodo?`, `estado`, `monto_minor`, `moneda`, `referencia_externa?`, `idempotency_key?`, `comprobante_ruta?`, `comprobante_subido_en?`) — intento de cobro; `idempotency_key` único; `comprobante_*` = depósito en ventanilla
 - `configuraciones_pasarela` (`id`, `ulid`, `tenant_id`, `proveedor`, `activa`, `modo`, `credenciales?`) — config de pasarela por tenant; `credenciales` **cifradas**; `unique(tenant_id, proveedor)` (ADR-0014)
 
-> `TipoPerfil` (enum): `miembro`, `tutor`, `instructor`, `personal`, `lead`, `cliente`.
-> Un menor (dependiente) puede no tener `user_id` (sin cuenta de acceso).
+> `TipoPerfil` (enum): `miembro`, `instructor`, `personal`, `lead`, `cliente`.
 > `ModoRecurso` (enum): `unidad`, `pool`. `ModalidadOferta` (enum): `grupal`, `privada`.
 > `TipoProducto`: `membresia`, `paquete`, `pase_dia`, `sesion_individual`, `add_on`, `taller`.
 > `TipoMovimiento`: `concesion`, `consumo`, `ajuste`, `add_on`, `reverso`, `expiracion`.

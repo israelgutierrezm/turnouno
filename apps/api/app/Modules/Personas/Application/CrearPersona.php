@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Personas\Application;
 
-use App\Modules\Hogares\Models\Hogar;
 use App\Modules\Personas\Models\Persona;
 use App\Modules\Personas\TipoPerfil;
 
@@ -18,7 +17,6 @@ class CrearPersona
         ?string $apellidos = null,
         ?string $email = null,
         ?string $fechaNacimiento = null,
-        ?Hogar $hogar = null,
         array $perfiles = [],
     ): Persona {
         $persona = Persona::create([
@@ -26,7 +24,6 @@ class CrearPersona
             'apellidos' => $apellidos,
             'email' => $email,
             'fecha_nacimiento' => $fechaNacimiento,
-            'hogar_id' => $hogar?->id,
         ]);
 
         foreach ($perfiles as $tipo) {
