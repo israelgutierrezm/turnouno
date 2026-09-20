@@ -34,6 +34,7 @@ class CatalogoDePermisosTenant
                 'comunicaciones.gestionar', 'comunicaciones.ver',
                 'crm.ver', 'crm.gestionar',
                 'automatizaciones.gestionar', 'tareas.ver', 'tareas.gestionar',
+                'promociones.gestionar',
             ],
             'recepcionista' => [
                 'miembros.gestionar', 'miembros.ver', 'documentos.subir', 'formularios.responder',

@@ -84,6 +84,7 @@ use App\Modules\Tenancy\Http\Controllers\PlantillasHorarioTenantController;
 use App\Modules\Tenancy\Http\Controllers\PlantillasMensajeTenantController;
 use App\Modules\Tenancy\Http\Controllers\PlataformaController;
 use App\Modules\Tenancy\Http\Controllers\PoliticasCancelacionTenantController;
+use App\Modules\Tenancy\Http\Controllers\PromocionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\RecursosTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReembolsosTenantController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
@@ -381,6 +382,13 @@ Route::prefix('v1')->group(function (): void {
             // Cobro en linea con la pasarela del estudio (asincrono -> pendiente +
             // checkout; el webhook confirma). Listo para activarse al cargar llaves.
             Route::post('/ordenes/{orden}/cobrar', [OrdenesTenantController::class, 'cobrar'])->middleware('puede:ordenes.gestionar')->name('ordenes.cobrar');
+
+            // Promociones / cupones (R22): CRUD (admin) y validacion de un codigo en el checkout.
+            Route::get('/promociones', [PromocionesTenantController::class, 'index'])->middleware('puede:promociones.gestionar')->name('promociones.index');
+            Route::post('/promociones', [PromocionesTenantController::class, 'store'])->middleware('puede:promociones.gestionar')->name('promociones.store');
+            Route::put('/promociones/{promocion}', [PromocionesTenantController::class, 'actualizar'])->middleware('puede:promociones.gestionar')->name('promociones.update');
+            Route::delete('/promociones/{promocion}', [PromocionesTenantController::class, 'eliminar'])->middleware('puede:promociones.gestionar')->name('promociones.destroy');
+            Route::post('/promociones/validar', [PromocionesTenantController::class, 'validar'])->middleware('puede:ordenes.gestionar')->name('promociones.validar');
 
             // Devoluciones (refunds) de un pago: total (revierte entitlement) o parcial
             // (proporcional). Operacion sensible: exige motivo y queda auditada.

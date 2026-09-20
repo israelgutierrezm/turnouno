@@ -24,7 +24,7 @@ class OrdenTenant extends Model
     protected $table = 'ordenes';
 
     protected $fillable = [
-        'persona_id', 'estado', 'total_minor', 'moneda',
+        'persona_id', 'estado', 'total_minor', 'descuento_minor', 'promocion_id', 'moneda',
         'metodo_pago', 'referencia_pago', 'pagada_en',
     ];
 
@@ -34,6 +34,7 @@ class OrdenTenant extends Model
     protected $casts = [
         'estado' => EstadoOrden::class,
         'total_minor' => 'integer',
+        'descuento_minor' => 'integer',
         'pagada_en' => 'datetime',
     ];
 

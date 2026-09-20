@@ -41,9 +41,12 @@ const ordenes = ref<Orden[]>([])
 const cargando = ref(true)
 const error = ref<string | null>(null)
 
-const venta = ref({ compradorId: '', productoId: '', metodo: 'efectivo' })
+const venta = ref({ compradorId: '', productoId: '', metodo: 'efectivo', codigoPromo: '' })
 const vendiendo = ref(false)
 const exito = ref<string | null>(null)
+const puedePromos = computed(() => sesion.puede('ordenes.gestionar'))
+const promoPreview = ref<{ descuento: number; total: number } | null>(null)
+const validandoPromo = ref(false)
 
 const prod = ref({ nombre: '', tipo: 'paquete', precio: '899', creditos: '8' })
 const creando = ref(false)
@@ -80,6 +83,29 @@ async function cargar(): Promise<void> {
   }
 }
 
+const productoSel = computed(() => productos.value.find((p) => p.id === venta.value.productoId) ?? null)
+
+async function validarPromo(): Promise<void> {
+  promoPreview.value = null
+  const p = productoSel.value
+  if (p === null || venta.value.codigoPromo.trim() === '') {
+    return
+  }
+  validandoPromo.value = true
+  error.value = null
+  try {
+    const { data } = await api.post<{ data: { descuento_minor: number; total_minor: number } }>(
+      `${base.value}/promociones/validar`,
+      { codigo: venta.value.codigoPromo, subtotal_minor: p.precio_minor },
+    )
+    promoPreview.value = { descuento: data.data.descuento_minor, total: data.data.total_minor }
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    validandoPromo.value = false
+  }
+}
+
 async function vender(): Promise<void> {
   vendiendo.value = true
   error.value = null
@@ -88,6 +114,7 @@ async function vender(): Promise<void> {
     const orden = await api.post<{ data: { id: string } }>(`${base.value}/ordenes`, {
       comprador_id: venta.value.compradorId,
       items: [{ producto_id: venta.value.productoId, cantidad: 1 }],
+      codigo_promo: venta.value.codigoPromo.trim() !== '' ? venta.value.codigoPromo : undefined,
     })
     await api.post(`${base.value}/ordenes/${orden.data.data.id}/liquidar`, {
       metodo: venta.value.metodo,
@@ -106,6 +133,8 @@ async function vender(): Promise<void> {
         : 'pack:' + nombre + '|' + String(ultimo?.saldo ?? 0)
 
     venta.value.productoId = ''
+    venta.value.codigoPromo = ''
+    promoPreview.value = null
     await cargar()
   } catch (e) {
     error.value = mensajeDeError(e)
@@ -198,6 +227,30 @@ onMounted(cargar)
               <option value="transferencia">{{ $t('ventas.metodos.transferencia') }}</option>
               <option value="ventanilla">{{ $t('ventas.metodos.ventanilla') }}</option>
             </select>
+          </div>
+          <div v-if="puedePromos">
+            <label class="tu-label" for="vpromo">{{ $t('ventas.vender.promo') }}</label>
+            <div class="flex gap-2">
+              <input
+                id="vpromo"
+                v-model="venta.codigoPromo"
+                class="tu-input uppercase"
+                :placeholder="$t('ventas.vender.promoPlaceholder')"
+                @input="promoPreview = null"
+              />
+              <button
+                class="tu-btn tu-btn-fantasma shrink-0"
+                type="button"
+                :disabled="validandoPromo || venta.productoId === '' || venta.codigoPromo.trim() === ''"
+                @click="validarPromo"
+              >
+                {{ $t('ventas.vender.promoAplicar') }}
+              </button>
+            </div>
+            <p v-if="promoPreview" class="mt-1 text-sm" :style="{ color: 'var(--exito)' }">
+              {{ $t('ventas.vender.promoDescuento', { monto: dinero(promoPreview.descuento, productoSel?.moneda ?? 'MXN') }) }}
+              · {{ $t('ventas.vender.promoTotal', { monto: dinero(promoPreview.total, productoSel?.moneda ?? 'MXN') }) }}
+            </p>
           </div>
           <p
             v-if="exitoTexto"

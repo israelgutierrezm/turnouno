@@ -21,12 +21,15 @@ use Illuminate\Support\Facades\DB;
  */
 class OrdenesTenant
 {
-    public function __construct(private readonly FulfillmentTenant $fulfillment) {}
+    public function __construct(
+        private readonly FulfillmentTenant $fulfillment,
+        private readonly GestionarPromocionesTenant $promociones,
+    ) {}
 
     /**
      * @param  list<array{producto: ProductoTenant, cantidad: int, beneficiario?: PersonaTenant|null}>  $items
      */
-    public function crear(PersonaTenant $comprador, array $items): OrdenTenant
+    public function crear(PersonaTenant $comprador, array $items, ?string $codigoPromo = null): OrdenTenant
     {
         $moneda = $items[0]['producto']->moneda; // Una sola moneda por orden.
 
@@ -36,8 +39,8 @@ class OrdenesTenant
             }
         }
 
-        return DB::connection('tenant')->transaction(function () use ($comprador, $items, $moneda): OrdenTenant {
-            $total = 0;
+        return DB::connection('tenant')->transaction(function () use ($comprador, $items, $moneda, $codigoPromo): OrdenTenant {
+            $subtotal = 0;
 
             $orden = OrdenTenant::query()->create([
                 'persona_id' => $comprador->getKey(),
@@ -49,19 +52,31 @@ class OrdenesTenant
             foreach ($items as $item) {
                 $producto = $item['producto'];
                 $cantidad = max(1, $item['cantidad']);
-                $subtotal = $producto->precio_minor * $cantidad;
-                $total += $subtotal;
+                $lineaSubtotal = $producto->precio_minor * $cantidad;
+                $subtotal += $lineaSubtotal;
 
                 $orden->lineas()->create([
                     'producto_comercial_id' => $producto->getKey(),
                     'beneficiario_id' => ($item['beneficiario'] ?? null)?->getKey(),
                     'cantidad' => $cantidad,
                     'precio_unitario_minor' => $producto->precio_minor,
-                    'subtotal_minor' => $subtotal,
+                    'subtotal_minor' => $lineaSubtotal,
                 ]);
             }
 
-            $orden->update(['total_minor' => $total]);
+            // Promocion / cupon (R22): valida, consume un uso y descuenta del total.
+            $descuento = 0;
+            $promocionId = null;
+            if ($codigoPromo !== null && $codigoPromo !== '') {
+                ['promocion' => $promocion, 'descuento' => $descuento] = $this->promociones->aplicarEnOrden($codigoPromo, $subtotal);
+                $promocionId = $promocion->getKey();
+            }
+
+            $orden->update([
+                'total_minor' => $subtotal - $descuento,
+                'descuento_minor' => $descuento,
+                'promocion_id' => $promocionId,
+            ]);
 
             return $orden;
         });

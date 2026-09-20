@@ -50,6 +50,7 @@ class OrdenesTenantController
             'items.*.producto_id' => ['required', 'string'],
             'items.*.cantidad' => ['required', 'integer', 'min:1'],
             'items.*.beneficiario_id' => ['nullable', 'string'],
+            'codigo_promo' => ['nullable', 'string', 'max:64'],
         ]);
 
         $comprador = PersonaTenant::query()->where('ulid', $validado['comprador_id'])->firstOrFail();
@@ -68,7 +69,7 @@ class OrdenesTenantController
             ];
         }
 
-        $orden = $this->ordenes->crear($comprador, $items);
+        $orden = $this->ordenes->crear($comprador, $items, $validado['codigo_promo'] ?? null);
 
         return response()->json(['data' => $this->presentar($orden->refresh())], 201);
     }
@@ -130,6 +131,7 @@ class OrdenesTenantController
             'comprador' => $orden->persona?->nombre,
             'estado' => $orden->estado->value,
             'total_minor' => $orden->total_minor,
+            'descuento_minor' => (int) ($orden->descuento_minor ?? 0),
             'moneda' => $orden->moneda,
             'metodo_pago' => $orden->metodo_pago,
             'referencia_pago' => $orden->referencia_pago,
