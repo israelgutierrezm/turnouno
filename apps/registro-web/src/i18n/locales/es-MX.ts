@@ -284,7 +284,7 @@ export default {
   miembros: {
     titulo: 'Miembros',
     subtitulo: 'Los alumnos e instructores de tu estudio.',
-    nuevo: 'Nuevo miembro',
+    nuevoTitulo: 'Nuevo miembro',
     nombre: 'Nombre',
     segundoNombre: 'Segundo nombre',
     primerApellido: 'Primer apellido',
@@ -931,7 +931,7 @@ export default {
     sinClasesDia: 'Sin clases este día.',
     ocupacion: '{ocupados}/{cupo}',
     ocupacionSinCupo: '{ocupados} · sin límite',
-    lugares: '{n} lugares',
+    lugaresTotal: '{n} lugares',
     completo: 'Completo',
     estados: {
       programada: 'Con lugar',

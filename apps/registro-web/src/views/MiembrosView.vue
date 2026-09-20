@@ -235,7 +235,7 @@ onMounted(() => {
 
       <!-- Alta -->
       <div v-if="puedeGestionar" class="tu-card p-5 h-max">
-        <h2 class="font-bold">{{ $t('miembros.nuevo') }}</h2>
+        <h2 class="font-bold">{{ $t('miembros.nuevoTitulo') }}</h2>
         <form class="mt-3 space-y-3" @submit.prevent="crear">
           <div>
             <label class="tu-label" for="mn">{{ $t('miembros.nombre') }}</label>
