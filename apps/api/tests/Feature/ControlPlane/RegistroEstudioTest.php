@@ -24,7 +24,9 @@ function registrarEstudioApi(string $nombre, string $slug, string $email): array
         'nombre' => $nombre,
         'slug' => $slug,
         'contacto_nombre' => 'Dueño',
+        'contacto_primer_apellido' => 'Demo',
         'contacto_email' => $email,
+        'contacto_telefono' => '5512345678',
         'acepta_terminos' => true,
     ])->assertCreated();
 
@@ -92,6 +94,56 @@ it('un token de un estudio NO autentica en otro (aislamiento de sesión)', funct
         ->assertOk();
 });
 
+it('guarda el contacto desglosado y el WhatsApp; el dueño recibe el nombre completo', function (): void {
+    $resp = $this->postJson('/api/v1/registro', [
+        'nombre' => 'Pilates Roma', 'slug' => 'pilates-roma',
+        'contacto_nombre' => 'Ana', 'contacto_segundo_nombre' => 'María',
+        'contacto_primer_apellido' => 'García', 'contacto_segundo_apellido' => 'López',
+        'contacto_whatsapp_pais' => '52', 'contacto_telefono' => '55 1234 5678',
+        'contacto_email' => 'ana@correo.mx', 'acepta_terminos' => true,
+    ])->assertCreated();
+    $token = (string) $resp->json('data.activacion.token');
+
+    $estudio = Estudio::query()->where('slug', 'pilates-roma')->firstOrFail();
+    expect($estudio->contacto_nombre)->toBe('Ana');
+    expect($estudio->contacto_primer_apellido)->toBe('García');
+    expect($estudio->contacto_whatsapp_pais)->toBe('52');
+    expect($estudio->contacto_telefono)->toBe('55 1234 5678');
+    expect($estudio->nombreContacto())->toBe('Ana María García López');
+    expect($estudio->whatsappCompleto())->toBe('+52 55 1234 5678');
+
+    // El dueño tenant-local recibe el nombre COMPLETO compuesto.
+    $this->postJson('/api/v1/app/pilates-roma/activar', [
+        'email' => 'ana@correo.mx', 'token' => $token,
+        'password' => 'secreto123', 'password_confirmation' => 'secreto123',
+    ])->assertCreated();
+    $bearer = (string) $this->postJson('/api/v1/app/pilates-roma/login', [
+        'email' => 'ana@correo.mx', 'password' => 'secreto123',
+    ])->assertOk()->json('data.token');
+    $this->getJson('/api/v1/app/pilates-roma/yo', ['Authorization' => "Bearer {$bearer}"])
+        ->assertOk()->assertJsonPath('data.usuario.nombre', 'Ana María García López');
+});
+
+it('exige apellido paterno y WhatsApp (filtra registros incompletos)', function (): void {
+    // Sin apellido paterno ni telefono.
+    $this->postJson('/api/v1/registro', [
+        'nombre' => 'Sin Datos', 'slug' => 'sin-datos',
+        'contacto_nombre' => 'Ana', 'contacto_email' => 'a@b.mx', 'acepta_terminos' => true,
+    ])->assertStatus(422)
+        ->assertJsonPath('meta.errors.contacto_primer_apellido.0', fn ($m): bool => is_string($m))
+        ->assertJsonPath('meta.errors.contacto_telefono.0', fn ($m): bool => is_string($m));
+});
+
+it('la lada de WhatsApp usa México (52) por defecto si no se envía', function (): void {
+    $this->postJson('/api/v1/registro', [
+        'nombre' => 'Sin Lada', 'slug' => 'sin-lada',
+        'contacto_nombre' => 'Ana', 'contacto_primer_apellido' => 'García',
+        'contacto_email' => 'lada@correo.mx', 'contacto_telefono' => '5512345678', 'acepta_terminos' => true,
+    ])->assertCreated();
+
+    expect(Estudio::query()->where('slug', 'sin-lada')->value('contacto_whatsapp_pais'))->toBe('52');
+});
+
 it('el slug se verifica por disponibilidad y no se repite', function (): void {
     registrarEstudioApi('Pole House', 'pole-house', 'ana@correo.mx');
 
@@ -104,6 +156,7 @@ it('el slug se verifica por disponibilidad y no se repite', function (): void {
     // Un segundo registro con el mismo slug es rechazado por validación.
     $this->postJson('/api/v1/registro', [
         'nombre' => 'Otro', 'slug' => 'pole-house',
-        'contacto_nombre' => 'X', 'contacto_email' => 'x@y.mx', 'acepta_terminos' => true,
+        'contacto_nombre' => 'X', 'contacto_primer_apellido' => 'Y',
+        'contacto_email' => 'x@y.mx', 'contacto_telefono' => '5512345678', 'acepta_terminos' => true,
     ])->assertStatus(422);
 });

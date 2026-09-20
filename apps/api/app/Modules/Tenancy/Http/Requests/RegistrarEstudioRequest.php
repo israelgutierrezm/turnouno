@@ -18,9 +18,14 @@ class RegistrarEstudioRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $merge = [];
         if ($this->has('slug')) {
-            $this->merge(['slug' => Str::slug((string) $this->input('slug'))]);
+            $merge['slug'] = Str::slug((string) $this->input('slug'));
         }
+        // Lada de WhatsApp: default México (52) y solo dígitos (quita "+", espacios).
+        $pais = preg_replace('/\D+/', '', (string) $this->input('contacto_whatsapp_pais', '52'));
+        $merge['contacto_whatsapp_pais'] = ($pais === '' || $pais === null) ? '52' : $pais;
+        $this->merge($merge);
     }
 
     /**
@@ -29,12 +34,19 @@ class RegistrarEstudioRequest extends FormRequest
     public function rules(): array
     {
         return [
+            // Paso 1: el lugar.
             'nombre' => ['required', 'string', 'max:255'],
             'slug' => ['required', 'string', 'min:3', 'max:50', 'regex:/^[a-z0-9-]+$/', 'unique:estudios,slug'],
             'perfil_negocio' => ['nullable', Rule::enum(PerfilNegocio::class)],
-            'contacto_nombre' => ['required', 'string', 'max:255'],
+            // Paso 2: el nombre del propietario (desglosado; apellido materno y segundo nombre opcionales).
+            'contacto_nombre' => ['required', 'string', 'max:120'],
+            'contacto_segundo_nombre' => ['nullable', 'string', 'max:120'],
+            'contacto_primer_apellido' => ['required', 'string', 'max:120'],
+            'contacto_segundo_apellido' => ['nullable', 'string', 'max:120'],
+            // Paso 3: contacto (WhatsApp con lada + correo para validar).
+            'contacto_whatsapp_pais' => ['required', 'string', 'regex:/^\d{1,4}$/'],
+            'contacto_telefono' => ['required', 'string', 'regex:/^[0-9 \-]{7,15}$/'],
             'contacto_email' => ['required', 'email', 'max:255'],
-            'contacto_telefono' => ['nullable', 'string', 'max:40'],
             'pais' => ['nullable', 'string', 'size:2'],
             'ciudad' => ['nullable', 'string', 'max:120'],
             'zona_horaria' => ['nullable', 'timezone'],

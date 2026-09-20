@@ -37,7 +37,11 @@ class Estudio extends Model
         'ciudad',
         'zona_horaria',
         'contacto_nombre',
+        'contacto_segundo_nombre',
+        'contacto_primer_apellido',
+        'contacto_segundo_apellido',
         'contacto_email',
+        'contacto_whatsapp_pais',
         'contacto_telefono',
         'trial_inicia_en',
         'trial_termina_en',
@@ -75,5 +79,34 @@ class Estudio extends Model
     public function enDirectorio(): bool
     {
         return $this->publicado && ! $this->privado && $this->estado->operativo();
+    }
+
+    /**
+     * Nombre completo del contacto propietario, compuesto de sus partes (omite vacías).
+     * `contacto_nombre` es el primer nombre; el resto es opcional.
+     */
+    public function nombreContacto(): string
+    {
+        $completo = trim(implode(' ', array_filter([
+            $this->contacto_nombre,
+            $this->contacto_segundo_nombre,
+            $this->contacto_primer_apellido,
+            $this->contacto_segundo_apellido,
+        ])));
+
+        return $completo !== '' ? $completo : (string) $this->contacto_nombre;
+    }
+
+    /**
+     * WhatsApp del contacto en formato +<lada><numero> (o null si no hay número).
+     */
+    public function whatsappCompleto(): ?string
+    {
+        $numero = trim((string) ($this->contacto_telefono ?? ''));
+        if ($numero === '') {
+            return null;
+        }
+
+        return '+'.($this->contacto_whatsapp_pais ?? '52').' '.$numero;
     }
 }

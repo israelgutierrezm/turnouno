@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
  * con el mismo slug no pueden coexistir; el perdedor recibe SLUG_TAKEN. No crea
  * la BD del tenant (eso lo hace {@see AprovisionarEstudio}).
  *
- * @phpstan-type DatosRegistro array{nombre: string, slug: string, perfil_negocio?: string|null, contacto_nombre: string, contacto_email: string, contacto_telefono?: string|null, pais?: string|null, ciudad?: string|null, zona_horaria?: string|null}
+ * @phpstan-type DatosRegistro array{nombre: string, slug: string, perfil_negocio?: string|null, contacto_nombre: string, contacto_segundo_nombre?: string|null, contacto_primer_apellido?: string|null, contacto_segundo_apellido?: string|null, contacto_email: string, contacto_whatsapp_pais?: string|null, contacto_telefono?: string|null, pais?: string|null, ciudad?: string|null, zona_horaria?: string|null}
  */
 class RegistrarEstudio
 {
@@ -45,7 +45,11 @@ class RegistrarEstudio
                 'publicado' => true,
                 'privado' => false,
                 'contacto_nombre' => $datos['contacto_nombre'],
+                'contacto_segundo_nombre' => $datos['contacto_segundo_nombre'] ?? null,
+                'contacto_primer_apellido' => $datos['contacto_primer_apellido'] ?? null,
+                'contacto_segundo_apellido' => $datos['contacto_segundo_apellido'] ?? null,
                 'contacto_email' => $datos['contacto_email'],
+                'contacto_whatsapp_pais' => $datos['contacto_whatsapp_pais'] ?? '52',
                 'contacto_telefono' => $datos['contacto_telefono'] ?? null,
                 'pais' => $datos['pais'] ?? null,
                 'ciudad' => $datos['ciudad'] ?? null,

@@ -26,7 +26,9 @@ it('registrar con un perfil expone su terminologia y flags', function (): void {
         'slug' => 'natacion-x',
         'perfil_negocio' => 'natacion',
         'contacto_nombre' => 'Dueño',
+        'contacto_primer_apellido' => 'Demo',
         'contacto_email' => 'n@correo.mx',
+        'contacto_telefono' => '5512345678',
         'acepta_terminos' => true,
     ])->assertCreated()->json('data.estudio');
 
