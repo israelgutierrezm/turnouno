@@ -17,4 +17,11 @@ class FacturacionFalsa implements ClienteFacturacion
     {
         return new ResultadoTimbre('fake_'.Str::lower((string) Str::ulid()), (string) Str::uuid());
     }
+
+    public function descargar(string $llaveOrganizacion, string $facturaId, string $formato): string
+    {
+        return $formato === 'xml'
+            ? '<?xml version="1.0"?><cfdi:Comprobante fake="'.$facturaId.'"/>'
+            : '%PDF-1.4 fake '.$facturaId;
+    }
 }

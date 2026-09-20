@@ -7,6 +7,7 @@ namespace App\Modules\Tenancy\Http\Controllers;
 use App\Modules\Tenancy\Application\PoliticaAlumnosActivos;
 use App\Modules\Tenancy\Models\CargoRenta;
 use App\Modules\Tenancy\Models\Estudio;
+use App\Modules\Tenancy\Models\FacturaPlataforma;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -68,6 +69,12 @@ class FacturacionController
             ->limit(24)
             ->get();
 
+        // Facturas (CFDI) emitidas de esos cargos, para saber cuáles ya están timbradas.
+        $facturas = FacturaPlataforma::query()
+            ->whereIn('cargo_renta_id', $cargos->pluck('id')->all())
+            ->get()
+            ->keyBy('cargo_renta_id');
+
         return response()->json(['data' => [
             'modo_cobro' => $estudio->modo_cobro->value,
             'moneda' => $estudio->moneda,
@@ -78,17 +85,26 @@ class FacturacionController
                 'alumnos_activos' => $activos,
                 'cargo_estimado_minor' => $estudio->cargoDelPeriodo($activos),
             ],
-            'cargos' => $cargos->map(static fn (CargoRenta $c): array => [
-                'id' => $c->ulid,
-                'periodo' => $c->periodo,
-                'modo_cobro' => $c->modo_cobro->value,
-                'alumnos_activos' => $c->alumnos_activos,
-                'monto_minor' => $c->monto_minor,
-                'moneda' => $c->moneda,
-                'estado' => $c->estado->value,
-                'vence_en' => $c->vence_en?->toDateString(),
-                'pagado_en' => $c->pagado_en?->toIso8601String(),
-            ])->all(),
+            'cargos' => $cargos->map(function (CargoRenta $c) use ($facturas): array {
+                $factura = $facturas->get($c->getKey());
+
+                return [
+                    'id' => $c->ulid,
+                    'periodo' => $c->periodo,
+                    'modo_cobro' => $c->modo_cobro->value,
+                    'alumnos_activos' => $c->alumnos_activos,
+                    'monto_minor' => $c->monto_minor,
+                    'moneda' => $c->moneda,
+                    'estado' => $c->estado->value,
+                    'vence_en' => $c->vence_en?->toDateString(),
+                    'pagado_en' => $c->pagado_en?->toIso8601String(),
+                    'factura' => $factura instanceof FacturaPlataforma ? [
+                        'id' => $factura->ulid,
+                        'estado' => $factura->estado->value,
+                        'uuid' => $factura->uuid,
+                    ] : null,
+                ];
+            })->all(),
         ]]);
     }
 }

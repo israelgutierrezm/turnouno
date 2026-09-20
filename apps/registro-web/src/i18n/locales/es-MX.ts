@@ -798,7 +798,15 @@ export default {
       iniciado: 'Pago iniciado. Se confirmará en cuanto la pasarela reporte el cobro.',
       confirmado: '¡Pago confirmado! Tu suscripción quedó al corriente.',
     },
-    pagoNota: 'El pago se procesa de forma segura con la pasarela de TurnoUno.',
+    factura: {
+      facturar: 'Facturar',
+      reintentar: 'Reintentar',
+      procesando: 'Emitiendo…',
+      pdf: 'PDF',
+      xml: 'XML',
+      timbrada: 'Factura emitida. Ya puedes descargar tu CFDI (PDF/XML).',
+    },
+    pagoNota: 'El pago se procesa de forma segura con la pasarela de TurnoUno. Tu factura (CFDI) se emite con tus datos fiscales.',
   },
   reportes: {
     titulo: 'Reportes',

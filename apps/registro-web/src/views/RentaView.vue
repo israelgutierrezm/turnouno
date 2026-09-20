@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import axios from 'axios'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -6,6 +7,11 @@ import EncabezadoSeccion from '@/components/EncabezadoSeccion.vue'
 import { api, mensajeDeError } from '@/lib/api'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
 
+interface FacturaCargo {
+  id: string
+  estado: string
+  uuid: string | null
+}
 interface Cargo {
   id: string
   periodo: string
@@ -16,6 +22,7 @@ interface Cargo {
   estado: string
   vence_en: string | null
   pagado_en: string | null
+  factura: FacturaCargo | null
 }
 interface Renta {
   modo_cobro: string
@@ -40,6 +47,7 @@ const cargando = ref(true)
 const error = ref<string | null>(null)
 
 const pagando = ref<string | null>(null)
+const facturando = ref<string | null>(null)
 const avisoPago = ref<string | null>(null)
 const errorPago = ref<string | null>(null)
 
@@ -79,6 +87,48 @@ async function pagar(cargo: Cargo): Promise<void> {
     errorPago.value = mensajeDeError(e)
   } finally {
     pagando.value = null
+  }
+}
+
+async function facturar(cargo: Cargo): Promise<void> {
+  facturando.value = cargo.id
+  avisoPago.value = null
+  errorPago.value = null
+  try {
+    await api.post(`${base.value}/renta/cargos/${cargo.id}/factura`, {})
+    avisoPago.value = t('renta.factura.timbrada')
+    await cargar()
+  } catch (e) {
+    // El rechazo del timbre llega como 422 con la factura en error + motivo.
+    if (axios.isAxiosError(e) && e.response?.status === 422 && e.response.data?.data?.estado === 'error') {
+      errorPago.value = e.response.data.data.motivo_error ?? mensajeDeError(e)
+      await cargar()
+    } else {
+      errorPago.value = mensajeDeError(e)
+    }
+  } finally {
+    facturando.value = null
+  }
+}
+
+async function descargarFactura(cargo: Cargo, formato: 'pdf' | 'xml'): Promise<void> {
+  if (cargo.factura === null) {
+    return
+  }
+  try {
+    const { data } = await api.get<Blob>(`${base.value}/renta/facturas/${cargo.factura.id}/${formato}`, {
+      responseType: 'blob',
+    })
+    const url = URL.createObjectURL(data)
+    const enlace = document.createElement('a')
+    enlace.href = url
+    enlace.download = `factura-${cargo.factura.uuid ?? cargo.factura.id}.${formato}`
+    document.body.appendChild(enlace)
+    enlace.click()
+    enlace.remove()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    errorPago.value = mensajeDeError(e)
   }
 }
 
@@ -152,6 +202,7 @@ onMounted(cargar)
               </td>
               <td class="px-4 py-2 hidden sm:table-cell" :style="{ color: 'var(--texto-suave)' }">{{ c.vence_en ?? '—' }}</td>
               <td class="px-4 py-2 text-right">
+                <!-- Pendiente: pagar la renta -->
                 <button
                   v-if="c.estado === 'pendiente'"
                   type="button"
@@ -161,7 +212,21 @@ onMounted(cargar)
                 >
                   {{ pagando === c.id ? $t('renta.pagando') : $t('renta.pagar') }}
                 </button>
-                <span v-else :style="{ color: 'var(--texto-suave)' }">—</span>
+                <!-- Pagado y timbrado: descargar CFDI -->
+                <span v-else-if="c.factura && c.factura.estado === 'timbrada'" class="inline-flex gap-2 justify-end">
+                  <button type="button" class="tu-btn tu-btn-fantasma whitespace-nowrap" @click="descargarFactura(c, 'pdf')">{{ $t('renta.factura.pdf') }}</button>
+                  <button type="button" class="tu-btn tu-btn-fantasma whitespace-nowrap" @click="descargarFactura(c, 'xml')">{{ $t('renta.factura.xml') }}</button>
+                </span>
+                <!-- Pagado sin factura (o con error): emitir/reintentar -->
+                <button
+                  v-else
+                  type="button"
+                  class="tu-btn tu-btn-fantasma whitespace-nowrap"
+                  :disabled="facturando === c.id"
+                  @click="facturar(c)"
+                >
+                  {{ facturando === c.id ? $t('renta.factura.procesando') : (c.factura?.estado === 'error' ? $t('renta.factura.reintentar') : $t('renta.factura.facturar')) }}
+                </button>
               </td>
             </tr>
           </tbody>

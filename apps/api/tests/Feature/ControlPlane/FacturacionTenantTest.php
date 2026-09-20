@@ -17,18 +17,7 @@ afterEach(function (): void {
     File::deleteDirectory(storage_path('tenants'));
 });
 
-/**
- * @param  array{slug: string, bearer: string}  $e
- */
-function cargarDatosFiscales(array $e): void
-{
-    test()->putJson("/api/v1/app/{$e['slug']}/datos-fiscales", [
-        'razon_social' => 'Estudio Demo SA de CV',
-        'rfc' => 'ABC010101AB9',
-        'regimen_fiscal' => '601',
-        'codigo_postal' => '06700',
-    ], conBearer($e['bearer']))->assertOk();
-}
+// cargarDatosFiscales() vive en tests/Pest.php (compartido).
 
 /**
  * @return array<string, mixed>
@@ -92,6 +81,11 @@ it('registra la factura como error si el proveedor rechaza el timbrado', functio
         public function timbrar(string $llaveOrganizacion, array $factura): ResultadoTimbre
         {
             throw new TimbradoFallido('RFC del receptor no valido.');
+        }
+
+        public function descargar(string $llaveOrganizacion, string $facturaId, string $formato): string
+        {
+            return '';
         }
     });
 

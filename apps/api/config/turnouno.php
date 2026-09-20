@@ -41,6 +41,17 @@ return [
     'facturapi' => [
         'llave' => env('FACTURAPI_LLAVE'),
         'base_url' => env('FACTURAPI_URL', 'https://www.facturapi.io/v2'),
+
+        /*
+        | CFDI de la RENTA del SaaS (plataforma -> dueño). Claves SAT por defecto para
+        | el concepto "suscripción TurnoUno"; ajustables por entorno sin tocar código.
+        */
+        'renta' => [
+            'clave_prod_serv' => env('FACTURAPI_RENTA_CLAVE_PROD_SERV', '81112100'), // Servicios de sistemas de información
+            'clave_unidad' => env('FACTURAPI_RENTA_CLAVE_UNIDAD', 'E48'), // Unidad de servicio
+            'uso_cfdi' => env('FACTURAPI_RENTA_USO_CFDI', 'G03'), // Gastos en general
+            'forma_pago' => env('FACTURAPI_RENTA_FORMA_PAGO', '04'), // Tarjeta de crédito
+        ],
     ],
 
     /*

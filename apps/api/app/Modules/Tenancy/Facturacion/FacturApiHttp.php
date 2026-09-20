@@ -32,4 +32,17 @@ class FacturApiHttp implements ClienteFacturacion
             (string) $respuesta->json('uuid'),
         );
     }
+
+    public function descargar(string $llaveOrganizacion, string $facturaId, string $formato): string
+    {
+        $respuesta = Http::withToken($llaveOrganizacion)
+            ->baseUrl($this->baseUrl)
+            ->get("/invoices/{$facturaId}/{$formato}");
+
+        if ($respuesta->failed()) {
+            throw new TimbradoFallido((string) ($respuesta->json('message') ?? 'FacturAPI no pudo entregar el archivo.'));
+        }
+
+        return $respuesta->body();
+    }
 }

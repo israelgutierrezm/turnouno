@@ -19,4 +19,13 @@ interface ClienteFacturacion
      * @throws TimbradoFallido
      */
     public function timbrar(string $llaveOrganizacion, array $factura): ResultadoTimbre;
+
+    /**
+     * Descarga el archivo de un CFDI ya timbrado (contenido binario del PDF o XML).
+     *
+     * @param  string  $formato  'pdf' o 'xml'
+     *
+     * @throws TimbradoFallido
+     */
+    public function descargar(string $llaveOrganizacion, string $facturaId, string $formato): string;
 }

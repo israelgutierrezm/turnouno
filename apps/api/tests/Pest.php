@@ -21,6 +21,8 @@ use App\Modules\Tenancy\Application\VincularUsuarioATenant;
 use App\Modules\Tenancy\Context\TenantContext;
 use App\Modules\Tenancy\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Str;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -366,4 +368,65 @@ function crearSesionTenant(array $e, array $semilla, ?int $capacidad = null, str
 
     return (string) test()->postJson("/api/v1/app/{$e['slug']}/sesiones", $carga, conBearer($e['bearer']))
         ->assertCreated()->json('data.id');
+}
+
+/**
+ * Cabecera Authorization con el token de administración de plataforma.
+ *
+ * @return array<string, string>
+ */
+function conPlataforma(string $token = 'token-plataforma'): array
+{
+    return ['Accept' => 'application/json', 'Authorization' => "Bearer {$token}"];
+}
+
+/**
+ * Pone cuota fija al estudio, genera el cargo de renta del periodo actual y devuelve
+ * su ulid (control plane). Requiere el token de plataforma configurado.
+ *
+ * @param  array{slug: string, bearer: string}  $e
+ */
+function cargoRentaPendiente(array $e): string
+{
+    Config::set('turnouno.plataforma.token', 'token-plataforma');
+
+    test()->putJson('/api/v1/plataforma/estudios/'.$e['slug'], [
+        'modo_cobro' => 'fijo', 'precio_por_alumno_minor' => 0, 'cuota_fija_minor' => 149900,
+    ], conPlataforma())->assertOk();
+
+    $periodo = Carbon::now()->format('Y-m');
+    test()->artisan('turnouno:generar-cargos-renta', ['--periodo' => $periodo])->assertSuccessful();
+
+    return (string) test()->getJson('/api/v1/app/'.$e['slug'].'/renta', conBearer($e['bearer']))
+        ->assertOk()->json('data.cargos.0.id');
+}
+
+/**
+ * Activa Stripe como pasarela de la plataforma (opcionalmente con credenciales).
+ *
+ * @param  array<string, string>  $credenciales
+ */
+function activarStripePlataforma(array $credenciales = []): void
+{
+    Config::set('turnouno.plataforma.token', 'token-plataforma');
+
+    test()->putJson('/api/v1/plataforma/pasarelas/stripe', array_filter([
+        'activa' => true, 'modo' => 'test',
+        'credenciales' => $credenciales !== [] ? $credenciales : null,
+    ], static fn ($v): bool => $v !== null), conPlataforma())->assertOk();
+}
+
+/**
+ * Carga datos fiscales válidos (emisor/receptor) del estudio vía API.
+ *
+ * @param  array{slug: string, bearer: string}  $e
+ */
+function cargarDatosFiscales(array $e): void
+{
+    test()->putJson("/api/v1/app/{$e['slug']}/datos-fiscales", [
+        'razon_social' => 'Estudio Demo SA de CV',
+        'rfc' => 'ABC010101AB9',
+        'regimen_fiscal' => '601',
+        'codigo_postal' => '06700',
+    ], conBearer($e['bearer']))->assertOk();
 }

@@ -18,48 +18,8 @@ afterEach(function (): void {
     File::deleteDirectory(storage_path('tenants'));
 });
 
-/**
- * @return array<string, string>
- */
-function conPlataforma(string $token = 'token-plataforma'): array
-{
-    return ['Accept' => 'application/json', 'Authorization' => "Bearer {$token}"];
-}
-
-/**
- * Pone cuota fija al estudio, genera el cargo del periodo y devuelve su ulid.
- *
- * @param  array{slug: string, bearer: string}  $e
- */
-function cargoRentaPendiente(array $e): string
-{
-    Config::set('turnouno.plataforma.token', 'token-plataforma');
-
-    test()->putJson('/api/v1/plataforma/estudios/'.$e['slug'], [
-        'modo_cobro' => 'fijo', 'precio_por_alumno_minor' => 0, 'cuota_fija_minor' => 149900,
-    ], conPlataforma())->assertOk();
-
-    $periodo = Carbon::now()->format('Y-m');
-    test()->artisan('turnouno:generar-cargos-renta', ['--periodo' => $periodo])->assertSuccessful();
-
-    return (string) test()->getJson('/api/v1/app/'.$e['slug'].'/renta', conBearer($e['bearer']))
-        ->assertOk()->json('data.cargos.0.id');
-}
-
-/**
- * Activa Stripe como pasarela de la plataforma (opcionalmente con secret_key).
- *
- * @param  array<string, string>  $credenciales
- */
-function activarStripePlataforma(array $credenciales = []): void
-{
-    Config::set('turnouno.plataforma.token', 'token-plataforma');
-
-    test()->putJson('/api/v1/plataforma/pasarelas/stripe', array_filter([
-        'activa' => true, 'modo' => 'test',
-        'credenciales' => $credenciales !== [] ? $credenciales : null,
-    ], static fn ($v): bool => $v !== null), conPlataforma())->assertOk();
-}
+// Helpers compartidos (conPlataforma, cargoRentaPendiente, activarStripePlataforma,
+// cargarDatosFiscales) viven en tests/Pest.php.
 
 it('el comando genera el cargo de renta y el dueño lo ve en su apartado', function (): void {
     Config::set('turnouno.plataforma.token', 'token-plataforma');
