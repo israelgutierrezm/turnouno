@@ -18,6 +18,7 @@ interface Sesion {
   id: string
   oferta: string | null
   oferta_id: string | null
+  oferta_lugares: number
   instructor: string | null
   instructor_id: string | null
   inicia_en: string
@@ -36,6 +37,7 @@ interface Reserva {
   id: string
   estado: string
   canal: string
+  lugar: number | null
   persona: string | null
   primera_vez: boolean
   unidades: number
@@ -325,7 +327,10 @@ function irHoy(): void {
 const detalle = ref<Sesion | null>(null)
 const roster = ref<Reserva[]>([])
 const cargandoRoster = ref(false)
-const reservarModel = ref({ miembroId: '', esperar: false, canal: 'directo' })
+const reservarModel = ref({ miembroId: '', esperar: false, canal: 'directo', lugar: null as number | null })
+// Mapa de lugares por clase (R4): config de la oferta en el drawer.
+const lugaresModel = ref({ lugares: 0 })
+const guardandoLugares = ref(false)
 // Transferir (regalar) el lugar de una reserva a otro miembro (R9): selector inline por fila.
 const transferirModel = ref({ reservaId: '', personaId: '' })
 // Cupos por canal / marketplace (R20): reglas de la oferta de la sesion abierta.
@@ -354,7 +359,8 @@ async function abrirDetalle(s: Sesion): Promise<void> {
   roster.value = []
   checkins.value = []
   staffSesion.value = []
-  reservarModel.value = { miembroId: '', esperar: false, canal: 'directo' }
+  reservarModel.value = { miembroId: '', esperar: false, canal: 'directo', lugar: null }
+  lugaresModel.value = { lugares: s.oferta_lugares ?? 0 }
   transferirModel.value = { reservaId: '', personaId: '' }
   reglasCanal.value = []
   reglaCanalModel.value = { canal: 'wellhub', cupos: 0, liberar_horas_antes: 0 }
@@ -488,8 +494,10 @@ async function reservar(id: string): Promise<void> {
       persona_id: reservarModel.value.miembroId,
       esperar: reservarModel.value.esperar,
       canal: reservarModel.value.canal,
+      lugar: reservarModel.value.lugar,
     })
     reservarModel.value.miembroId = ''
+    reservarModel.value.lugar = null
     await refrescarTras(id)
   } catch (e) {
     error.value = mensajeDeError(e)
@@ -497,6 +505,33 @@ async function reservar(id: string): Promise<void> {
     accionando.value = false
   }
 }
+// Lugares (R4): lugares ya tomados en la sesion (desde el roster cargado).
+const lugaresTomados = computed(() => {
+  const s = new Set<number>()
+  for (const r of roster.value) {
+    if (r.lugar !== null && r.estado !== 'cancelada') {
+      s.add(r.lugar)
+    }
+  }
+  return s
+})
+
+async function guardarLugares(): Promise<void> {
+  if (detalle.value === null || detalle.value.oferta_id === null) {
+    return
+  }
+  guardandoLugares.value = true
+  error.value = null
+  try {
+    await api.put(`${base.value}/ofertas/${detalle.value.oferta_id}`, { lugares: Number(lugaresModel.value.lugares) || 0 })
+    detalle.value.oferta_lugares = Number(lugaresModel.value.lugares) || 0
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    guardandoLugares.value = false
+  }
+}
+
 async function marcar(reservaId: string, estado: 'presente' | 'ausente', sesionId: string): Promise<void> {
   accionando.value = true
   error.value = null
@@ -907,6 +942,24 @@ onMounted(async () => {
               <input v-model="reservarModel.esperar" type="checkbox" />
               {{ $t('agenda.reservar.esperar') }}
             </label>
+            <!-- Mapa de lugares (R4): elige el lugar si la clase los asigna -->
+            <div v-if="detalle.oferta_lugares > 0" class="w-full">
+              <label class="tu-label">{{ $t('agenda.lugares.elige') }}</label>
+              <div class="flex flex-wrap gap-1.5">
+                <button
+                  v-for="n in detalle.oferta_lugares"
+                  :key="n"
+                  type="button"
+                  class="h-9 w-9 rounded-md border text-sm font-semibold transition disabled:opacity-40"
+                  :style="reservarModel.lugar === n
+                    ? { background: 'var(--primario)', color: '#fff', borderColor: 'var(--primario)' }
+                    : { borderColor: 'var(--borde)' }"
+                  :disabled="lugaresTomados.has(n)"
+                  :title="lugaresTomados.has(n) ? $t('agenda.lugares.ocupado') : ''"
+                  @click="reservarModel.lugar = reservarModel.lugar === n ? null : n"
+                >{{ n }}</button>
+              </div>
+            </div>
             <button class="tu-btn tu-btn-primario" type="submit" :disabled="accionando || reservarModel.miembroId === ''">
               {{ $t('agenda.reservar.reservar') }}
             </button>
@@ -935,6 +988,7 @@ onMounted(async () => {
                   <span v-if="r.asistencia" class="tu-badge">{{ $t(`agenda.roster.${r.asistencia}`) }}</span>
                   <span v-if="r.canal && r.canal !== 'directo'" class="tu-badge">{{ $t(`agenda.canales.${r.canal}`) }}</span>
                   <span v-if="r.primera_vez" class="tu-badge tu-badge-aviso" :title="$t('agenda.roster.primeraVezAyuda')">{{ $t('agenda.roster.primeraVez') }}</span>
+                  <span v-if="r.lugar" class="tu-badge">{{ $t('agenda.lugares.lugarN', { n: r.lugar }) }}</span>
                 </span>
                 <span class="flex items-center gap-2 shrink-0">
                   <button
@@ -1031,6 +1085,19 @@ onMounted(async () => {
               <input id="rc-libera" v-model.number="reglaCanalModel.liberar_horas_antes" type="number" min="0" class="tu-input" />
             </div>
             <button class="tu-btn tu-btn-fantasma" type="submit" :disabled="guardandoCanal">{{ $t('agenda.cuposCanal.guardar') }}</button>
+          </form>
+        </div>
+
+        <!-- Mapa de lugares por clase (R4) -->
+        <div v-if="puedeGestionar && detalle.oferta_id" class="mt-4 border-t pt-4" :style="{ borderColor: 'var(--borde)' }">
+          <h3 class="font-semibold text-sm">{{ $t('agenda.lugares.titulo') }}</h3>
+          <p class="text-xs mt-1" :style="{ color: 'var(--texto-suave)' }">{{ $t('agenda.lugares.ayuda') }}</p>
+          <form class="mt-2 flex flex-wrap items-end gap-2" @submit.prevent="guardarLugares">
+            <div class="w-28">
+              <label class="tu-label" for="lug-n">{{ $t('agenda.lugares.numero') }}</label>
+              <input id="lug-n" v-model.number="lugaresModel.lugares" type="number" min="0" class="tu-input" />
+            </div>
+            <button class="tu-btn tu-btn-fantasma" type="submit" :disabled="guardandoLugares">{{ $t('agenda.lugares.guardar') }}</button>
           </form>
         </div>
 

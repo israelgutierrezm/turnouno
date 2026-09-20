@@ -85,15 +85,32 @@ class CatalogoTenantController
             'nombre' => ['required', 'string', 'max:255'],
             'modalidad' => ['required', Rule::enum(ModalidadOfertaTenant::class)],
             'capacidad' => ['nullable', 'integer', 'min:1'],
+            'lugares' => ['nullable', 'integer', 'min:0', 'max:1000'],
         ]);
 
         $oferta = $actividad->ofertas()->create([
             'nombre' => $validado['nombre'],
             'modalidad' => $validado['modalidad'],
             'capacidad' => $validado['capacidad'] ?? null,
+            'lugares' => (int) ($validado['lugares'] ?? 0),
         ]);
 
         return response()->json(['data' => $this->presentarOferta($oferta)], 201);
+    }
+
+    /**
+     * Actualiza el mapa de lugares (y datos básicos) de una oferta (R4).
+     */
+    public function actualizarOferta(Request $request): JsonResponse
+    {
+        $oferta = OfertaTenant::query()->where('ulid', (string) $request->route('oferta'))->firstOrFail();
+        $validado = $request->validate([
+            'lugares' => ['required', 'integer', 'min:0', 'max:1000'],
+        ]);
+
+        $oferta->update(['lugares' => (int) $validado['lugares']]);
+
+        return response()->json(['data' => $this->presentarOferta($oferta->refresh())]);
     }
 
     public function ofertas(): JsonResponse
@@ -123,6 +140,7 @@ class CatalogoTenantController
             'nombre' => $oferta->nombre,
             'modalidad' => $oferta->modalidad->value,
             'capacidad' => $oferta->capacidad,
+            'lugares' => $oferta->lugares,
         ];
     }
 }

@@ -85,6 +85,7 @@ class ReservasTenantController
             'idempotency_key' => ['nullable', 'string', 'max:255'],
             'esperar' => ['boolean'],
             'canal' => ['nullable', Rule::enum(CanalReserva::class)],
+            'lugar' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $persona = PersonaTenant::query()->where('ulid', $validado['persona_id'])->firstOrFail();
@@ -97,6 +98,7 @@ class ReservasTenantController
             (bool) ($validado['esperar'] ?? false),
             null,
             $validado['canal'] ?? CanalReserva::Directo->value,
+            isset($validado['lugar']) ? (int) $validado['lugar'] : null,
         );
 
         return response()->json(['data' => $this->presentar($reserva)], 201);
@@ -115,6 +117,7 @@ class ReservasTenantController
             'persona_id' => ['required', 'string'],
             'esperar' => ['boolean'],
             'canal' => ['nullable', Rule::enum(CanalReserva::class)],
+            'lugar' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $persona = PersonaTenant::query()->where('ulid', $validado['persona_id'])->firstOrFail();
@@ -125,6 +128,7 @@ class ReservasTenantController
             null,
             (bool) ($validado['esperar'] ?? false),
             $validado['canal'] ?? CanalReserva::Directo->value,
+            isset($validado['lugar']) ? (int) $validado['lugar'] : null,
         );
 
         return response()->json(['data' => $decision->aArreglo()]);
@@ -180,6 +184,7 @@ class ReservasTenantController
             'id' => $reserva->ulid,
             'estado' => $reserva->estado->value,
             'canal' => $reserva->canal,
+            'lugar' => $reserva->lugar,
             'persona' => $persona?->nombreCompleto(),
             'primera_vez' => $primeraVez,
             'inicia_en' => $reserva->sesion?->inicia_en->toIso8601String(),

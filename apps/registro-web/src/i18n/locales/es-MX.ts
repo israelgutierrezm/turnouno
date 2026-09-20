@@ -909,6 +909,15 @@ export default {
       campoLibera: 'Libera (h)',
       guardar: 'Guardar',
     },
+    lugares: {
+      titulo: 'Mapa de lugares',
+      ayuda: 'Número de lugares numerados de esta clase (p. ej. reformers, bicis). 0 = sin lugares asignados.',
+      numero: 'Lugares',
+      guardar: 'Guardar',
+      elige: 'Elige un lugar (opcional)',
+      ocupado: 'Ocupado',
+      lugarN: 'Lugar {n}',
+    },
     roster: {
       vacio: 'Sin reservas.',
       confirmada: 'Confirmada',

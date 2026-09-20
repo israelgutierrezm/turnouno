@@ -9,6 +9,7 @@ use App\Modules\Creditos\OrigenMovimiento;
 use App\Modules\Reservas\EstadoReserva;
 use App\Modules\Reservas\Exceptions\CupoLleno;
 use App\Modules\Reservas\Exceptions\FueraDeVentana;
+use App\Modules\Reservas\Exceptions\LugarNoDisponible;
 use App\Modules\Reservas\Exceptions\OfertaNoDisponible;
 use App\Modules\Reservas\Exceptions\ReservaException;
 use App\Modules\Reservas\Exceptions\SesionNoReservable;
@@ -16,6 +17,7 @@ use App\Modules\Reservas\Exceptions\SinDerechoDisponible;
 use App\Modules\Reservas\Exceptions\TransferenciaInvalida;
 use App\Modules\Reservas\Exceptions\YaReservado;
 use App\Modules\Tenancy\EstadoSesionTenant;
+use App\Modules\Tenancy\Models\OfertaTenant;
 use App\Modules\Tenancy\Models\PersonaTenant;
 use App\Modules\Tenancy\Models\ReglaCapacidadCanalTenant;
 use App\Modules\Tenancy\Models\ReservaTenant;
@@ -46,7 +48,7 @@ class ReservasTenant
         private readonly RegistrarEventoTenant $eventos,
     ) {}
 
-    public function crear(SesionTenant $sesion, PersonaTenant $persona, ?string $idempotencyKey = null, bool $permitirEspera = false, ?int $unidades = null, string $canal = 'directo'): ReservaTenant
+    public function crear(SesionTenant $sesion, PersonaTenant $persona, ?string $idempotencyKey = null, bool $permitirEspera = false, ?int $unidades = null, string $canal = 'directo', ?int $lugar = null): ReservaTenant
     {
         $costo = $unidades ?? self::UNIDADES_POR_SESION;
 
@@ -61,13 +63,13 @@ class ReservasTenant
         // Pre-check con el motor: decision estructurada + fail-fast. Traduce el codigo
         // estable a la excepcion de dominio. La transaccion re-valida lo critico bajo
         // lock (concurrencia). Ver evaluar() y docs/BOOKING_ENGINE.md.
-        $decision = $this->evaluar($sesion, $persona, $costo, $permitirEspera, $canal);
+        $decision = $this->evaluar($sesion, $persona, $costo, $permitirEspera, $canal, $lugar);
         if (! $decision->permitida) {
             throw $this->excepcionDe((string) $decision->codigo, (string) $decision->mensaje);
         }
 
         try {
-            return DB::connection('tenant')->transaction(function () use ($sesion, $persona, $idempotencyKey, $permitirEspera, $costo, $canal): ReservaTenant {
+            return DB::connection('tenant')->transaction(function () use ($sesion, $persona, $idempotencyKey, $permitirEspera, $costo, $canal, $lugar): ReservaTenant {
                 $bloqueada = SesionTenant::query()->whereKey($sesion->getKey())->lockForUpdate()->firstOrFail();
 
                 if ($bloqueada->estado !== EstadoSesionTenant::Programada) {
@@ -114,6 +116,7 @@ class ReservasTenant
                         'retencion_id' => null,
                         'estado' => EstadoReserva::EnEspera->value,
                         'canal' => $canal,
+                        'lugar' => null, // el lugar se asigna al confirmar, no en lista de espera
                         'unidades' => 0,
                         'costo_unidades' => $costo,
                         'idempotency_key' => $idempotencyKey,
@@ -124,6 +127,14 @@ class ReservasTenant
 
                     return $enEspera;
                 }
+
+                // Mapa de lugares (R4): valida el lugar elegido bajo el lock de la sesion
+                // (evita choque concurrente por el mismo lugar). Solo se guarda si la
+                // oferta define lugares.
+                if (! $this->lugarDisponible($bloqueada, $lugar)) {
+                    throw new LugarNoDisponible('El lugar elegido no esta disponible.');
+                }
+                $lugarFinal = $this->lugaresDe($bloqueada) > 0 ? $lugar : null;
 
                 $retencion = null;
                 $unidadesReservadas = 0;
@@ -140,6 +151,7 @@ class ReservasTenant
                     'retencion_id' => $retencion?->getKey(),
                     'estado' => EstadoReserva::Confirmada->value,
                     'canal' => $canal,
+                    'lugar' => $lugarFinal,
                     'unidades' => $unidadesReservadas,
                     'costo_unidades' => $costo,
                     'idempotency_key' => $idempotencyKey,
@@ -172,7 +184,7 @@ class ReservasTenant
      *
      * @param  int|null  $unidades  costo en unidades escaladas (por defecto 1 credito)
      */
-    public function evaluar(SesionTenant $sesion, PersonaTenant $persona, ?int $unidades = null, bool $permitirEspera = false, string $canal = 'directo'): DecisionReserva
+    public function evaluar(SesionTenant $sesion, PersonaTenant $persona, ?int $unidades = null, bool $permitirEspera = false, string $canal = 'directo', ?int $lugar = null): DecisionReserva
     {
         $costo = $unidades ?? self::UNIDADES_POR_SESION;
         $reglas = [];
@@ -203,6 +215,12 @@ class ReservasTenant
             return DecisionReserva::rechazar('ENTITLEMENT_REQUIRED', 'No hay un derecho con saldo para esta sesion.', $reglas);
         }
 
+        // Mapa de lugares (R4): si se eligió lugar, debe estar en rango y libre.
+        $reglas['lugar_disponible'] = $lugarOk = $this->lugarDisponible($sesion, $lugar);
+        if (! $lugarOk) {
+            return DecisionReserva::rechazar('SPOT_UNAVAILABLE', 'El lugar elegido no esta disponible.', $reglas);
+        }
+
         $llena = $sesion->capacidad !== null && $this->disponiblesParaCanal($sesion, $canal) <= 0;
         $reglas['con_cupo'] = ! $llena;
         $advertencias = [];
@@ -231,6 +249,7 @@ class ReservasTenant
             'ALREADY_BOOKED' => new YaReservado($mensaje),
             'ENTITLEMENT_REQUIRED' => new SinDerechoDisponible($mensaje),
             'CAPACITY_FULL' => new CupoLleno($mensaje),
+            'SPOT_UNAVAILABLE' => new LugarNoDisponible($mensaje),
             default => new SesionNoReservable($mensaje),
         };
     }
@@ -602,5 +621,39 @@ class ReservasTenant
         }
 
         return $total;
+    }
+
+    /**
+     * Número de lugares numerados de la oferta de la sesión (0 = sin lugares). R4.
+     */
+    private function lugaresDe(SesionTenant $sesion): int
+    {
+        return (int) OfertaTenant::query()->whereKey($sesion->oferta_id)->value('lugares');
+    }
+
+    /**
+     * ¿El lugar elegido está disponible? null = no eligió (permitido). Si la oferta no
+     * define lugares, se ignora (permitido). Si define, debe estar en rango [1..N] y no
+     * estar tomado por otra reserva activa de la sesión (R4).
+     */
+    private function lugarDisponible(SesionTenant $sesion, ?int $lugar): bool
+    {
+        if ($lugar === null) {
+            return true;
+        }
+
+        $lugares = $this->lugaresDe($sesion);
+        if ($lugares <= 0) {
+            return true;
+        }
+        if ($lugar < 1 || $lugar > $lugares) {
+            return false;
+        }
+
+        return ! ReservaTenant::query()
+            ->where('sesion_id', $sesion->getKey())
+            ->where('lugar', $lugar)
+            ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::Ofrecida->value, EstadoReserva::EnEspera->value])
+            ->exists();
     }
 }
