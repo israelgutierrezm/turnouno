@@ -713,6 +713,21 @@ export default {
       colMetodo: 'Método',
     },
   },
+  quickstart: {
+    titulo: 'Pon tu estudio en marcha',
+    subtitulo: 'Completa estos pasos para empezar a operar.',
+    ir: 'Ir',
+    opcional: 'opcional',
+    tareas: {
+      sucursal: 'Crea tu primera sucursal',
+      catalogo: 'Define una clase (oferta)',
+      horarios: 'Programa un horario o clase',
+      politica: 'Configura tu política de cancelación',
+      productos: 'Crea un producto para vender',
+      miembros: 'Agrega a tu primer alumno',
+      publicado: 'Aparece en la Comunidad',
+    },
+  },
   reportes: {
     titulo: 'Reportes',
     subtitulo: 'Métricas del negocio por periodo y desempeño por sucursal.',

@@ -5,10 +5,15 @@ declare(strict_types=1);
 namespace App\Modules\Tenancy\Http\Controllers;
 
 use App\Modules\Tenancy\Models\Estudio;
+use App\Modules\Tenancy\Models\OfertaTenant;
+use App\Modules\Tenancy\Models\PersonaTenant;
 use App\Modules\Tenancy\Models\PlantillaHorarioTenant;
 use App\Modules\Tenancy\Models\PoliticaCancelacionTenant;
+use App\Modules\Tenancy\Models\ProductoTenant;
 use App\Modules\Tenancy\Models\SesionTenant;
+use App\Modules\Tenancy\Models\SucursalTenant;
 use App\Modules\Tenancy\PerfilNegocio;
+use App\Modules\Tenancy\TipoPersonaTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -35,6 +40,36 @@ class OnboardingController
             'pasos' => self::PASOS,
             'completados' => array_keys($estudio->onboarding_pasos ?? []),
             'completo' => $estudio->onboarding_completo,
+        ]]);
+    }
+
+    /**
+     * Quickstart (R36): checklist DERIVADO del estado real de configuración (no del
+     * JSON de pasos), para que el dueño active su estudio saltando a lo que falta. Cada
+     * tarea trae si está hecha, si es requerida para operar, y la ruta para completarla.
+     */
+    public function quickstart(Request $request): JsonResponse
+    {
+        $estudio = $this->estudio($request);
+
+        // [clave, hecho, requerido, ruta] — el estado sale de datos reales del tenant.
+        $tareas = [
+            ['clave' => 'sucursal', 'hecho' => SucursalTenant::query()->exists(), 'requerido' => true, 'ruta' => 'onboarding'],
+            ['clave' => 'catalogo', 'hecho' => OfertaTenant::query()->exists(), 'requerido' => true, 'ruta' => 'onboarding'],
+            ['clave' => 'horarios', 'hecho' => PlantillaHorarioTenant::query()->exists() || SesionTenant::query()->exists(), 'requerido' => true, 'ruta' => 'agenda'],
+            ['clave' => 'politica', 'hecho' => PoliticaCancelacionTenant::query()->exists(), 'requerido' => true, 'ruta' => 'onboarding'],
+            ['clave' => 'productos', 'hecho' => ProductoTenant::query()->exists(), 'requerido' => true, 'ruta' => 'ventas'],
+            ['clave' => 'miembros', 'hecho' => PersonaTenant::query()->where('tipo', TipoPersonaTenant::Miembro->value)->exists(), 'requerido' => false, 'ruta' => 'miembros'],
+            ['clave' => 'publicado', 'hecho' => (bool) $estudio->publicado, 'requerido' => false, 'ruta' => 'configuracion'],
+        ];
+
+        $requeridas = array_filter($tareas, fn (array $t): bool => $t['requerido']);
+        $hechasReq = array_filter($requeridas, fn (array $t): bool => $t['hecho']);
+
+        return response()->json(['data' => [
+            'tareas' => $tareas,
+            'progreso' => ['hechas' => count($hechasReq), 'total' => count($requeridas)],
+            'listo' => count($hechasReq) === count($requeridas),
         ]]);
     }
 

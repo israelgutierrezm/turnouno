@@ -234,6 +234,7 @@ Route::prefix('v1')->group(function (): void {
 
             // Onboarding (guardar y continuar) y publicación en el directorio.
             Route::get('/onboarding', [OnboardingController::class, 'show'])->middleware('puede:estudio.gestionar')->name('onboarding.show');
+            Route::get('/onboarding/quickstart', [OnboardingController::class, 'quickstart'])->middleware('puede:estudio.gestionar')->name('onboarding.quickstart');
             Route::put('/onboarding', [OnboardingController::class, 'guardar'])->middleware('puede:estudio.gestionar')->name('onboarding.guardar');
             Route::put('/publicacion', [OnboardingController::class, 'publicacion'])->middleware('puede:estudio.gestionar')->name('publicacion');
             // Perfil de negocio / industria (R35): defaults/terminologia/feature-flags.

@@ -23,7 +23,14 @@ interface Facturacion {
 const router = useRouter()
 const sesion = useSesionTenantStore()
 
+interface Quickstart {
+  tareas: Array<{ clave: string; hecho: boolean; requerido: boolean; ruta: string }>
+  progreso: { hechas: number; total: number }
+  listo: boolean
+}
+
 const facturacion = ref<Facturacion | null>(null)
+const quickstart = ref<Quickstart | null>(null)
 const cargando = ref(true)
 const error = ref<string | null>(null)
 
@@ -52,6 +59,16 @@ async function cargar(): Promise<void> {
     }
   } finally {
     cargando.value = false
+  }
+
+  // Quickstart (R36): solo para quien gestiona el estudio; se ignora si no aplica.
+  if (sesion.puede('estudio.gestionar')) {
+    try {
+      const { data } = await api.get<{ data: Quickstart }>(`/api/v1/app/${sesion.slug}/onboarding/quickstart`)
+      quickstart.value = data.data
+    } catch {
+      quickstart.value = null
+    }
   }
 }
 
@@ -82,6 +99,35 @@ onMounted(cargar)
       <span class="tu-badge" :class="{ 'tu-badge-exito': sesion.estudio?.estado === 'active' }">
         {{ $t('panel.estado') }}: {{ sesion.estudio?.estado }}
       </span>
+    </div>
+
+    <!-- Quickstart (R36): guía de activación mientras falte configuración esencial -->
+    <div v-if="quickstart && !quickstart.listo" class="mt-6 tu-card p-5">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="font-bold text-lg">{{ $t('quickstart.titulo') }}</h2>
+        <span class="tu-badge">{{ quickstart.progreso.hechas }}/{{ quickstart.progreso.total }}</span>
+      </div>
+      <p class="mt-1 text-sm" :style="{ color: 'var(--texto-suave)' }">{{ $t('quickstart.subtitulo') }}</p>
+      <div class="mt-3 h-2 rounded-full overflow-hidden" :style="{ background: 'var(--fondo-suave)' }">
+        <div class="h-full rounded-full" :style="{ width: `${(quickstart.progreso.hechas / Math.max(quickstart.progreso.total, 1)) * 100}%`, background: 'var(--primario)' }" />
+      </div>
+      <ul class="mt-4 space-y-2">
+        <li v-for="t in quickstart.tareas" :key="t.clave" class="flex items-center justify-between gap-3 text-sm">
+          <span class="flex items-center gap-2 min-w-0">
+            <span
+              class="h-5 w-5 rounded-full inline-flex items-center justify-center text-xs shrink-0"
+              :style="t.hecho
+                ? { background: 'var(--exito)', color: '#fff' }
+                : { border: '1.5px solid var(--borde)', color: 'var(--texto-suave)' }"
+            >{{ t.hecho ? '✓' : '' }}</span>
+            <span :class="{ 'line-through opacity-60': t.hecho }">
+              {{ $t(`quickstart.tareas.${t.clave}`) }}
+              <span v-if="!t.requerido" class="text-xs" :style="{ color: 'var(--texto-suave)' }">· {{ $t('quickstart.opcional') }}</span>
+            </span>
+          </span>
+          <RouterLink v-if="!t.hecho" :to="{ name: t.ruta }" class="tu-enlace shrink-0">{{ $t('quickstart.ir') }}</RouterLink>
+        </li>
+      </ul>
     </div>
 
     <p v-if="cargando" class="mt-8" :style="{ color: 'var(--texto-suave)' }">{{ $t('comun.cargando') }}</p>
