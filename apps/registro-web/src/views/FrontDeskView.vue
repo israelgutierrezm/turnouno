@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import EncabezadoSeccion from '@/components/EncabezadoSeccion.vue'
+import PanelClase from '@/components/PanelClase.vue'
 import { api, mensajeDeError } from '@/lib/api'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
 
@@ -50,6 +51,11 @@ const metricas = ref<Metricas | null>(null)
 const sesiones = ref<SesionDia[]>([])
 const cargando = ref(true)
 const error = ref<string | null>(null)
+const sesionActiva = ref<SesionDia | null>(null)
+
+function abrir(s: SesionDia): void {
+  sesionActiva.value = s
+}
 
 function horaCorta(iso: string, zona: string): string {
   return new Intl.DateTimeFormat('es-MX', { timeZone: zona, hour: '2-digit', minute: '2-digit', hour12: false }).format(
@@ -129,6 +135,7 @@ onMounted(async () => {
     </div>
 
     <!-- Clases del día -->
+    <p v-if="!cargando && sesiones.length > 0" class="mt-5 text-xs" :style="{ color: 'var(--texto-suave)' }">{{ $t('recepcion.tocaClase') }}</p>
     <p v-if="cargando" class="mt-6 text-sm" :style="{ color: 'var(--texto-suave)' }">{{ $t('comun.cargando') }}</p>
     <p
       v-else-if="sesiones.length === 0"
@@ -153,8 +160,9 @@ onMounted(async () => {
           <tr
             v-for="s in sesiones"
             :key="s.id"
-            class="border-t"
+            class="border-t cursor-pointer transition-colors hover:brightness-95"
             :style="{ borderColor: 'var(--borde)', opacity: s.estado !== 'programada' ? 0.55 : 1 }"
+            @click="abrir(s)"
           >
             <td class="px-4 py-2 font-semibold">{{ horaCorta(s.inicia_en, s.zona_horaria) }}</td>
             <td class="px-4 py-2">
@@ -177,5 +185,7 @@ onMounted(async () => {
         </tbody>
       </table>
     </div>
+
+    <PanelClase v-if="sesionActiva" :sesion="sesionActiva" @cerrar="sesionActiva = null" @cambio="cargar" />
   </section>
 </template>

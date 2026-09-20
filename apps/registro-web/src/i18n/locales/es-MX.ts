@@ -942,7 +942,7 @@ export default {
   },
   recepcion: {
     titulo: 'Recepción',
-    subtitulo: 'La operación del día: clases, ocupación y asistencia.',
+    subtitulo: 'La operación del día: pasa lista, gestiona el cupo y la lista de espera.',
     fecha: 'Fecha',
     hoy: 'Hoy',
     todasSucursales: 'Todas las sucursales',
@@ -963,6 +963,18 @@ export default {
     abrirAgenda: 'Abrir en agenda',
     vacio: 'No hay clases este día.',
     cancelada: 'Cancelada',
+    tocaClase: 'Toca una clase para pasar lista y gestionar su cupo.',
+    panel: {
+      cerrar: 'Cerrar',
+      presentes: '{n} presentes',
+      enSala: '{n} en clase',
+      libres: '{n} libres',
+      espera: '{n} en espera',
+      llego: 'Llegó',
+      noVino: 'No vino',
+      listaEspera: 'Lista de espera',
+      promover: 'Ofrecer cupos',
+    },
   },
   agenda: {
     titulo: 'Agenda',
