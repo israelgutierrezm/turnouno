@@ -363,7 +363,7 @@ onMounted(() => {
                     type="button"
                     class="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
                     :style="{
-                      background: a.hex ?? '#0b8a99',
+                      background: a.hex ?? '#0071e3',
                       borderColor: tema.acento === a.hex ? 'var(--texto)' : 'transparent',
                     }"
                     :title="a.nombre"
@@ -509,7 +509,7 @@ onMounted(() => {
 }
 .tu-side-link.router-link-active {
   background: var(--barra-activo);
-  color: var(--barra);
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -520,7 +520,7 @@ onMounted(() => {
   justify-content: center;
   height: 2.25rem;
   width: 2.25rem;
-  border-radius: 0.7rem;
+  border-radius: 980px;
   color: var(--texto-suave);
   cursor: pointer;
 }

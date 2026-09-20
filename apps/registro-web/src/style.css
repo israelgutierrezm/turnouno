@@ -4,65 +4,69 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
-| Sistema de diseno tenant-local (original). Paleta por variables CSS: un tema
-| claro por defecto y su equivalente oscuro bajo `.dark`. La densidad ajusta la
-| escala base (botones +/-).
+| Sistema de diseño estilo Apple: lienzo casi monocromo (blanco / gris #f5f5f7),
+| tipografía Inter (sustituto de SF Pro) con tracking negativo, UN solo acento azul
+| (#0071e3) reservado a las acciones, botones tipo píldora, tarjetas muy redondeadas
+| y planas (sin sombra) separadas por color/hairline. Tema claro por defecto y su
+| equivalente oscuro bajo `.dark`. La densidad ajusta la escala base.
 */
 :root {
-  --fondo: #f1f5f8;
-  --superficie: #ffffff;
-  --superficie-2: #eef2f5;
-  --texto: #13212e;
-  --texto-suave: #5c7482;
-  --borde: #dbe4ea;
-  /* Acento personalizable (lo fija el store de tema); los tonos "primario" se
-     derivan de el. Por defecto, teal estilo Comandia. */
-  --acento: #0b8a99;
+  --fondo: #f5f5f7; /* Canvas gris */
+  --superficie: #ffffff; /* Paper (tarjetas) */
+  --superficie-2: #e8e8ed; /* Cool wash (hover / secundario) */
+  --texto: #1d1d1f; /* Primary ink */
+  --texto-suave: #6e6e73; /* Gris secundario */
+  --borde: #d2d2d7; /* Hairline */
+  /* Acento (personalizable): azul Apple por defecto; los tonos "primario" se derivan. */
+  --acento: #0071e3; /* Electric blue */
   --primario: var(--acento);
-  --primario-fuerte: color-mix(in srgb, var(--acento), black 15%);
+  --primario-fuerte: color-mix(in srgb, var(--acento), black 12%);
   --primario-contraste: #ffffff;
-  --primario-suave: color-mix(in srgb, var(--acento) 12%, #ffffff);
-  /* Barra lateral (panel): navy fija; el item activo va en menta. */
-  --barra: #2f455c;
-  --barra-suave: #24384b;
-  --barra-activo: #21d0b2;
-  --barra-texto: #b4c8d6;
-  --barra-borde: rgb(0 0 0 / 22%);
-  --exito: #16a34a;
-  --exito-suave: #dcfce7;
-  --error: #dc2626;
-  --error-suave: #fee2e2;
-  --aviso: #b45309;
-  --aviso-suave: #fef3c7;
-  --sombra: 0 1px 2px rgba(16, 20, 40, 0.06), 0 8px 24px rgba(16, 20, 40, 0.06);
+  --primario-suave: color-mix(in srgb, var(--acento) 10%, #ffffff);
+  --enlace: #0066cc; /* Link blue (texto) */
+  /* Barra lateral: casi negra (ink); el item activo va en azul. */
+  --barra: #1d1d1f;
+  --barra-suave: #2d2d2f;
+  --barra-activo: #0071e3;
+  --barra-texto: #a1a1a6;
+  --barra-borde: rgb(255 255 255 / 10%);
+  --exito: #1a7f37;
+  --exito-suave: #e6f4ea;
+  --error: #d70015;
+  --error-suave: #fdeaea;
+  --aviso: #b64400; /* Ember */
+  --aviso-suave: #fbe9dd;
+  --sombra: none; /* Sin sombras: separación por color + hairline. */
+  --radio-tarjeta: 1.25rem; /* ~20px */
+  --radio-boton: 980px; /* Píldora */
   color-scheme: light;
 }
 
 .dark {
-  --fondo: #0f172a;
-  --superficie: #1e293b;
-  --superficie-2: #243247;
-  --texto: #f1f5f9;
-  --texto-suave: #94a3b8;
-  --borde: #334155;
-  --acento: #38bdf8;
+  --fondo: #000000;
+  --superficie: #1d1d1f;
+  --superficie-2: #2d2d2f;
+  --texto: #f5f5f7;
+  --texto-suave: #a1a1a6;
+  --borde: #38383a;
+  --acento: #0a84ff;
   --primario: var(--acento);
-  --primario-fuerte: color-mix(in srgb, var(--acento), white 22%);
-  --primario-contraste: #0b1120;
-  --primario-suave: color-mix(in srgb, var(--acento) 22%, #1e293b);
-  /* Barra lateral en oscuro (preset Medianoche). */
-  --barra: #0b1120;
-  --barra-suave: #111827;
-  --barra-activo: #38bdf8;
-  --barra-texto: #94a3b8;
-  --barra-borde: rgb(255 255 255 / 6%);
-  --exito: #4ade80;
-  --exito-suave: #10261a;
-  --error: #f87171;
+  --primario-fuerte: color-mix(in srgb, var(--acento), white 15%);
+  --primario-contraste: #ffffff;
+  --primario-suave: color-mix(in srgb, var(--acento) 24%, #1d1d1f);
+  --enlace: #2997ff;
+  --barra: #000000;
+  --barra-suave: #1d1d1f;
+  --barra-activo: #0a84ff;
+  --barra-texto: #a1a1a6;
+  --barra-borde: rgb(255 255 255 / 10%);
+  --exito: #30d158;
+  --exito-suave: #0e2a17;
+  --error: #ff453a;
   --error-suave: #2a1414;
-  --aviso: #fbbf24;
-  --aviso-suave: #2a2110;
-  --sombra: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.35);
+  --aviso: #ff9f0a;
+  --aviso-suave: #2a1e0a;
+  --sombra: none;
   color-scheme: dark;
 }
 
@@ -80,34 +84,47 @@ body {
   margin: 0;
   background: var(--fondo);
   color: var(--texto);
+  /* En dispositivos Apple resuelve a SF Pro (la fuente de referencia); Inter es el
+     sustituto en el resto, con Segoe UI/Roboto como respaldo del sistema. */
   font-family:
-    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
-    sans-serif;
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', ui-sans-serif, system-ui,
+    'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: -0.011em; /* tracking negativo sutil, estilo SF */
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   transition:
     background-color 0.2s ease,
     color 0.2s ease;
 }
 
-/* Componentes reutilizables (referencian las variables del tema). */
+/* Títulos con voz "SF Pro Display": peso alto y tracking negativo marcado. */
+h1,
+h2,
+h3 {
+  letter-spacing: -0.021em;
+}
+
+/* Tarjetas: muy redondeadas y PLANAS (sin sombra); separación por color/hairline. */
 .tu-card {
   background: var(--superficie);
   border: 1px solid var(--borde);
-  border-radius: 0.85rem;
-  box-shadow: var(--sombra);
+  border-radius: var(--radio-tarjeta);
+  box-shadow: none;
 }
 
+/* Botones: forma píldora (Apple). */
 .tu-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  border-radius: 0.6rem;
+  border-radius: var(--radio-boton);
   border: 1px solid transparent;
-  padding: 0.5rem 0.95rem;
-  font-weight: 600;
-  font-size: 0.9rem;
+  padding: 0.55rem 1.1rem;
+  font-weight: 500;
+  font-size: 0.94rem;
   line-height: 1.2;
+  letter-spacing: -0.01em;
   cursor: pointer;
   transition:
     background-color 0.15s ease,
@@ -116,10 +133,10 @@ body {
     transform 0.05s ease;
 }
 .tu-btn:active {
-  transform: translateY(1px);
+  transform: translateY(0.5px);
 }
 .tu-btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 .tu-btn-primario {
@@ -138,13 +155,14 @@ body {
   background: var(--superficie-2);
 }
 
+/* Campos: redondeo generoso, anillo de foco azul. */
 .tu-input {
   width: 100%;
   background: var(--superficie);
   border: 1px solid var(--borde);
-  border-radius: 0.6rem;
-  padding: 0.55rem 0.75rem;
-  font-size: 0.9rem;
+  border-radius: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.94rem;
   color: var(--texto);
   outline: none;
   transition:
@@ -153,7 +171,7 @@ body {
 }
 .tu-input:focus {
   border-color: var(--acento);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 22%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--acento) 18%, transparent);
 }
 
 /* Texto de ayuda debajo de un campo. */
@@ -172,17 +190,18 @@ body {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--texto-suave);
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.35rem;
+  letter-spacing: -0.006em;
 }
 
 .tu-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  border-radius: 999px;
-  padding: 0.15rem 0.6rem;
+  border-radius: 980px;
+  padding: 0.18rem 0.65rem;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 500;
   background: var(--superficie-2);
   color: var(--texto-suave);
 }
@@ -195,9 +214,10 @@ body {
   color: var(--aviso);
 }
 
+/* Enlaces de texto: azul de enlace, subrayado solo en hover (sin fondo ni caja). */
 .tu-enlace {
-  color: var(--primario);
-  font-weight: 600;
+  color: var(--enlace);
+  font-weight: 500;
   text-decoration: none;
 }
 .tu-enlace:hover {
@@ -205,9 +225,9 @@ body {
 }
 
 .tu-nav-link {
-  padding: 0.45rem 0.75rem;
-  border-radius: 0.6rem;
-  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  border-radius: 980px;
+  font-weight: 500;
   font-size: 0.9rem;
   color: var(--texto-suave);
   white-space: nowrap;
@@ -219,5 +239,5 @@ body {
 }
 .tu-nav-link.router-link-active {
   background: var(--primario-suave);
-  color: var(--primario-fuerte);
+  color: var(--primario);
 }

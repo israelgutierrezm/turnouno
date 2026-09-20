@@ -12,8 +12,8 @@ const DENSIDADES: Densidad[] = ['compacta', 'normal', 'comoda']
  * se derivan los tonos "primario" para ambos modos.
  */
 export const ACENTOS: { nombre: string; hex: string | null }[] = [
-  { nombre: 'Teal', hex: null },
-  { nombre: 'Indigo', hex: '#4f46e5' },
+  { nombre: 'Azul', hex: null },
+  { nombre: 'Indigo', hex: '#5e5ce6' },
   { nombre: 'Esmeralda', hex: '#059669' },
   { nombre: 'Cielo', hex: '#0284c7' },
   { nombre: 'Violeta', hex: '#7c3aed' },
