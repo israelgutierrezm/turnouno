@@ -27,7 +27,6 @@ const MENU: MenuItem[] = [
     icono: 'personas',
     hijos: [
       { clave: 'miembros', etiqueta: 'nav.miembros', icono: 'miembros', ruta: 'miembros', permiso: 'miembros.ver' },
-      { clave: 'crm', etiqueta: 'nav.crm', icono: 'crm', ruta: 'crm', permiso: 'crm.ver' },
       { clave: 'instructores', etiqueta: 'nav.instructores', icono: 'instructores', ruta: 'instructores', permiso: 'agenda.gestionar' },
       { clave: 'usuarios', etiqueta: 'nav.usuarios', icono: 'usuarios', ruta: 'usuarios', permiso: 'usuarios.gestionar' },
     ],
@@ -52,10 +51,8 @@ const MENU: MenuItem[] = [
       { clave: 'ventas', etiqueta: 'nav.ventas', icono: 'ventas', ruta: 'ventas', permiso: 'productos.ver' },
       { clave: 'pos', etiqueta: 'nav.pos', icono: 'pos', ruta: 'pos', permiso: 'inventario.ver' },
       { clave: 'promociones', etiqueta: 'nav.promociones', icono: 'promociones', ruta: 'promociones', permiso: 'promociones.gestionar' },
-      { clave: 'referidos', etiqueta: 'nav.referidos', icono: 'referidos', ruta: 'referidos', permiso: 'referidos.ver' },
       { clave: 'lealtad', etiqueta: 'nav.lealtad', icono: 'lealtad', ruta: 'lealtad', permiso: 'lealtad.ver' },
       { clave: 'facturas', etiqueta: 'nav.facturas', icono: 'facturas', ruta: 'facturas', permiso: 'ordenes.ver' },
-      { clave: 'renta', etiqueta: 'nav.renta', icono: 'renta', ruta: 'renta', permiso: 'facturacion.ver' },
       { clave: 'reportes', etiqueta: 'nav.reportes', icono: 'reportes', ruta: 'reportes', permiso: 'facturacion.ver' },
       { clave: 'pasarelas', etiqueta: 'nav.pasarelas', icono: 'pasarelas', ruta: 'pasarelas', permiso: 'pagos.configurar' },
     ],
@@ -78,6 +75,15 @@ const MENU: MenuItem[] = [
       { clave: 'integraciones', etiqueta: 'nav.integraciones', icono: 'integraciones', ruta: 'integraciones', permiso: 'integraciones.configurar' },
       { clave: 'datos-fiscales', etiqueta: 'nav.datosFiscales', icono: 'datosFiscales', ruta: 'datos-fiscales', permiso: 'estudio.gestionar' },
       { clave: 'configuracion', etiqueta: 'nav.configuracion', icono: 'configuracion', ruta: 'configuracion', permiso: 'estudio.gestionar' },
+    ],
+  },
+  // Pagos del SaaS (lo que el dueño le paga a TurnoUno): separado de la operación/venta del estudio.
+  {
+    clave: 'suscripcion',
+    etiqueta: 'nav.grupos.suscripcion',
+    icono: 'renta',
+    hijos: [
+      { clave: 'renta', etiqueta: 'nav.renta', icono: 'renta', ruta: 'renta', permiso: 'facturacion.ver' },
     ],
   },
 ]

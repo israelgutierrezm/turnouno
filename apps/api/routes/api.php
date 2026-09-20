@@ -55,7 +55,6 @@ use App\Modules\Tenancy\Http\Controllers\CapacidadCanalTenantController;
 use App\Modules\Tenancy\Http\Controllers\CatalogoTenantController;
 use App\Modules\Tenancy\Http\Controllers\CheckinsTenantController;
 use App\Modules\Tenancy\Http\Controllers\CreditosTenantController;
-use App\Modules\Tenancy\Http\Controllers\CrmTenantController;
 use App\Modules\Tenancy\Http\Controllers\DatosFiscalesTenantController;
 use App\Modules\Tenancy\Http\Controllers\DirectorioController;
 use App\Modules\Tenancy\Http\Controllers\DocumentosController;
@@ -92,7 +91,6 @@ use App\Modules\Tenancy\Http\Controllers\PromocionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\PuntoDeVentaTenantController;
 use App\Modules\Tenancy\Http\Controllers\RecursosTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReembolsosTenantController;
-use App\Modules\Tenancy\Http\Controllers\ReferidosTenantController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
 use App\Modules\Tenancy\Http\Controllers\ReporteNegocioTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReporteSucursalesTenantController;
@@ -211,15 +209,6 @@ Route::prefix('v1')->group(function (): void {
             // Importacion CSV de miembros (R37): preview (valida) e import (todo-o-nada).
             Route::post('/importaciones/miembros/preview', [ImportacionesTenantController::class, 'previewMiembros'])->middleware('puede:miembros.gestionar')->name('importaciones.miembros.preview');
             Route::post('/importaciones/miembros', [ImportacionesTenantController::class, 'importarMiembros'])->middleware('puede:miembros.gestionar')->name('importaciones.miembros.store');
-
-            // CRM comercial (R15): embudo de prospectos con etapas, bitacora y conversion a miembro.
-            Route::get('/crm/prospectos', [CrmTenantController::class, 'index'])->middleware('puede:crm.ver')->name('crm.prospectos.index');
-            Route::post('/crm/prospectos', [CrmTenantController::class, 'store'])->middleware('puede:crm.gestionar')->name('crm.prospectos.store');
-            Route::get('/crm/prospectos/{prospecto}', [CrmTenantController::class, 'show'])->middleware('puede:crm.ver')->name('crm.prospectos.show');
-            Route::put('/crm/prospectos/{prospecto}', [CrmTenantController::class, 'actualizar'])->middleware('puede:crm.gestionar')->name('crm.prospectos.update');
-            Route::post('/crm/prospectos/{prospecto}/etapa', [CrmTenantController::class, 'cambiarEtapa'])->middleware('puede:crm.gestionar')->name('crm.prospectos.etapa');
-            Route::post('/crm/prospectos/{prospecto}/actividades', [CrmTenantController::class, 'actividad'])->middleware('puede:crm.gestionar')->name('crm.prospectos.actividades.store');
-            Route::post('/crm/prospectos/{prospecto}/convertir', [CrmTenantController::class, 'convertir'])->middleware('puede:crm.gestionar')->name('crm.prospectos.convertir');
 
             // Tareas de seguimiento (R16): bandeja de pendientes del staff (manuales o automaticas).
             Route::get('/tareas', [TareasTenantController::class, 'index'])->middleware('puede:tareas.ver')->name('tareas.index');
@@ -416,7 +405,6 @@ Route::prefix('v1')->group(function (): void {
             Route::delete('/promociones/{promocion}', [PromocionesTenantController::class, 'eliminar'])->middleware('puede:promociones.gestionar')->name('promociones.destroy');
             Route::post('/promociones/validar', [PromocionesTenantController::class, 'validar'])->middleware('puede:ordenes.gestionar')->name('promociones.validar');
 
-            // Referidos (R23): programa, listado y codigo de cada miembro (recompensa = cupon R22).
             // Inventario + punto de venta minorista (R21): stock por sucursal (ledger) y tickets de caja.
             Route::get('/articulos', [InventarioTenantController::class, 'index'])->middleware('puede:inventario.ver')->name('articulos.index');
             Route::post('/articulos', [InventarioTenantController::class, 'store'])->middleware('puede:inventario.gestionar')->name('articulos.store');
@@ -424,11 +412,6 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/articulos/{articulo}/movimientos', [InventarioTenantController::class, 'movimiento'])->middleware('puede:inventario.gestionar')->name('articulos.movimientos.store');
             Route::get('/pos/ventas', [PuntoDeVentaTenantController::class, 'index'])->middleware('puede:inventario.ver')->name('pos.ventas.index');
             Route::post('/pos/ventas', [PuntoDeVentaTenantController::class, 'vender'])->middleware('puede:pos.vender')->name('pos.ventas.store');
-
-            Route::get('/referidos', [ReferidosTenantController::class, 'index'])->middleware('puede:referidos.ver')->name('referidos.index');
-            Route::get('/referidos/programa', [ReferidosTenantController::class, 'programa'])->middleware('puede:referidos.ver')->name('referidos.programa');
-            Route::put('/referidos/programa', [ReferidosTenantController::class, 'guardarPrograma'])->middleware('puede:referidos.gestionar')->name('referidos.programa.guardar');
-            Route::get('/miembros/{persona}/codigo-referido', [ReferidosTenantController::class, 'codigo'])->middleware('puede:referidos.ver')->name('miembros.codigo-referido');
 
             // Lealtad (R24): programa de puntos, recompensas, canjes y saldo por miembro.
             Route::get('/lealtad/programa', [LealtadTenantController::class, 'programa'])->middleware('puede:lealtad.ver')->name('lealtad.programa');

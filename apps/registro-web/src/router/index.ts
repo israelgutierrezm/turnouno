@@ -100,12 +100,6 @@ const router = createRouter({
       meta: { requiereSesion: true },
     },
     {
-      path: '/crm',
-      name: 'crm',
-      component: () => import('@/views/CrmView.vue'),
-      meta: { requiereSesion: true },
-    },
-    {
       path: '/tareas',
       name: 'tareas',
       component: () => import('@/views/TareasView.vue'),
@@ -115,12 +109,6 @@ const router = createRouter({
       path: '/promociones',
       name: 'promociones',
       component: () => import('@/views/PromocionesView.vue'),
-      meta: { requiereSesion: true },
-    },
-    {
-      path: '/referidos',
-      name: 'referidos',
-      component: () => import('@/views/ReferidosView.vue'),
       meta: { requiereSesion: true },
     },
     {
