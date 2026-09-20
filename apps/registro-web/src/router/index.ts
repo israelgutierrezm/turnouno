@@ -118,6 +118,12 @@ const router = createRouter({
       meta: { requiereSesion: true },
     },
     {
+      path: '/pos',
+      name: 'pos',
+      component: () => import('@/views/PosView.vue'),
+      meta: { requiereSesion: true },
+    },
+    {
       path: '/recepcion',
       name: 'recepcion',
       component: () => import('@/views/FrontDeskView.vue'),

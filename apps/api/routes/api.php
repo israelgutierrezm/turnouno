@@ -70,6 +70,7 @@ use App\Modules\Tenancy\Http\Controllers\GruposTenantController;
 use App\Modules\Tenancy\Http\Controllers\ImportacionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\IntegracionApiTenantController;
 use App\Modules\Tenancy\Http\Controllers\IntegracionesTenantController;
+use App\Modules\Tenancy\Http\Controllers\InventarioTenantController;
 use App\Modules\Tenancy\Http\Controllers\LlavesApiTenantController;
 use App\Modules\Tenancy\Http\Controllers\MarcaEstudioController;
 use App\Modules\Tenancy\Http\Controllers\MembresiasTenantController;
@@ -85,6 +86,7 @@ use App\Modules\Tenancy\Http\Controllers\PlantillasMensajeTenantController;
 use App\Modules\Tenancy\Http\Controllers\PlataformaController;
 use App\Modules\Tenancy\Http\Controllers\PoliticasCancelacionTenantController;
 use App\Modules\Tenancy\Http\Controllers\PromocionesTenantController;
+use App\Modules\Tenancy\Http\Controllers\PuntoDeVentaTenantController;
 use App\Modules\Tenancy\Http\Controllers\RecursosTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReembolsosTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReferidosTenantController;
@@ -392,6 +394,14 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/promociones/validar', [PromocionesTenantController::class, 'validar'])->middleware('puede:ordenes.gestionar')->name('promociones.validar');
 
             // Referidos (R23): programa, listado y codigo de cada miembro (recompensa = cupon R22).
+            // Inventario + punto de venta minorista (R21): stock por sucursal (ledger) y tickets de caja.
+            Route::get('/articulos', [InventarioTenantController::class, 'index'])->middleware('puede:inventario.ver')->name('articulos.index');
+            Route::post('/articulos', [InventarioTenantController::class, 'store'])->middleware('puede:inventario.gestionar')->name('articulos.store');
+            Route::put('/articulos/{articulo}', [InventarioTenantController::class, 'actualizar'])->middleware('puede:inventario.gestionar')->name('articulos.update');
+            Route::post('/articulos/{articulo}/movimientos', [InventarioTenantController::class, 'movimiento'])->middleware('puede:inventario.gestionar')->name('articulos.movimientos.store');
+            Route::get('/pos/ventas', [PuntoDeVentaTenantController::class, 'index'])->middleware('puede:inventario.ver')->name('pos.ventas.index');
+            Route::post('/pos/ventas', [PuntoDeVentaTenantController::class, 'vender'])->middleware('puede:pos.vender')->name('pos.ventas.store');
+
             Route::get('/referidos', [ReferidosTenantController::class, 'index'])->middleware('puede:referidos.ver')->name('referidos.index');
             Route::get('/referidos/programa', [ReferidosTenantController::class, 'programa'])->middleware('puede:referidos.ver')->name('referidos.programa');
             Route::put('/referidos/programa', [ReferidosTenantController::class, 'guardarPrograma'])->middleware('puede:referidos.gestionar')->name('referidos.programa.guardar');

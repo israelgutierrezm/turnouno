@@ -50,6 +50,7 @@ const MENU: MenuItem[] = [
     icono: 'comercio',
     hijos: [
       { clave: 'ventas', etiqueta: 'nav.ventas', icono: 'ventas', ruta: 'ventas', permiso: 'productos.ver' },
+      { clave: 'pos', etiqueta: 'nav.pos', icono: 'pos', ruta: 'pos', permiso: 'inventario.ver' },
       { clave: 'promociones', etiqueta: 'nav.promociones', icono: 'promociones', ruta: 'promociones', permiso: 'promociones.gestionar' },
       { clave: 'referidos', etiqueta: 'nav.referidos', icono: 'referidos', ruta: 'referidos', permiso: 'referidos.ver' },
       { clave: 'facturas', etiqueta: 'nav.facturas', icono: 'facturas', ruta: 'facturas', permiso: 'ordenes.ver' },
