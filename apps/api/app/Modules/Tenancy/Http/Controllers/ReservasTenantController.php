@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Tenancy\Http\Controllers;
 
+use App\Modules\Asistencia\EstadoAsistencia;
 use App\Modules\Reservas\CanalReserva;
 use App\Modules\Reservas\EstadoReserva;
 use App\Modules\Tenancy\Application\ReservasTenant;
@@ -44,9 +45,35 @@ class ReservasTenantController
             ->orderBy('id')
             ->get();
 
+        // First-timer (R14): quiénes del roster ya asistieron alguna vez (para marcar
+        // "primera vez"), en un solo query.
+        $yaAsistieron = $this->personasQueAsistieron($reservas->pluck('persona_id')->filter()->unique()->all());
+
         return response()->json([
-            'data' => $reservas->map(fn (ReservaTenant $reserva): array => $this->presentar($reserva))->all(),
+            'data' => $reservas->map(fn (ReservaTenant $reserva): array => $this->presentar($reserva, $yaAsistieron))->all(),
         ]);
+    }
+
+    /**
+     * De un conjunto de personas, cuáles tienen al menos una asistencia `presente` (R14).
+     *
+     * @param  list<int>  $personaIds
+     * @return list<int>
+     */
+    private function personasQueAsistieron(array $personaIds): array
+    {
+        if ($personaIds === []) {
+            return [];
+        }
+
+        return ReservaTenant::query()
+            ->join('asistencias', 'asistencias.reserva_id', '=', 'reservas.id')
+            ->where('asistencias.estado', EstadoAsistencia::Presente->value)
+            ->whereIn('reservas.persona_id', $personaIds)
+            ->distinct()
+            ->pluck('reservas.persona_id')
+            ->map(fn ($v): int => (int) $v)
+            ->all();
     }
 
     public function reservar(Request $request): JsonResponse
@@ -136,18 +163,25 @@ class ReservasTenantController
     }
 
     /**
+     * @param  list<int>|null  $yaAsistieron  personas con asistencia previa (roster); null = calcular por persona
      * @return array<string, mixed>
      */
-    private function presentar(ReservaTenant $reserva): array
+    private function presentar(ReservaTenant $reserva, ?array $yaAsistieron = null): array
     {
         $reserva->loadMissing(['persona', 'sesion', 'asistencia']);
         $persona = $reserva->persona;
+
+        $personaId = (int) $reserva->persona_id;
+        $primeraVez = $yaAsistieron !== null
+            ? ! in_array($personaId, $yaAsistieron, true)
+            : $this->personasQueAsistieron([$personaId]) === [];
 
         return [
             'id' => $reserva->ulid,
             'estado' => $reserva->estado->value,
             'canal' => $reserva->canal,
             'persona' => $persona?->nombreCompleto(),
+            'primera_vez' => $primeraVez,
             'inicia_en' => $reserva->sesion?->inicia_en->toIso8601String(),
             'unidades' => $reserva->unidades,
             'asistencia' => $reserva->asistencia?->estado->value,

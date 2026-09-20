@@ -37,6 +37,7 @@ interface Reserva {
   estado: string
   canal: string
   persona: string | null
+  primera_vez: boolean
   unidades: number
   asistencia: string | null
 }
@@ -933,6 +934,7 @@ onMounted(async () => {
                   >{{ $t(`agenda.roster.${r.estado}`) }}</span>
                   <span v-if="r.asistencia" class="tu-badge">{{ $t(`agenda.roster.${r.asistencia}`) }}</span>
                   <span v-if="r.canal && r.canal !== 'directo'" class="tu-badge">{{ $t(`agenda.canales.${r.canal}`) }}</span>
+                  <span v-if="r.primera_vez" class="tu-badge tu-badge-aviso" :title="$t('agenda.roster.primeraVezAyuda')">{{ $t('agenda.roster.primeraVez') }}</span>
                 </span>
                 <span class="flex items-center gap-2 shrink-0">
                   <button

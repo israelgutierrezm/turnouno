@@ -17,6 +17,7 @@ type Miembro = {
   email: string | null
   tipo: string
   activo: boolean
+  primera_vez: boolean | null
 }
 
 const { t } = useI18n()
@@ -199,6 +200,11 @@ onMounted(() => {
                 >{{ (fila as Miembro).nombre.charAt(0).toUpperCase() }}</span
               >
               <span class="font-semibold">{{ nombreCompleto(fila as Miembro) }}</span>
+              <span
+                v-if="tipo === 'miembro' && (fila as Miembro).primera_vez"
+                class="tu-badge tu-badge-aviso"
+                :title="$t('miembros.nuevoAyuda')"
+              >{{ $t('miembros.nuevo') }}</span>
             </div>
           </template>
           <template #col-email="{ valor }">

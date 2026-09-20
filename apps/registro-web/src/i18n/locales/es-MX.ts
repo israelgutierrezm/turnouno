@@ -287,6 +287,8 @@ export default {
     colEstado: 'Estado',
     activo: 'Activo',
     inactivo: 'Inactivo',
+    nuevo: 'Nuevo',
+    nuevoAyuda: 'Aún no ha asistido a ninguna clase.',
     invitar: 'Invitar',
     invitando: 'Invitando…',
     invitado: 'Invitado',
@@ -878,6 +880,8 @@ export default {
       transferir: 'Transferir',
       transferirA: 'Regalar el lugar a',
       confirmarTransfer: 'Transferir',
+      primeraVez: '1ª vez',
+      primeraVezAyuda: 'Es su primera clase: dale la bienvenida.',
     },
   },
   pasarelas: {

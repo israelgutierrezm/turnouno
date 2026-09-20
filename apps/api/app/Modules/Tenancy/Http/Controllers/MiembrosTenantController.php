@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\Tenancy\Http\Controllers;
 
+use App\Modules\Asistencia\EstadoAsistencia;
 use App\Modules\Tenancy\Http\Requests\CrearMiembroRequest;
 use App\Modules\Tenancy\Models\PersonaTenant;
+use App\Modules\Tenancy\Models\ReservaTenant;
 use App\Modules\Tenancy\Models\SucursalTenant;
 use App\Modules\Tenancy\TipoPersonaTenant;
 use Illuminate\Http\JsonResponse;
@@ -34,9 +36,39 @@ class MiembrosTenantController
             ->limit(self::LIMITE)
             ->get();
 
+        // First-timer (R14): asistencias `presente` por persona en un solo query (sin N+1);
+        // 0 asistencias = primerizo (nunca ha asistido).
+        $asistencias = $this->conteoAsistencias($personas->pluck('id')->all());
+
         return response()->json([
-            'data' => $personas->map(fn (PersonaTenant $persona): array => $this->presentar($persona))->all(),
+            'data' => $personas->map(fn (PersonaTenant $persona): array => $this->presentar(
+                $persona,
+                (int) ($asistencias[$persona->getKey()] ?? 0),
+            ))->all(),
         ]);
+    }
+
+    /**
+     * Cuenta las asistencias `presente` por persona (R14) en un solo query.
+     *
+     * @param  list<int>  $personaIds
+     * @return array<int, int>
+     */
+    private function conteoAsistencias(array $personaIds): array
+    {
+        if ($personaIds === []) {
+            return [];
+        }
+
+        return ReservaTenant::query()
+            ->join('asistencias', 'asistencias.reserva_id', '=', 'reservas.id')
+            ->where('asistencias.estado', EstadoAsistencia::Presente->value)
+            ->whereIn('reservas.persona_id', $personaIds)
+            ->groupBy('reservas.persona_id')
+            ->selectRaw('reservas.persona_id as pid, count(*) as total')
+            ->pluck('total', 'pid')
+            ->map(fn ($v): int => (int) $v)
+            ->all();
     }
 
     public function store(CrearMiembroRequest $request): JsonResponse
@@ -74,7 +106,7 @@ class MiembrosTenantController
     /**
      * @return array<string, mixed>
      */
-    private function presentar(PersonaTenant $persona): array
+    private function presentar(PersonaTenant $persona, ?int $asistencias = null): array
     {
         return [
             'id' => $persona->ulid,
@@ -87,6 +119,8 @@ class MiembrosTenantController
             'tipo' => $persona->tipo->value,
             'activo' => $persona->activo,
             'es_facturable' => $persona->es_facturable,
+            'asistencias' => $asistencias,
+            'primera_vez' => $asistencias !== null ? $asistencias === 0 : null,
             'sucursal' => $persona->sucursal !== null
                 ? ['id' => $persona->sucursal->ulid, 'nombre' => $persona->sucursal->nombre]
                 : null,
