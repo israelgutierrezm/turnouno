@@ -8,6 +8,7 @@ use App\Modules\Tenancy\Events\EventoDeDominioTenant;
 use App\Modules\Tenancy\Facturacion\ClienteFacturacion;
 use App\Modules\Tenancy\Facturacion\FacturacionFalsa;
 use App\Modules\Tenancy\Facturacion\FacturApiHttp;
+use App\Modules\Tenancy\Listeners\EjecutarAutomatizaciones;
 use App\Modules\Tenancy\Listeners\EnviarWebhooksSalientes;
 use App\Modules\Tenancy\Listeners\GenerarComunicaciones;
 use App\Modules\Tenancy\Models\ConfiguracionPlataforma;
@@ -69,5 +70,6 @@ class AppServiceProvider extends ServiceProvider
         // comunicaciones (R28) definidas por plantilla.
         Event::listen(EventoDeDominioTenant::class, EnviarWebhooksSalientes::class);
         Event::listen(EventoDeDominioTenant::class, GenerarComunicaciones::class);
+        Event::listen(EventoDeDominioTenant::class, EjecutarAutomatizaciones::class);
     }
 }

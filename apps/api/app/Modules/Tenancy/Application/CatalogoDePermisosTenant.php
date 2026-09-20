@@ -33,6 +33,7 @@ class CatalogoDePermisosTenant
                 'facturacion.ver', 'usuarios.invitar', 'usuarios.gestionar', 'auditoria.ver',
                 'comunicaciones.gestionar', 'comunicaciones.ver',
                 'crm.ver', 'crm.gestionar',
+                'automatizaciones.gestionar', 'tareas.ver', 'tareas.gestionar',
             ],
             'recepcionista' => [
                 'miembros.gestionar', 'miembros.ver', 'documentos.subir', 'formularios.responder',
@@ -41,11 +42,13 @@ class CatalogoDePermisosTenant
                 'reservas.ver', 'reservas.gestionar', 'asistencia.marcar', 'checkins.registrar',
                 'ordenes.ver', 'ordenes.gestionar', 'comunicaciones.ver',
                 'crm.ver', 'crm.gestionar',
+                'tareas.ver', 'tareas.gestionar',
             ],
             'instructor' => [
                 'miembros.ver', 'documentos.subir', 'formularios.responder', 'catalogo.ver',
                 'sucursales.ver', 'agenda.ver', 'derechos.ver',
                 'reservas.ver', 'asistencia.marcar', 'checkins.registrar',
+                'tareas.ver', 'tareas.gestionar',
             ],
             'miembro' => [
                 'formularios.responder',

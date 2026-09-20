@@ -50,6 +50,7 @@ use App\Modules\Tenancy\Http\Controllers\AsignacionesPersonalTenantController;
 use App\Modules\Tenancy\Http\Controllers\AsistenciaTenantController;
 use App\Modules\Tenancy\Http\Controllers\AuditoriaController;
 use App\Modules\Tenancy\Http\Controllers\AuthTenantController;
+use App\Modules\Tenancy\Http\Controllers\AutomatizacionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\CatalogoTenantController;
 use App\Modules\Tenancy\Http\Controllers\CheckinsTenantController;
 use App\Modules\Tenancy\Http\Controllers\CreditosTenantController;
@@ -90,6 +91,7 @@ use App\Modules\Tenancy\Http\Controllers\ReporteSucursalesTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReservasTenantController;
 use App\Modules\Tenancy\Http\Controllers\RespuestasFormularioController;
 use App\Modules\Tenancy\Http\Controllers\StaffTenantController;
+use App\Modules\Tenancy\Http\Controllers\TareasTenantController;
 use App\Modules\Tenancy\Http\Controllers\TiposDocumentoController;
 use App\Modules\Tenancy\Http\Controllers\UsuariosTenantController;
 use App\Modules\Tenancy\Http\Controllers\WaiversTenantController;
@@ -200,6 +202,18 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/crm/prospectos/{prospecto}/etapa', [CrmTenantController::class, 'cambiarEtapa'])->middleware('puede:crm.gestionar')->name('crm.prospectos.etapa');
             Route::post('/crm/prospectos/{prospecto}/actividades', [CrmTenantController::class, 'actividad'])->middleware('puede:crm.gestionar')->name('crm.prospectos.actividades.store');
             Route::post('/crm/prospectos/{prospecto}/convertir', [CrmTenantController::class, 'convertir'])->middleware('puede:crm.gestionar')->name('crm.prospectos.convertir');
+
+            // Tareas de seguimiento (R16): bandeja de pendientes del staff (manuales o automaticas).
+            Route::get('/tareas', [TareasTenantController::class, 'index'])->middleware('puede:tareas.ver')->name('tareas.index');
+            Route::post('/tareas', [TareasTenantController::class, 'store'])->middleware('puede:tareas.gestionar')->name('tareas.store');
+            Route::post('/tareas/{tarea}/completar', [TareasTenantController::class, 'completar'])->middleware('puede:tareas.gestionar')->name('tareas.completar');
+            Route::post('/tareas/{tarea}/reabrir', [TareasTenantController::class, 'reabrir'])->middleware('puede:tareas.gestionar')->name('tareas.reabrir');
+
+            // Motor de automatizacion (R16): reglas trigger->condicion->retraso->accion (crear tarea).
+            Route::get('/automatizaciones', [AutomatizacionesTenantController::class, 'index'])->middleware('puede:automatizaciones.gestionar')->name('automatizaciones.index');
+            Route::post('/automatizaciones', [AutomatizacionesTenantController::class, 'store'])->middleware('puede:automatizaciones.gestionar')->name('automatizaciones.store');
+            Route::put('/automatizaciones/{regla}', [AutomatizacionesTenantController::class, 'actualizar'])->middleware('puede:automatizaciones.gestionar')->name('automatizaciones.update');
+            Route::delete('/automatizaciones/{regla}', [AutomatizacionesTenantController::class, 'eliminar'])->middleware('puede:automatizaciones.gestionar')->name('automatizaciones.destroy');
 
             // Familias (R26): hogares y tutelas (tutor -> dependiente).
             Route::post('/hogares', [FamiliasTenantController::class, 'crearHogar'])->middleware('puede:miembros.gestionar')->name('hogares.store');
