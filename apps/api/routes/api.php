@@ -229,6 +229,7 @@ Route::prefix('v1')->group(function (): void {
 
             // Facturación SaaS del estudio (control plane; separada de pagos de alumnos).
             Route::get('/facturacion', [FacturacionController::class, 'show'])->middleware('puede:facturacion.ver')->name('facturacion');
+            Route::get('/renta', [FacturacionController::class, 'renta'])->middleware('puede:facturacion.ver')->name('renta');
 
             // Bitacora de auditoria (append-only): operaciones sensibles del estudio.
             Route::get('/auditorias', [AuditoriaController::class, 'index'])->middleware('puede:auditoria.ver')->name('auditorias.index');
