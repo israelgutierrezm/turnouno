@@ -1,0 +1,246 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Tenancy\Http\Controllers;
+
+use App\Modules\Tenancy\Application\LibroPuntosTenant;
+use App\Modules\Tenancy\Application\PuntosTenant;
+use App\Modules\Tenancy\Listeners\AcumularPuntos;
+use App\Modules\Tenancy\Models\CanjeLealtadTenant;
+use App\Modules\Tenancy\Models\MovimientoPuntosTenant;
+use App\Modules\Tenancy\Models\PersonaTenant;
+use App\Modules\Tenancy\Models\ProgramaLealtadTenant;
+use App\Modules\Tenancy\Models\RecompensaLealtadTenant;
+use App\Modules\Tenancy\Models\Usuario;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+/**
+ * Lealtad (R24): programa de puntos del estudio. Configura las reglas de acumulación y
+ * el catálogo de recompensas, canjea recompensas para un miembro, y consulta/ajusta el
+ * saldo de puntos. La acumulación automática (asistir/comprar) la hace el listener
+ * {@see AcumularPuntos} sobre el outbox.
+ */
+class LealtadTenantController
+{
+    public function __construct(
+        private readonly PuntosTenant $puntos,
+        private readonly LibroPuntosTenant $libro,
+    ) {}
+
+    public function programa(): JsonResponse
+    {
+        return response()->json(['data' => $this->presentarPrograma($this->programaActual())]);
+    }
+
+    public function guardarPrograma(Request $request): JsonResponse
+    {
+        $validado = $request->validate([
+            'activa' => ['required', 'boolean'],
+            'puntos_por_asistencia' => ['required', 'integer', 'min:0', 'max:100000'],
+            'puntos_por_moneda' => ['required', 'integer', 'min:0', 'max:100000'],
+        ]);
+
+        $programa = $this->programaActual();
+        $programa->update([
+            'activa' => (bool) $validado['activa'],
+            'puntos_por_asistencia' => (int) $validado['puntos_por_asistencia'],
+            'puntos_por_moneda' => (int) $validado['puntos_por_moneda'],
+        ]);
+
+        return response()->json(['data' => $this->presentarPrograma($programa)]);
+    }
+
+    public function recompensas(): JsonResponse
+    {
+        $recompensas = RecompensaLealtadTenant::query()->orderByDesc('activa')->orderBy('costo_puntos')->get();
+
+        return response()->json(['data' => $recompensas->map(fn (RecompensaLealtadTenant $r): array => $this->presentarRecompensa($r))->all()]);
+    }
+
+    public function crearRecompensa(Request $request): JsonResponse
+    {
+        $validado = $request->validate([
+            'nombre' => ['required', 'string', 'max:120'],
+            'descripcion' => ['nullable', 'string', 'max:255'],
+            'costo_puntos' => ['required', 'integer', 'min:1', 'max:1000000'],
+        ]);
+
+        $recompensa = RecompensaLealtadTenant::query()->create([
+            'nombre' => $validado['nombre'],
+            'descripcion' => $validado['descripcion'] ?? null,
+            'costo_puntos' => (int) $validado['costo_puntos'],
+            'activa' => true,
+        ]);
+
+        return response()->json(['data' => $this->presentarRecompensa($recompensa)], 201);
+    }
+
+    public function actualizarRecompensa(Request $request): JsonResponse
+    {
+        $modelo = RecompensaLealtadTenant::query()->where('ulid', (string) $request->route('recompensa'))->firstOrFail();
+
+        $validado = $request->validate([
+            'nombre' => ['required', 'string', 'max:120'],
+            'descripcion' => ['nullable', 'string', 'max:255'],
+            'costo_puntos' => ['required', 'integer', 'min:1', 'max:1000000'],
+            'activa' => ['required', 'boolean'],
+        ]);
+
+        $modelo->update([
+            'nombre' => $validado['nombre'],
+            'descripcion' => $validado['descripcion'] ?? null,
+            'costo_puntos' => (int) $validado['costo_puntos'],
+            'activa' => (bool) $validado['activa'],
+        ]);
+
+        return response()->json(['data' => $this->presentarRecompensa($modelo)]);
+    }
+
+    public function canjear(Request $request): JsonResponse
+    {
+        $validado = $request->validate([
+            'persona_id' => ['required', 'string'],
+            'recompensa_id' => ['required', 'string'],
+        ]);
+
+        $persona = PersonaTenant::query()->where('ulid', $validado['persona_id'])->firstOrFail();
+        $recompensa = RecompensaLealtadTenant::query()->where('ulid', $validado['recompensa_id'])->where('activa', true)->firstOrFail();
+
+        $canje = $this->puntos->canjear($persona->getKey(), $recompensa, $this->actor($request));
+
+        return response()->json(['data' => $this->presentarCanje($canje->loadMissing('persona'))], 201);
+    }
+
+    public function canjes(): JsonResponse
+    {
+        $canjes = CanjeLealtadTenant::query()->with('persona')->orderByDesc('id')->limit(100)->get();
+
+        return response()->json(['data' => $canjes->map(fn (CanjeLealtadTenant $c): array => $this->presentarCanje($c))->all()]);
+    }
+
+    public function entregarCanje(Request $request): JsonResponse
+    {
+        $modelo = CanjeLealtadTenant::query()->where('ulid', (string) $request->route('canje'))->firstOrFail();
+        $this->puntos->entregarCanje($modelo);
+
+        return response()->json(['data' => $this->presentarCanje($modelo->loadMissing('persona'))]);
+    }
+
+    public function cancelarCanje(Request $request): JsonResponse
+    {
+        $modelo = CanjeLealtadTenant::query()->where('ulid', (string) $request->route('canje'))->firstOrFail();
+        $actualizado = $this->puntos->cancelarCanje($modelo, $this->actor($request));
+
+        return response()->json(['data' => $this->presentarCanje($actualizado->loadMissing('persona'))]);
+    }
+
+    public function puntosMiembro(Request $request): JsonResponse
+    {
+        $modelo = PersonaTenant::query()->where('ulid', (string) $request->route('persona'))->firstOrFail();
+
+        $movimientos = MovimientoPuntosTenant::query()
+            ->where('persona_id', $modelo->getKey())
+            ->orderByDesc('id')
+            ->limit(50)
+            ->get();
+
+        return response()->json(['data' => [
+            'persona' => $modelo->nombreCompleto(),
+            'saldo' => $this->libro->saldo($modelo->getKey()),
+            'movimientos' => $movimientos->map(fn (MovimientoPuntosTenant $m): array => $this->presentarMovimiento($m))->all(),
+        ]]);
+    }
+
+    public function ajustar(Request $request): JsonResponse
+    {
+        $modelo = PersonaTenant::query()->where('ulid', (string) $request->route('persona'))->firstOrFail();
+
+        $validado = $request->validate([
+            'puntos' => ['required', 'integer', 'not_in:0', 'min:-1000000', 'max:1000000'],
+            'descripcion' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $movimiento = $this->puntos->ajustar(
+            $modelo->getKey(), (int) $validado['puntos'], $validado['descripcion'] ?? null, $this->actor($request),
+        );
+
+        return response()->json(['data' => [
+            'saldo' => $this->libro->saldo($modelo->getKey()),
+            'movimiento' => $this->presentarMovimiento($movimiento),
+        ]], 201);
+    }
+
+    private function programaActual(): ProgramaLealtadTenant
+    {
+        return ProgramaLealtadTenant::query()->firstOrCreate([], [
+            'activa' => false, 'puntos_por_asistencia' => 0, 'puntos_por_moneda' => 0,
+        ]);
+    }
+
+    private function actor(Request $request): ?Usuario
+    {
+        $actor = $request->attributes->get('usuario_tenant');
+
+        return $actor instanceof Usuario ? $actor : null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function presentarPrograma(ProgramaLealtadTenant $p): array
+    {
+        return [
+            'activa' => $p->activa,
+            'puntos_por_asistencia' => $p->puntos_por_asistencia,
+            'puntos_por_moneda' => $p->puntos_por_moneda,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function presentarRecompensa(RecompensaLealtadTenant $r): array
+    {
+        return [
+            'id' => $r->ulid,
+            'nombre' => $r->nombre,
+            'descripcion' => $r->descripcion,
+            'costo_puntos' => $r->costo_puntos,
+            'activa' => $r->activa,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function presentarCanje(CanjeLealtadTenant $c): array
+    {
+        return [
+            'id' => $c->ulid,
+            'persona' => $c->persona?->nombreCompleto(),
+            'recompensa' => $c->recompensa_nombre,
+            'puntos' => $c->puntos,
+            'estado' => $c->estado->value,
+            'entregado_en' => $c->entregado_en?->toIso8601String(),
+            'creado_en' => $c->created_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function presentarMovimiento(MovimientoPuntosTenant $m): array
+    {
+        return [
+            'id' => $m->ulid,
+            'tipo' => $m->tipo->value,
+            'origen' => $m->origen->value,
+            'puntos' => $m->puntos,
+            'saldo_posterior' => $m->saldo_posterior,
+            'descripcion' => $m->descripcion,
+            'creado_en' => $m->created_at?->toIso8601String(),
+        ];
+    }
+}

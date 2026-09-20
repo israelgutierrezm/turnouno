@@ -8,6 +8,7 @@ use App\Modules\Tenancy\Events\EventoDeDominioTenant;
 use App\Modules\Tenancy\Facturacion\ClienteFacturacion;
 use App\Modules\Tenancy\Facturacion\FacturacionFalsa;
 use App\Modules\Tenancy\Facturacion\FacturApiHttp;
+use App\Modules\Tenancy\Listeners\AcumularPuntos;
 use App\Modules\Tenancy\Listeners\EjecutarAutomatizaciones;
 use App\Modules\Tenancy\Listeners\EnviarWebhooksSalientes;
 use App\Modules\Tenancy\Listeners\GenerarComunicaciones;
@@ -71,5 +72,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(EventoDeDominioTenant::class, EnviarWebhooksSalientes::class);
         Event::listen(EventoDeDominioTenant::class, GenerarComunicaciones::class);
         Event::listen(EventoDeDominioTenant::class, EjecutarAutomatizaciones::class);
+        // Lealtad (R24): acumula puntos al asistir (asistencia.marcada) o comprar (orden.pagada).
+        Event::listen(EventoDeDominioTenant::class, AcumularPuntos::class);
     }
 }

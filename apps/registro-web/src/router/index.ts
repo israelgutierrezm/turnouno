@@ -124,6 +124,12 @@ const router = createRouter({
       meta: { requiereSesion: true },
     },
     {
+      path: '/lealtad',
+      name: 'lealtad',
+      component: () => import('@/views/LealtadView.vue'),
+      meta: { requiereSesion: true },
+    },
+    {
       path: '/pos',
       name: 'pos',
       component: () => import('@/views/PosView.vue'),

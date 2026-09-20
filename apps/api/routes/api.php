@@ -72,6 +72,7 @@ use App\Modules\Tenancy\Http\Controllers\ImportacionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\IntegracionApiTenantController;
 use App\Modules\Tenancy\Http\Controllers\IntegracionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\InventarioTenantController;
+use App\Modules\Tenancy\Http\Controllers\LealtadTenantController;
 use App\Modules\Tenancy\Http\Controllers\LlavesApiTenantController;
 use App\Modules\Tenancy\Http\Controllers\MarcaEstudioController;
 use App\Modules\Tenancy\Http\Controllers\MembresiasTenantController;
@@ -428,6 +429,19 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/referidos/programa', [ReferidosTenantController::class, 'programa'])->middleware('puede:referidos.ver')->name('referidos.programa');
             Route::put('/referidos/programa', [ReferidosTenantController::class, 'guardarPrograma'])->middleware('puede:referidos.gestionar')->name('referidos.programa.guardar');
             Route::get('/miembros/{persona}/codigo-referido', [ReferidosTenantController::class, 'codigo'])->middleware('puede:referidos.ver')->name('miembros.codigo-referido');
+
+            // Lealtad (R24): programa de puntos, recompensas, canjes y saldo por miembro.
+            Route::get('/lealtad/programa', [LealtadTenantController::class, 'programa'])->middleware('puede:lealtad.ver')->name('lealtad.programa');
+            Route::put('/lealtad/programa', [LealtadTenantController::class, 'guardarPrograma'])->middleware('puede:lealtad.gestionar')->name('lealtad.programa.guardar');
+            Route::get('/lealtad/recompensas', [LealtadTenantController::class, 'recompensas'])->middleware('puede:lealtad.ver')->name('lealtad.recompensas.index');
+            Route::post('/lealtad/recompensas', [LealtadTenantController::class, 'crearRecompensa'])->middleware('puede:lealtad.gestionar')->name('lealtad.recompensas.store');
+            Route::put('/lealtad/recompensas/{recompensa}', [LealtadTenantController::class, 'actualizarRecompensa'])->middleware('puede:lealtad.gestionar')->name('lealtad.recompensas.update');
+            Route::get('/lealtad/canjes', [LealtadTenantController::class, 'canjes'])->middleware('puede:lealtad.ver')->name('lealtad.canjes.index');
+            Route::post('/lealtad/canjes', [LealtadTenantController::class, 'canjear'])->middleware('puede:lealtad.gestionar')->name('lealtad.canjes.store');
+            Route::post('/lealtad/canjes/{canje}/entregar', [LealtadTenantController::class, 'entregarCanje'])->middleware('puede:lealtad.gestionar')->name('lealtad.canjes.entregar');
+            Route::post('/lealtad/canjes/{canje}/cancelar', [LealtadTenantController::class, 'cancelarCanje'])->middleware('puede:lealtad.gestionar')->name('lealtad.canjes.cancelar');
+            Route::get('/miembros/{persona}/puntos', [LealtadTenantController::class, 'puntosMiembro'])->middleware('puede:lealtad.ver')->name('miembros.puntos');
+            Route::post('/miembros/{persona}/puntos/ajuste', [LealtadTenantController::class, 'ajustar'])->middleware('puede:lealtad.gestionar')->name('miembros.puntos.ajuste');
 
             // Devoluciones (refunds) de un pago: total (revierte entitlement) o parcial
             // (proporcional). Operacion sensible: exige motivo y queda auditada.

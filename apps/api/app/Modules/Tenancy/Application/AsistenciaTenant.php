@@ -22,7 +22,10 @@ use Illuminate\Support\Facades\DB;
  */
 class AsistenciaTenant
 {
-    public function __construct(private readonly CreditosTenant $creditos) {}
+    public function __construct(
+        private readonly CreditosTenant $creditos,
+        private readonly RegistrarEventoTenant $eventos,
+    ) {}
 
     public function marcar(ReservaTenant $reserva, EstadoAsistencia $estado, ?Usuario $actor = null): ModeloAsistenciaTenant
     {
@@ -35,6 +38,13 @@ class AsistenciaTenant
                 ['reserva_id' => $reserva->getKey()],
                 ['estado' => $estado->value, 'registrada_en' => now()],
             );
+
+            // Evento de dominio (outbox): habilita acumular puntos de lealtad al asistir.
+            $this->eventos->registrar('asistencia.marcada', 'asistencia', $asistencia->ulid, [
+                'persona_id' => $reserva->persona_id,
+                'estado' => $estado->value,
+                'reserva_id' => $reserva->ulid,
+            ]);
 
             $retencion = $reserva->retencion;
 

@@ -15,7 +15,10 @@ use Illuminate\Support\Facades\DB;
  */
 class ConfirmarPagoTenant
 {
-    public function __construct(private readonly FulfillmentTenant $fulfillment) {}
+    public function __construct(
+        private readonly FulfillmentTenant $fulfillment,
+        private readonly RegistrarEventoTenant $eventos,
+    ) {}
 
     public function porReferencia(string $referencia): void
     {
@@ -38,6 +41,12 @@ class ConfirmarPagoTenant
             $orden = $pago->orden;
             if ($orden !== null) {
                 $this->fulfillment->cumplir($orden);
+                // Evento de dominio (outbox): habilita acumular puntos de lealtad por compra.
+                $this->eventos->registrar('orden.pagada', 'orden', $orden->ulid, [
+                    'persona_id' => $orden->persona_id,
+                    'total_minor' => $orden->total_minor,
+                    'orden_id' => $orden->ulid,
+                ]);
             }
         });
     }
