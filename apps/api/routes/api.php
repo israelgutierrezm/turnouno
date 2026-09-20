@@ -53,6 +53,7 @@ use App\Modules\Tenancy\Http\Controllers\AuthTenantController;
 use App\Modules\Tenancy\Http\Controllers\CatalogoTenantController;
 use App\Modules\Tenancy\Http\Controllers\CheckinsTenantController;
 use App\Modules\Tenancy\Http\Controllers\CreditosTenantController;
+use App\Modules\Tenancy\Http\Controllers\CrmTenantController;
 use App\Modules\Tenancy\Http\Controllers\DatosFiscalesTenantController;
 use App\Modules\Tenancy\Http\Controllers\DirectorioController;
 use App\Modules\Tenancy\Http\Controllers\DocumentosController;
@@ -190,6 +191,15 @@ Route::prefix('v1')->group(function (): void {
             // Importacion CSV de miembros (R37): preview (valida) e import (todo-o-nada).
             Route::post('/importaciones/miembros/preview', [ImportacionesTenantController::class, 'previewMiembros'])->middleware('puede:miembros.gestionar')->name('importaciones.miembros.preview');
             Route::post('/importaciones/miembros', [ImportacionesTenantController::class, 'importarMiembros'])->middleware('puede:miembros.gestionar')->name('importaciones.miembros.store');
+
+            // CRM comercial (R15): embudo de prospectos con etapas, bitacora y conversion a miembro.
+            Route::get('/crm/prospectos', [CrmTenantController::class, 'index'])->middleware('puede:crm.ver')->name('crm.prospectos.index');
+            Route::post('/crm/prospectos', [CrmTenantController::class, 'store'])->middleware('puede:crm.gestionar')->name('crm.prospectos.store');
+            Route::get('/crm/prospectos/{prospecto}', [CrmTenantController::class, 'show'])->middleware('puede:crm.ver')->name('crm.prospectos.show');
+            Route::put('/crm/prospectos/{prospecto}', [CrmTenantController::class, 'actualizar'])->middleware('puede:crm.gestionar')->name('crm.prospectos.update');
+            Route::post('/crm/prospectos/{prospecto}/etapa', [CrmTenantController::class, 'cambiarEtapa'])->middleware('puede:crm.gestionar')->name('crm.prospectos.etapa');
+            Route::post('/crm/prospectos/{prospecto}/actividades', [CrmTenantController::class, 'actividad'])->middleware('puede:crm.gestionar')->name('crm.prospectos.actividades.store');
+            Route::post('/crm/prospectos/{prospecto}/convertir', [CrmTenantController::class, 'convertir'])->middleware('puede:crm.gestionar')->name('crm.prospectos.convertir');
 
             // Familias (R26): hogares y tutelas (tutor -> dependiente).
             Route::post('/hogares', [FamiliasTenantController::class, 'crearHogar'])->middleware('puede:miembros.gestionar')->name('hogares.store');
