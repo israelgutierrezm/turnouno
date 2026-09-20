@@ -20,18 +20,25 @@ use Illuminate\Support\Facades\DB;
  */
 class GestionarCrmTenant
 {
+    public function __construct(private readonly GestionarReferidosTenant $referidos) {}
+
     /**
      * @param  array<string, mixed>  $datos
      */
-    public function crear(array $datos, ?Usuario $actor = null): ProspectoTenant
+    public function crear(array $datos, ?Usuario $actor = null, ?string $codigoReferido = null): ProspectoTenant
     {
-        return DB::connection('tenant')->transaction(function () use ($datos, $actor): ProspectoTenant {
+        return DB::connection('tenant')->transaction(function () use ($datos, $actor, $codigoReferido): ProspectoTenant {
             // Etapa inicial explícita: un prospecto siempre nace en el embudo (Nuevo).
             $prospecto = ProspectoTenant::query()->create(array_merge(
                 ['etapa' => EtapaProspecto::Nuevo->value],
                 $datos,
             ));
             $this->registrar($prospecto, TipoActividadProspecto::CambioEtapa, 'Prospecto creado', $actor);
+
+            // Atribución de referido (R23): si viene un código válido, lo enlaza.
+            if ($codigoReferido !== null && $codigoReferido !== '') {
+                $this->referidos->registrarPorCodigo($codigoReferido, $prospecto);
+            }
 
             return $prospecto;
         });
@@ -105,6 +112,10 @@ class GestionarCrmTenant
             ]);
 
             $this->registrar($bloqueado, TipoActividadProspecto::Conversion, 'Convertido a miembro', $actor);
+
+            // Referido (R23): si este prospecto vino de un referido, se genera el cupón
+            // de recompensa para quien lo refirió.
+            $this->referidos->alConvertir($bloqueado, $persona);
 
             return $persona;
         });

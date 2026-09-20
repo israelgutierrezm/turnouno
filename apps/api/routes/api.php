@@ -87,6 +87,7 @@ use App\Modules\Tenancy\Http\Controllers\PoliticasCancelacionTenantController;
 use App\Modules\Tenancy\Http\Controllers\PromocionesTenantController;
 use App\Modules\Tenancy\Http\Controllers\RecursosTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReembolsosTenantController;
+use App\Modules\Tenancy\Http\Controllers\ReferidosTenantController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
 use App\Modules\Tenancy\Http\Controllers\ReporteNegocioTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReporteSucursalesTenantController;
@@ -389,6 +390,12 @@ Route::prefix('v1')->group(function (): void {
             Route::put('/promociones/{promocion}', [PromocionesTenantController::class, 'actualizar'])->middleware('puede:promociones.gestionar')->name('promociones.update');
             Route::delete('/promociones/{promocion}', [PromocionesTenantController::class, 'eliminar'])->middleware('puede:promociones.gestionar')->name('promociones.destroy');
             Route::post('/promociones/validar', [PromocionesTenantController::class, 'validar'])->middleware('puede:ordenes.gestionar')->name('promociones.validar');
+
+            // Referidos (R23): programa, listado y codigo de cada miembro (recompensa = cupon R22).
+            Route::get('/referidos', [ReferidosTenantController::class, 'index'])->middleware('puede:referidos.ver')->name('referidos.index');
+            Route::get('/referidos/programa', [ReferidosTenantController::class, 'programa'])->middleware('puede:referidos.ver')->name('referidos.programa');
+            Route::put('/referidos/programa', [ReferidosTenantController::class, 'guardarPrograma'])->middleware('puede:referidos.gestionar')->name('referidos.programa.guardar');
+            Route::get('/miembros/{persona}/codigo-referido', [ReferidosTenantController::class, 'codigo'])->middleware('puede:referidos.ver')->name('miembros.codigo-referido');
 
             // Devoluciones (refunds) de un pago: total (revierte entitlement) o parcial
             // (proporcional). Operacion sensible: exige motivo y queda auditada.

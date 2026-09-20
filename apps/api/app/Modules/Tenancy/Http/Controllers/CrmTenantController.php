@@ -72,8 +72,9 @@ class CrmTenantController
     public function store(Request $request): JsonResponse
     {
         $datos = $this->validar($request);
+        $codigoReferido = $request->string('codigo_referido')->trim()->value();
 
-        $prospecto = $this->crm->crear($datos, $this->actor($request));
+        $prospecto = $this->crm->crear($datos, $this->actor($request), $codigoReferido !== '' ? $codigoReferido : null);
 
         return response()->json(['data' => $this->presentar($prospecto->load(['responsable', 'persona', 'sucursal']))], 201);
     }
@@ -169,6 +170,7 @@ class CrmTenantController
             'responsable_id' => ['nullable', 'string'],
             'sucursal_id' => ['nullable', 'string'],
             'proximo_seguimiento' => ['nullable', 'date'],
+            'codigo_referido' => ['nullable', 'string', 'max:64'],
         ]);
 
         return [

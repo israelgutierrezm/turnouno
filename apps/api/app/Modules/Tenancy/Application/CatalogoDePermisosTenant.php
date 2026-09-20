@@ -35,6 +35,7 @@ class CatalogoDePermisosTenant
                 'crm.ver', 'crm.gestionar',
                 'automatizaciones.gestionar', 'tareas.ver', 'tareas.gestionar',
                 'promociones.gestionar',
+                'referidos.ver', 'referidos.gestionar',
             ],
             'recepcionista' => [
                 'miembros.gestionar', 'miembros.ver', 'documentos.subir', 'formularios.responder',
@@ -44,6 +45,7 @@ class CatalogoDePermisosTenant
                 'ordenes.ver', 'ordenes.gestionar', 'comunicaciones.ver',
                 'crm.ver', 'crm.gestionar',
                 'tareas.ver', 'tareas.gestionar',
+                'referidos.ver', 'referidos.gestionar',
             ],
             'instructor' => [
                 'miembros.ver', 'documentos.subir', 'formularios.responder', 'catalogo.ver',

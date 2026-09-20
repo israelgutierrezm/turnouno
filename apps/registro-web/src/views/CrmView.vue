@@ -55,7 +55,7 @@ const buscar = ref('')
 // Alta
 const mostrarNuevo = ref(false)
 const guardando = ref(false)
-const nuevo = ref({ nombre: '', email: '', telefono: '', origen: 'web', interes: '', proximo_seguimiento: '' })
+const nuevo = ref({ nombre: '', email: '', telefono: '', origen: 'web', interes: '', proximo_seguimiento: '', codigo_referido: '' })
 
 // Drawer de detalle
 const detalle = ref<Prospecto | null>(null)
@@ -118,8 +118,9 @@ async function crear(): Promise<void> {
       origen: nuevo.value.origen,
       interes: nuevo.value.interes !== '' ? nuevo.value.interes : null,
       proximo_seguimiento: nuevo.value.proximo_seguimiento !== '' ? nuevo.value.proximo_seguimiento : null,
+      codigo_referido: nuevo.value.codigo_referido !== '' ? nuevo.value.codigo_referido : undefined,
     })
-    nuevo.value = { nombre: '', email: '', telefono: '', origen: 'web', interes: '', proximo_seguimiento: '' }
+    nuevo.value = { nombre: '', email: '', telefono: '', origen: 'web', interes: '', proximo_seguimiento: '', codigo_referido: '' }
     mostrarNuevo.value = false
     await cargar()
   } catch (e) {
@@ -244,6 +245,10 @@ onMounted(cargar)
       <div>
         <label class="tu-label" for="np-seg">{{ $t('crm.campos.seguimiento') }}</label>
         <input id="np-seg" v-model="nuevo.proximo_seguimiento" type="date" class="tu-input" />
+      </div>
+      <div>
+        <label class="tu-label" for="np-ref">{{ $t('crm.campos.codigoReferido') }}</label>
+        <input id="np-ref" v-model="nuevo.codigo_referido" class="tu-input uppercase" :placeholder="$t('crm.campos.codigoReferidoPlaceholder')" />
       </div>
       <div class="sm:col-span-2 flex gap-2">
         <button class="tu-btn tu-btn-primario" type="submit" :disabled="guardando || nuevo.nombre.trim() === ''">
