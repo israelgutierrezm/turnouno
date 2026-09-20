@@ -112,9 +112,7 @@ function filtrar(items: MenuItem[]): MenuItem[] {
 
 const menuVisible = computed(() => filtrar(MENU))
 
-const hogar = computed(() =>
-  sesion.usuario?.rol === 'miembro' ? { name: 'mi-cuenta' } : { name: 'panel' },
-)
+const hogar = computed(() => ({ name: sesion.rutaInicio }))
 
 const puedeConfigurar = computed(() => sesion.puede('estudio.gestionar'))
 

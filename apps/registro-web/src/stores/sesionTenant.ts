@@ -54,6 +54,31 @@ export const useSesionTenantStore = defineStore('sesionTenant', () => {
     return permisos.includes('*') || permisos.includes(permiso)
   }
 
+  /**
+   * Ruta de INICIO según el rol: cada quien aterriza donde empieza su trabajo, no
+   * en un panel que quizá no puede ver (P0). Dueño/admin → resumen del negocio;
+   * recepción → operación de hoy; instructor → su agenda; alumno → su cuenta.
+   */
+  const rutaInicio = computed<string>(() => {
+    const u = usuario.value
+    if (u === null) {
+      return 'entrar'
+    }
+    if (u.rol === 'miembro') {
+      return 'mi-cuenta'
+    }
+    if (puede('facturacion.ver')) {
+      return 'panel'
+    }
+    if (u.rol === 'recepcionista' || puede('reservas.gestionar')) {
+      return 'recepcion'
+    }
+    if (puede('agenda.ver')) {
+      return 'agenda'
+    }
+    return 'mi-cuenta'
+  })
+
   fijarBearer(bearer.value)
 
   function establecer(datos: RespuestaAuth): void {
@@ -177,6 +202,7 @@ export const useSesionTenantStore = defineStore('sesionTenant', () => {
     error,
     autenticado,
     puede,
+    rutaInicio,
     iniciarSesion,
     iniciarSesionConGoogle,
     activar,

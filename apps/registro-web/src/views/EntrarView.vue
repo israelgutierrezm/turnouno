@@ -26,9 +26,10 @@ const marca = ref<Marca | null>(null)
 const hayGoogle = clientIdGoogle() !== undefined
 const contenedorGoogle = ref<HTMLElement | null>(null)
 
-// El miembro entra a su cuenta; el staff al panel.
+// Cada rol entra a su inicio: alumno→su cuenta, dueño/admin→panel, recepción→
+// operación de hoy, instructor→su agenda (ver store: rutaInicio).
 function destino(): { name: string } {
-  return sesion.usuario?.rol === 'miembro' ? { name: 'mi-cuenta' } : { name: 'panel' }
+  return { name: sesion.rutaInicio }
 }
 
 // Marca (branding) publica del estudio: para mostrar su logo antes de entrar.

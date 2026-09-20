@@ -206,6 +206,12 @@ router.beforeEach(async (to) => {
     return { name: 'entrar' }
   }
 
+  // Un usuario autenticado no debe quedarse en las páginas públicas de acceso
+  // (landing/login/registro): se le lleva a su inicio según rol (P0).
+  if (sesion.autenticado && ['inicio', 'entrar', 'registro'].includes(String(to.name))) {
+    return { name: sesion.rutaInicio }
+  }
+
   return true
 })
 
