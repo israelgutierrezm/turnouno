@@ -30,6 +30,14 @@ class CargoRenta extends Model
     ];
 
     /**
+     * Datos de checkout para el cliente (client_secret / redirect / voucher). No se
+     * persiste: se devuelve una sola vez en la respuesta del cobro de la renta.
+     *
+     * @var array<string, mixed>
+     */
+    public array $checkout = [];
+
+    /**
      * @var array<string, string>
      */
     protected $casts = [

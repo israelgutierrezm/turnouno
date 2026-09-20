@@ -80,6 +80,7 @@ use App\Modules\Tenancy\Http\Controllers\MiTenantController;
 use App\Modules\Tenancy\Http\Controllers\OnboardingController;
 use App\Modules\Tenancy\Http\Controllers\OrdenesTenantController;
 use App\Modules\Tenancy\Http\Controllers\OrganizacionesTenantController;
+use App\Modules\Tenancy\Http\Controllers\PagoRentaController;
 use App\Modules\Tenancy\Http\Controllers\PasarelasTenantController;
 use App\Modules\Tenancy\Http\Controllers\PlantillasHorarioTenantController;
 use App\Modules\Tenancy\Http\Controllers\PlantillasMensajeTenantController;
@@ -100,6 +101,7 @@ use App\Modules\Tenancy\Http\Controllers\TareasTenantController;
 use App\Modules\Tenancy\Http\Controllers\TiposDocumentoController;
 use App\Modules\Tenancy\Http\Controllers\UsuariosTenantController;
 use App\Modules\Tenancy\Http\Controllers\WaiversTenantController;
+use App\Modules\Tenancy\Http\Controllers\WebhookPlataformaController;
 use App\Modules\Tenancy\Http\Controllers\WebhooksSalientesTenantController;
 use App\Modules\Tenancy\Http\Controllers\WebhookTenantController;
 use Illuminate\Support\Facades\Route;
@@ -133,6 +135,11 @@ Route::prefix('v1')->group(function (): void {
     // slug y confirma el pago pendiente -> fulfillment. Sin sesion; idempotente.
     Route::post('/webhooks/tenant/{estudio}/{proveedor}', WebhookTenantController::class)
         ->middleware('estudio.resolver')->name('api.v1.webhooks.tenant');
+
+    // Webhook publico de la pasarela de la PLATAFORMA: confirma el cargo de renta del
+    // SaaS (plataforma -> dueño) -> pagado. Sin sesion; idempotente.
+    Route::post('/webhooks/plataforma/{proveedor}', WebhookPlataformaController::class)
+        ->name('api.v1.webhooks.plataforma');
 
     Route::post('/registro', [RegistroEstudioController::class, 'store'])->middleware('throttle:login')->name('api.v1.registro');
     Route::get('/registro/slug', [RegistroEstudioController::class, 'disponibilidad'])->middleware('throttle:60,1')->name('api.v1.registro.slug');
@@ -233,6 +240,9 @@ Route::prefix('v1')->group(function (): void {
             // Facturación SaaS del estudio (control plane; separada de pagos de alumnos).
             Route::get('/facturacion', [FacturacionController::class, 'show'])->middleware('puede:facturacion.ver')->name('facturacion');
             Route::get('/renta', [FacturacionController::class, 'renta'])->middleware('puede:facturacion.ver')->name('renta');
+            // Pago de la renta del SaaS con la pasarela de la plataforma (async -> pendiente
+            // + checkout; el webhook de la plataforma confirma). El dueño paga su suscripcion.
+            Route::post('/renta/cargos/{cargo}/pagar', [PagoRentaController::class, 'pagar'])->middleware('puede:facturacion.ver')->name('renta.pagar');
 
             // Bitacora de auditoria (append-only): operaciones sensibles del estudio.
             Route::get('/auditorias', [AuditoriaController::class, 'index'])->middleware('puede:auditoria.ver')->name('auditorias.index');

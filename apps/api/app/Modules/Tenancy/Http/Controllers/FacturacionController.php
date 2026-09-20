@@ -15,7 +15,8 @@ use Illuminate\Http\Request;
  * suscripción, trial y uso del periodo. Es facturación de TurnoUno (control plane),
  * SEPARADA de los pagos que los alumnos hacen al estudio (esos viven en la BD del
  * tenant con las pasarelas del propio estudio). El conteo se hace en vivo sobre la
- * BD del tenant ya resuelta; aquí no se cobra nada.
+ * BD del tenant ya resuelta; aquí no se cobra nada (el pago de la renta lo maneja
+ * {@see PagoRentaController} con la pasarela de la plataforma).
  */
 class FacturacionController
 {

@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use App\Modules\Tenancy\Database\GestorDeConexionTenant;
+use App\Modules\Tenancy\Models\CargoRenta;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 
 beforeEach(function (): void {
     File::deleteDirectory(storage_path('tenants'));
@@ -22,6 +24,41 @@ afterEach(function (): void {
 function conPlataforma(string $token = 'token-plataforma'): array
 {
     return ['Accept' => 'application/json', 'Authorization' => "Bearer {$token}"];
+}
+
+/**
+ * Pone cuota fija al estudio, genera el cargo del periodo y devuelve su ulid.
+ *
+ * @param  array{slug: string, bearer: string}  $e
+ */
+function cargoRentaPendiente(array $e): string
+{
+    Config::set('turnouno.plataforma.token', 'token-plataforma');
+
+    test()->putJson('/api/v1/plataforma/estudios/'.$e['slug'], [
+        'modo_cobro' => 'fijo', 'precio_por_alumno_minor' => 0, 'cuota_fija_minor' => 149900,
+    ], conPlataforma())->assertOk();
+
+    $periodo = Carbon::now()->format('Y-m');
+    test()->artisan('turnouno:generar-cargos-renta', ['--periodo' => $periodo])->assertSuccessful();
+
+    return (string) test()->getJson('/api/v1/app/'.$e['slug'].'/renta', conBearer($e['bearer']))
+        ->assertOk()->json('data.cargos.0.id');
+}
+
+/**
+ * Activa Stripe como pasarela de la plataforma (opcionalmente con secret_key).
+ *
+ * @param  array<string, string>  $credenciales
+ */
+function activarStripePlataforma(array $credenciales = []): void
+{
+    Config::set('turnouno.plataforma.token', 'token-plataforma');
+
+    test()->putJson('/api/v1/plataforma/pasarelas/stripe', array_filter([
+        'activa' => true, 'modo' => 'test',
+        'credenciales' => $credenciales !== [] ? $credenciales : null,
+    ], static fn ($v): bool => $v !== null), conPlataforma())->assertOk();
 }
 
 it('el comando genera el cargo de renta y el dueño lo ve en su apartado', function (): void {
@@ -73,4 +110,104 @@ it('el apartado de renta exige permiso de facturación', function (): void {
     $coach = personalConSesion($e['slug'], $e['bearer'], 'coach@correo.mx', 'instructor');
 
     $this->getJson("/api/v1/app/{$e['slug']}/renta", conBearer($coach))->assertStatus(403);
+});
+
+it('el dueño paga su renta con Stripe y el webhook de la plataforma lo confirma', function (): void {
+    Http::fake([
+        'api.stripe.com/*' => Http::response([
+            'id' => 'pi_renta_123',
+            'status' => 'requires_payment_method',
+            'client_secret' => 'pi_renta_123_secret_abc',
+        ], 200),
+    ]);
+
+    $e = estudioConSesion('estudio-a', 'a@correo.mx');
+    activarStripePlataforma(['secret_key' => 'sk_test_plat']); // sin webhook_secret -> webhook sin firma en dev
+    $cargo = cargoRentaPendiente($e);
+
+    // El dueño paga en linea -> pendiente + checkout con client_secret; sigue pendiente.
+    $this->postJson("/api/v1/app/{$e['slug']}/renta/cargos/{$cargo}/pagar", [
+        'proveedor' => 'stripe',
+    ], conBearer($e['bearer']))
+        ->assertCreated()
+        ->assertJsonPath('data.estado', 'pendiente')
+        ->assertJsonPath('data.checkout.tipo', 'client_secret')
+        ->assertJsonPath('data.checkout.client_secret', 'pi_renta_123_secret_abc');
+
+    $this->getJson("/api/v1/app/{$e['slug']}/renta", conBearer($e['bearer']))
+        ->assertOk()->assertJsonPath('data.cargos.0.estado', 'pendiente');
+
+    // El webhook de la plataforma confirma el intento -> pagado.
+    $this->postJson('/api/v1/webhooks/plataforma/stripe', [
+        'type' => 'payment_intent.succeeded',
+        'data' => ['object' => ['id' => 'pi_renta_123']],
+    ])->assertOk();
+
+    $this->getJson("/api/v1/app/{$e['slug']}/renta", conBearer($e['bearer']))
+        ->assertOk()
+        ->assertJsonPath('data.cargos.0.estado', 'pagado')
+        ->assertJsonPath('data.cargos.0.pagado_en', fn (?string $v): bool => $v !== null);
+});
+
+it('rechaza pagar la renta si la plataforma no tiene pasarela activa (GATEWAY_UNAVAILABLE)', function (): void {
+    $e = estudioConSesion('estudio-a', 'a@correo.mx');
+    $cargo = cargoRentaPendiente($e); // no se activa ninguna pasarela
+
+    $this->postJson("/api/v1/app/{$e['slug']}/renta/cargos/{$cargo}/pagar", [
+        'proveedor' => 'stripe',
+    ], conBearer($e['bearer']))
+        ->assertStatus(409)->assertJsonPath('code', 'GATEWAY_UNAVAILABLE');
+});
+
+it('el webhook de la renta es idempotente: confirma el cargo una sola vez', function (): void {
+    $e = estudioConSesion('estudio-a', 'a@correo.mx');
+    activarStripePlataforma(); // sin llaves -> intento simulado pendiente
+    $cargo = cargoRentaPendiente($e);
+
+    $ref = (string) $this->postJson("/api/v1/app/{$e['slug']}/renta/cargos/{$cargo}/pagar", [
+        'proveedor' => 'stripe',
+    ], conBearer($e['bearer']))->assertCreated()->json('data.referencia');
+
+    $payload = ['type' => 'payment_intent.succeeded', 'data' => ['object' => ['id' => $ref]]];
+
+    $this->postJson('/api/v1/webhooks/plataforma/stripe', $payload)->assertOk();
+    $primero = CargoRenta::query()->where('referencia_pago', $ref)->firstOrFail()->pagado_en;
+
+    // Segundo webhook identico: no reprocesa (mismo pagado_en).
+    $this->postJson('/api/v1/webhooks/plataforma/stripe', $payload)->assertOk();
+    $segundo = CargoRenta::query()->where('referencia_pago', $ref)->firstOrFail()->pagado_en;
+
+    expect($primero)->not->toBeNull();
+    expect($segundo?->equalTo($primero))->toBeTrue();
+});
+
+it('no se puede volver a pagar un cargo ya pagado (RENT_CHARGE_NOT_PAYABLE)', function (): void {
+    $e = estudioConSesion('estudio-a', 'a@correo.mx');
+    activarStripePlataforma();
+    $cargo = cargoRentaPendiente($e);
+
+    $ref = (string) $this->postJson("/api/v1/app/{$e['slug']}/renta/cargos/{$cargo}/pagar", [
+        'proveedor' => 'stripe',
+    ], conBearer($e['bearer']))->assertCreated()->json('data.referencia');
+
+    $this->postJson('/api/v1/webhooks/plataforma/stripe', [
+        'type' => 'payment_intent.succeeded', 'data' => ['object' => ['id' => $ref]],
+    ])->assertOk();
+
+    // Ya pagado: un nuevo intento de cobro se rechaza.
+    $this->postJson("/api/v1/app/{$e['slug']}/renta/cargos/{$cargo}/pagar", [
+        'proveedor' => 'stripe',
+    ], conBearer($e['bearer']))
+        ->assertStatus(409)->assertJsonPath('code', 'RENT_CHARGE_NOT_PAYABLE');
+});
+
+it('el pago de la renta exige permiso de facturación', function (): void {
+    $e = estudioConSesion('estudio-a', 'a@correo.mx');
+    activarStripePlataforma();
+    $cargo = cargoRentaPendiente($e);
+    $coach = personalConSesion($e['slug'], $e['bearer'], 'coach@correo.mx', 'instructor');
+
+    $this->postJson("/api/v1/app/{$e['slug']}/renta/cargos/{$cargo}/pagar", [
+        'proveedor' => 'stripe',
+    ], conBearer($coach))->assertStatus(403);
 });

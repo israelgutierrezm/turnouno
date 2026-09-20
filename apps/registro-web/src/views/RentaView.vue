@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import EncabezadoSeccion from '@/components/EncabezadoSeccion.vue'
 import { api, mensajeDeError } from '@/lib/api'
@@ -25,12 +26,22 @@ interface Renta {
   cargos: Cargo[]
 }
 
+interface RespuestaPago {
+  estado: string
+  checkout?: { tipo?: string; url?: string }
+}
+
+const { t } = useI18n()
 const sesion = useSesionTenantStore()
 const base = computed(() => `/api/v1/app/${sesion.slug}`)
 
 const renta = ref<Renta | null>(null)
 const cargando = ref(true)
 const error = ref<string | null>(null)
+
+const pagando = ref<string | null>(null)
+const avisoPago = ref<string | null>(null)
+const errorPago = ref<string | null>(null)
 
 function dinero(minor: number, moneda: string): string {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: moneda }).format(minor / 100)
@@ -46,6 +57,28 @@ async function cargar(): Promise<void> {
     error.value = mensajeDeError(e)
   } finally {
     cargando.value = false
+  }
+}
+
+async function pagar(cargo: Cargo): Promise<void> {
+  pagando.value = cargo.id
+  avisoPago.value = null
+  errorPago.value = null
+  try {
+    const { data } = await api.post<{ data: RespuestaPago }>(`${base.value}/renta/cargos/${cargo.id}/pagar`, {})
+    const checkout = data.data.checkout ?? {}
+    // Pasarelas de redirección (p. ej. Mercado Pago): se envía al checkout externo.
+    if (checkout.tipo === 'redirect' && typeof checkout.url === 'string' && checkout.url !== '') {
+      window.location.href = checkout.url
+      return
+    }
+    // Cobro en línea iniciado (queda pendiente hasta que la pasarela confirme por webhook).
+    avisoPago.value = data.data.estado === 'pagado' ? t('renta.pago.confirmado') : t('renta.pago.iniciado')
+    await cargar()
+  } catch (e) {
+    errorPago.value = mensajeDeError(e)
+  } finally {
+    pagando.value = null
   }
 }
 
@@ -104,6 +137,7 @@ onMounted(cargar)
               <th class="px-4 py-2 font-medium text-right">{{ $t('renta.colMonto') }}</th>
               <th class="px-4 py-2 font-medium">{{ $t('renta.colEstado') }}</th>
               <th class="px-4 py-2 font-medium hidden sm:table-cell">{{ $t('renta.colVence') }}</th>
+              <th class="px-4 py-2 font-medium text-right">{{ $t('renta.colAccion') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -117,11 +151,25 @@ onMounted(cargar)
                 </span>
               </td>
               <td class="px-4 py-2 hidden sm:table-cell" :style="{ color: 'var(--texto-suave)' }">{{ c.vence_en ?? '—' }}</td>
+              <td class="px-4 py-2 text-right">
+                <button
+                  v-if="c.estado === 'pendiente'"
+                  type="button"
+                  class="tu-btn tu-btn-primario whitespace-nowrap"
+                  :disabled="pagando === c.id"
+                  @click="pagar(c)"
+                >
+                  {{ pagando === c.id ? $t('renta.pagando') : $t('renta.pagar') }}
+                </button>
+                <span v-else :style="{ color: 'var(--texto-suave)' }">—</span>
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p class="mt-3 text-xs" :style="{ color: 'var(--texto-suave)' }">{{ $t('renta.pagarPronto') }}</p>
+      <p v-if="avisoPago" class="mt-3 text-sm" style="color: var(--exito)">{{ avisoPago }}</p>
+      <p v-if="errorPago" class="mt-3 text-sm" style="color: var(--error)">{{ errorPago }}</p>
+      <p class="mt-3 text-xs" :style="{ color: 'var(--texto-suave)' }">{{ $t('renta.pagoNota') }}</p>
     </template>
   </section>
 </template>

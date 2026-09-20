@@ -790,9 +790,15 @@ export default {
     colMonto: 'Monto',
     colEstado: 'Estado',
     colVence: 'Vence',
+    colAccion: 'Acción',
     estados: { pendiente: 'Pendiente', pagado: 'Pagado' },
     pagar: 'Pagar',
-    pagarPronto: 'El pago en línea estará disponible pronto.',
+    pagando: 'Procesando…',
+    pago: {
+      iniciado: 'Pago iniciado. Se confirmará en cuanto la pasarela reporte el cobro.',
+      confirmado: '¡Pago confirmado! Tu suscripción quedó al corriente.',
+    },
+    pagoNota: 'El pago se procesa de forma segura con la pasarela de TurnoUno.',
   },
   reportes: {
     titulo: 'Reportes',
