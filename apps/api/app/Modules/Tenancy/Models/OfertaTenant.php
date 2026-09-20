@@ -20,7 +20,7 @@ class OfertaTenant extends Model
 
     protected $table = 'ofertas';
 
-    protected $fillable = ['actividad_id', 'nombre', 'modalidad', 'capacidad', 'lugares'];
+    protected $fillable = ['actividad_id', 'nombre', 'modalidad', 'capacidad', 'lugares', 'precio_clase_minor'];
 
     /**
      * @var array<string, string>
@@ -29,6 +29,7 @@ class OfertaTenant extends Model
         'modalidad' => ModalidadOfertaTenant::class,
         'capacidad' => 'integer',
         'lugares' => 'integer',
+        'precio_clase_minor' => 'integer',
     ];
 
     /**

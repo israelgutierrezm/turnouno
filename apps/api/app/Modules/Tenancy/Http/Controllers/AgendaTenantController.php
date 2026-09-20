@@ -159,6 +159,7 @@ class AgendaTenantController
             'oferta' => $sesion->oferta?->nombre,
             'oferta_id' => $sesion->oferta?->ulid,
             'oferta_lugares' => $sesion->oferta !== null ? $sesion->oferta->lugares : 0,
+            'oferta_precio_clase' => $sesion->oferta?->precio_clase_minor,
             'instructor' => $sesion->instructor?->name,
             'instructor_id' => $sesion->instructor?->ulid,
             'inicia_en' => $sesion->inicia_en->toIso8601String(),

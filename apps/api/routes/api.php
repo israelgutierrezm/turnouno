@@ -93,6 +93,7 @@ use App\Modules\Tenancy\Http\Controllers\RecursosTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReembolsosTenantController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
 use App\Modules\Tenancy\Http\Controllers\ReporteNegocioTenantController;
+use App\Modules\Tenancy\Http\Controllers\ReporteRentabilidadTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReporteSucursalesTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReservasTenantController;
 use App\Modules\Tenancy\Http\Controllers\RespuestasFormularioController;
@@ -305,6 +306,8 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/reportes/sucursales', ReporteSucursalesTenantController::class)->middleware('puede:facturacion.ver')->name('reportes.sucursales');
             // Reporte de negocio (R29): metricas del periodo (ingresos, ocupacion, no-show, ARPU).
             Route::get('/reportes/negocio', ReporteNegocioTenantController::class)->middleware('puede:facturacion.ver')->name('reportes.negocio');
+            // Reporte de rentabilidad por clase (R30): ingreso vs costo de instructor por oferta.
+            Route::get('/reportes/rentabilidad', ReporteRentabilidadTenantController::class)->middleware('puede:facturacion.ver')->name('reportes.rentabilidad');
 
             // Agenda (data plane del tenant): materializa una Oferta en una Sucursal
             // a una hora concreta. La hora local (zona de la sucursal) se guarda en UTC

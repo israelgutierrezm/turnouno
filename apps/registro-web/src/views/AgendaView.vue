@@ -19,6 +19,7 @@ interface Sesion {
   oferta: string | null
   oferta_id: string | null
   oferta_lugares: number
+  oferta_precio_clase: number | null
   instructor: string | null
   instructor_id: string | null
   inicia_en: string
@@ -328,8 +329,8 @@ const detalle = ref<Sesion | null>(null)
 const roster = ref<Reserva[]>([])
 const cargandoRoster = ref(false)
 const reservarModel = ref({ miembroId: '', esperar: false, canal: 'directo', lugar: null as number | null })
-// Mapa de lugares por clase (R4): config de la oferta en el drawer.
-const lugaresModel = ref({ lugares: 0 })
+// Config de la oferta en el drawer: mapa de lugares (R4) + precio de clase (R30).
+const lugaresModel = ref({ lugares: 0, precio: 0 })
 const guardandoLugares = ref(false)
 // Transferir (regalar) el lugar de una reserva a otro miembro (R9): selector inline por fila.
 const transferirModel = ref({ reservaId: '', personaId: '' })
@@ -360,7 +361,7 @@ async function abrirDetalle(s: Sesion): Promise<void> {
   checkins.value = []
   staffSesion.value = []
   reservarModel.value = { miembroId: '', esperar: false, canal: 'directo', lugar: null }
-  lugaresModel.value = { lugares: s.oferta_lugares ?? 0 }
+  lugaresModel.value = { lugares: s.oferta_lugares ?? 0, precio: (s.oferta_precio_clase ?? 0) / 100 }
   transferirModel.value = { reservaId: '', personaId: '' }
   reglasCanal.value = []
   reglaCanalModel.value = { canal: 'wellhub', cupos: 0, liberar_horas_antes: 0 }
@@ -523,8 +524,13 @@ async function guardarLugares(): Promise<void> {
   guardandoLugares.value = true
   error.value = null
   try {
-    await api.put(`${base.value}/ofertas/${detalle.value.oferta_id}`, { lugares: Number(lugaresModel.value.lugares) || 0 })
+    const precioMinor = Math.round((Number(lugaresModel.value.precio) || 0) * 100)
+    await api.put(`${base.value}/ofertas/${detalle.value.oferta_id}`, {
+      lugares: Number(lugaresModel.value.lugares) || 0,
+      precio_clase_minor: precioMinor > 0 ? precioMinor : null,
+    })
     detalle.value.oferta_lugares = Number(lugaresModel.value.lugares) || 0
+    detalle.value.oferta_precio_clase = precioMinor > 0 ? precioMinor : null
   } catch (e) {
     error.value = mensajeDeError(e)
   } finally {
@@ -1097,8 +1103,13 @@ onMounted(async () => {
               <label class="tu-label" for="lug-n">{{ $t('agenda.lugares.numero') }}</label>
               <input id="lug-n" v-model.number="lugaresModel.lugares" type="number" min="0" class="tu-input" />
             </div>
+            <div class="w-32">
+              <label class="tu-label" for="lug-precio">{{ $t('agenda.lugares.precio') }}</label>
+              <input id="lug-precio" v-model.number="lugaresModel.precio" type="number" min="0" step="1" class="tu-input" :placeholder="$t('agenda.lugares.precioPh')" />
+            </div>
             <button class="tu-btn tu-btn-fantasma" type="submit" :disabled="guardandoLugares">{{ $t('agenda.lugares.guardar') }}</button>
           </form>
+          <p class="text-xs mt-1" :style="{ color: 'var(--texto-suave)' }">{{ $t('agenda.lugares.precioAyuda') }}</p>
         </div>
 
         <!-- Check-ins de bienestar -->

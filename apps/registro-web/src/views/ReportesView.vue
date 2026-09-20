@@ -23,6 +23,22 @@ interface SucursalReporte {
   miembros_activos: number
   sesiones_proximas: number
 }
+interface RentabilidadOferta {
+  id: string | null
+  oferta: string
+  precio_clase_minor: number | null
+  sesiones: number
+  asistentes: number
+  ingreso_minor: number
+  costo_minor: number
+  margen_minor: number
+  sin_costo_unitario: number
+}
+interface Rentabilidad {
+  moneda: string
+  totales: { asistentes: number; ingreso_minor: number; costo_minor: number; margen_minor: number; sin_costo_unitario: number }
+  ofertas: RentabilidadOferta[]
+}
 
 const sesion = useSesionTenantStore()
 const base = computed(() => `/api/v1/app/${sesion.slug}`)
@@ -40,6 +56,7 @@ const desde = ref(inicioMes())
 const hasta = ref(iso(new Date()))
 const negocio = ref<Negocio | null>(null)
 const sucursales = ref<SucursalReporte[]>([])
+const rentabilidad = ref<Rentabilidad | null>(null)
 const cargando = ref(true)
 const error = ref<string | null>(null)
 
@@ -80,12 +97,25 @@ async function cargarNegocio(): Promise<void> {
   }
 }
 
+async function cargarRentabilidad(): Promise<void> {
+  error.value = null
+  try {
+    const { data } = await api.get<{ data: Rentabilidad }>(`${base.value}/reportes/rentabilidad`, {
+      params: { desde: desde.value, hasta: hasta.value },
+    })
+    rentabilidad.value = data.data
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  }
+}
+
 async function cargar(): Promise<void> {
   cargando.value = true
   try {
     const [, s] = await Promise.all([
       cargarNegocio(),
       api.get<{ data: SucursalReporte[] }>(`${base.value}/reportes/sucursales`),
+      cargarRentabilidad(),
     ])
     sucursales.value = s.data.data
   } catch (e) {
@@ -100,7 +130,10 @@ function esteMes(): void {
   hasta.value = iso(new Date())
 }
 
-watch([desde, hasta], cargarNegocio)
+watch([desde, hasta], () => {
+  void cargarNegocio()
+  void cargarRentabilidad()
+})
 
 onMounted(cargar)
 </script>
@@ -163,6 +196,55 @@ onMounted(cargar)
           </tbody>
         </table>
       </div>
+
+      <!-- Rentabilidad por clase (R30) -->
+      <h2 class="mt-8 font-bold text-lg">{{ $t('reportes.rentabilidad.titulo') }}</h2>
+      <p v-if="!rentabilidad || rentabilidad.ofertas.length === 0" class="mt-3 text-sm" :style="{ color: 'var(--texto-suave)' }">
+        {{ $t('reportes.rentabilidad.vacio') }}
+      </p>
+      <template v-else>
+        <div class="mt-3 tu-card overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left" :style="{ color: 'var(--texto-suave)' }">
+                <th class="px-4 py-2 font-medium">{{ $t('reportes.rentabilidad.colClase') }}</th>
+                <th class="px-4 py-2 font-medium text-right hidden sm:table-cell">{{ $t('reportes.rentabilidad.colSesiones') }}</th>
+                <th class="px-4 py-2 font-medium text-right">{{ $t('reportes.rentabilidad.colAsistentes') }}</th>
+                <th class="px-4 py-2 font-medium text-right">{{ $t('reportes.rentabilidad.colIngreso') }}</th>
+                <th class="px-4 py-2 font-medium text-right">{{ $t('reportes.rentabilidad.colCosto') }}</th>
+                <th class="px-4 py-2 font-medium text-right">{{ $t('reportes.rentabilidad.colMargen') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="o in rentabilidad.ofertas" :key="o.id ?? o.oferta" class="border-t" :style="{ borderColor: 'var(--borde)' }">
+                <td class="px-4 py-2 font-semibold">{{ o.oferta }}</td>
+                <td class="px-4 py-2 text-right hidden sm:table-cell">{{ o.sesiones }}</td>
+                <td class="px-4 py-2 text-right">{{ o.asistentes }}</td>
+                <td class="px-4 py-2 text-right">{{ dinero(o.ingreso_minor, rentabilidad.moneda) }}</td>
+                <td class="px-4 py-2 text-right">{{ dinero(o.costo_minor, rentabilidad.moneda) }}</td>
+                <td class="px-4 py-2 text-right font-semibold" :style="{ color: o.margen_minor >= 0 ? 'var(--exito)' : 'var(--error)' }">
+                  {{ dinero(o.margen_minor, rentabilidad.moneda) }}
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="border-t font-bold" :style="{ borderColor: 'var(--borde)' }">
+                <td class="px-4 py-2">{{ $t('reportes.rentabilidad.total') }}</td>
+                <td class="px-4 py-2 hidden sm:table-cell"></td>
+                <td class="px-4 py-2 text-right">{{ rentabilidad.totales.asistentes }}</td>
+                <td class="px-4 py-2 text-right">{{ dinero(rentabilidad.totales.ingreso_minor, rentabilidad.moneda) }}</td>
+                <td class="px-4 py-2 text-right">{{ dinero(rentabilidad.totales.costo_minor, rentabilidad.moneda) }}</td>
+                <td class="px-4 py-2 text-right" :style="{ color: rentabilidad.totales.margen_minor >= 0 ? 'var(--exito)' : 'var(--error)' }">
+                  {{ dinero(rentabilidad.totales.margen_minor, rentabilidad.moneda) }}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <p v-if="rentabilidad.totales.sin_costo_unitario > 0" class="mt-3 text-xs" :style="{ color: 'var(--texto-suave)' }">
+          {{ $t('reportes.rentabilidad.sinCosto', { n: rentabilidad.totales.sin_costo_unitario }) }}
+        </p>
+      </template>
     </template>
   </section>
 </template>

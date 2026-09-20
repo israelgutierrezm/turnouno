@@ -106,9 +106,15 @@ class CatalogoTenantController
         $oferta = OfertaTenant::query()->where('ulid', (string) $request->route('oferta'))->firstOrFail();
         $validado = $request->validate([
             'lugares' => ['required', 'integer', 'min:0', 'max:1000'],
+            'precio_clase_minor' => ['nullable', 'integer', 'min:0', 'max:100000000'],
         ]);
 
-        $oferta->update(['lugares' => (int) $validado['lugares']]);
+        $cambios = ['lugares' => (int) $validado['lugares']];
+        // El precio por clase (R30) solo se toca si viene en la petición (null lo limpia).
+        if ($request->has('precio_clase_minor')) {
+            $cambios['precio_clase_minor'] = $validado['precio_clase_minor'] !== null ? (int) $validado['precio_clase_minor'] : null;
+        }
+        $oferta->update($cambios);
 
         return response()->json(['data' => $this->presentarOferta($oferta->refresh())]);
     }
@@ -141,6 +147,7 @@ class CatalogoTenantController
             'modalidad' => $oferta->modalidad->value,
             'capacidad' => $oferta->capacidad,
             'lugares' => $oferta->lugares,
+            'precio_clase_minor' => $oferta->precio_clase_minor,
         ];
     }
 }
