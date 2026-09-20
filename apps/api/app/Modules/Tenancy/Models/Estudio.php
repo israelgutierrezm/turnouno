@@ -6,6 +6,7 @@ namespace App\Modules\Tenancy\Models;
 
 use App\Modules\Tenancy\EstadoEstudio;
 use App\Modules\Tenancy\EstadoFacturacion;
+use App\Modules\Tenancy\ModoCobroSaas;
 use App\Modules\Tenancy\PerfilNegocio;
 use App\Support\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
@@ -47,6 +48,8 @@ class Estudio extends Model
         'trial_termina_en',
         'plan',
         'precio_por_alumno_minor',
+        'modo_cobro',
+        'cuota_fija_minor',
         'moneda',
         'estado_facturacion',
         'db_driver',
@@ -69,6 +72,8 @@ class Estudio extends Model
         'trial_inicia_en' => 'date',
         'trial_termina_en' => 'date',
         'precio_por_alumno_minor' => 'integer',
+        'modo_cobro' => ModoCobroSaas::class,
+        'cuota_fija_minor' => 'integer',
         'onboarding_pasos' => 'array',
         'onboarding_completo' => 'boolean',
     ];
@@ -79,6 +84,17 @@ class Estudio extends Model
     public function enDirectorio(): bool
     {
         return $this->publicado && ! $this->privado && $this->estado->operativo();
+    }
+
+    /**
+     * Cargo de la suscripción SaaS del periodo según el modo de cobro: cuota fija, o
+     * alumnos activos × precio por alumno. Dinero en minor.
+     */
+    public function cargoDelPeriodo(int $alumnosActivos): int
+    {
+        return $this->modo_cobro === ModoCobroSaas::Fijo
+            ? (int) $this->cuota_fija_minor
+            : $alumnosActivos * (int) $this->precio_por_alumno_minor;
     }
 
     /**

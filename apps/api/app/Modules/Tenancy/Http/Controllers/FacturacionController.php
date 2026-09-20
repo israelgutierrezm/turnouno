@@ -27,13 +27,16 @@ class FacturacionController
 
         $periodo = now($estudio->zona_horaria)->format('Y-m');
         $activos = $this->politica->contar($periodo); // conexión tenant ya activa
-        $cargo = $activos * $estudio->precio_por_alumno_minor;
+        // El cargo depende del modo de cobro (por activos o cuota fija mensual).
+        $cargo = $estudio->cargoDelPeriodo($activos);
 
         return response()->json(['data' => [
             'plan' => $estudio->plan,
             'estado_facturacion' => $estudio->estado_facturacion->value,
             'trial_termina_en' => $estudio->trial_termina_en?->toDateString(),
+            'modo_cobro' => $estudio->modo_cobro->value,
             'precio_por_alumno_minor' => $estudio->precio_por_alumno_minor,
+            'cuota_fija_minor' => $estudio->cuota_fija_minor,
             'moneda' => $estudio->moneda,
             'uso' => [
                 'periodo' => $periodo,

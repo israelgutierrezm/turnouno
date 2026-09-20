@@ -142,6 +142,7 @@ Route::prefix('v1')->group(function (): void {
     // los estudios y gestiona credenciales globales (cuenta FacturAPI).
     Route::prefix('plataforma')->middleware(['plataforma.auth', 'throttle:60,1'])->name('api.v1.plataforma.')->group(function (): void {
         Route::get('/estudios', [PlataformaController::class, 'estudios'])->name('estudios');
+        Route::put('/estudios/{estudio}', [PlataformaController::class, 'actualizarEstudio'])->name('estudios.actualizar');
         Route::get('/configuracion', [PlataformaController::class, 'configuracion'])->name('configuracion');
         Route::put('/configuracion', [PlataformaController::class, 'guardarConfiguracion'])->name('configuracion.guardar');
     });

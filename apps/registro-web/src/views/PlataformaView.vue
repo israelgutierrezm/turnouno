@@ -10,11 +10,17 @@ interface Estudio {
   nombre: string
   estado: string
   estado_facturacion: string
+  modo_cobro: string
+  precio_por_alumno_minor: number
+  cuota_fija_minor: number
+  moneda: string
   publicado: boolean
   pais: string | null
   ciudad: string | null
   creado_en: string | null
 }
+
+const ESTADOS_FACT = ['trial', 'active', 'past_due', 'grace_period', 'suspended', 'cancelled']
 
 const { t } = useI18n()
 const CLAVE_TOKEN = 'tu.plataforma.token'
@@ -36,10 +42,60 @@ const mensaje = ref<string | null>(null)
 const columnas = computed(() => [
   { clave: 'slug', etiqueta: t('plataforma.estudios.colSlug') },
   { clave: 'nombre', etiqueta: t('plataforma.estudios.colNombre') },
-  { clave: 'estado', etiqueta: t('plataforma.estudios.colEstado') },
   { clave: 'estado_facturacion', etiqueta: t('plataforma.estudios.colFacturacion') },
-  { clave: 'ciudad', etiqueta: t('plataforma.estudios.colCiudad') },
+  { clave: 'cobro', etiqueta: t('plataforma.estudios.colCobro') },
+  { clave: 'acciones', etiqueta: '' },
 ])
+
+// Edición de facturación por tenant (precio/cuota en unidades de la moneda).
+const editando = ref<Estudio | null>(null)
+const edit = ref({ modo_cobro: 'activos', precio: '0', cuota: '0', estado_facturacion: 'trial' })
+const guardandoEstudio = ref(false)
+
+function dinero(minor: number, moneda: string): string {
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: moneda }).format(minor / 100)
+}
+function cobroLegible(e: Estudio): string {
+  return e.modo_cobro === 'fijo'
+    ? `${dinero(e.cuota_fija_minor, e.moneda)} / mes`
+    : `${dinero(e.precio_por_alumno_minor, e.moneda)} / alumno`
+}
+
+function abrirEdicion(e: Estudio): void {
+  editando.value = e
+  edit.value = {
+    modo_cobro: e.modo_cobro,
+    precio: String(e.precio_por_alumno_minor / 100),
+    cuota: String(e.cuota_fija_minor / 100),
+    estado_facturacion: e.estado_facturacion,
+  }
+}
+
+async function guardarEstudio(): Promise<void> {
+  if (editando.value === null) {
+    return
+  }
+  guardandoEstudio.value = true
+  error.value = null
+  try {
+    await cliente.put(
+      `/api/v1/plataforma/estudios/${editando.value.slug}`,
+      {
+        modo_cobro: edit.value.modo_cobro,
+        precio_por_alumno_minor: Math.round(Number(edit.value.precio) * 100),
+        cuota_fija_minor: Math.round(Number(edit.value.cuota) * 100),
+        estado_facturacion: edit.value.estado_facturacion,
+      },
+      encabezados(),
+    )
+    editando.value = null
+    await cargar()
+  } catch {
+    error.value = t('plataforma.tokenInvalido')
+  } finally {
+    guardandoEstudio.value = false
+  }
+}
 
 function encabezados(): { headers: Record<string, string> } {
   return { headers: { Authorization: `Bearer ${token.value}` } }
@@ -195,10 +251,51 @@ function borrar(): void {
         <template #col-slug="{ valor }">
           <span class="font-mono text-sm">{{ valor }}</span>
         </template>
-        <template #col-ciudad="{ fila }">
-          <span :style="{ color: 'var(--texto-suave)' }">{{ (fila as Estudio).ciudad ?? '—' }}</span>
+        <template #col-cobro="{ fila }">
+          <span class="text-sm">
+            <span class="tu-badge">{{ $t(`plataforma.estudios.modo.${(fila as Estudio).modo_cobro}`) }}</span>
+            {{ cobroLegible(fila as Estudio) }}
+          </span>
+        </template>
+        <template #col-acciones="{ fila }">
+          <button class="tu-enlace" type="button" @click="abrirEdicion(fila as Estudio)">{{ $t('plataforma.estudios.editar') }}</button>
         </template>
       </TablaDatos>
+
+      <!-- Editor de facturación de un tenant -->
+      <div v-if="editando" class="mt-4 tu-card p-5">
+        <div class="flex items-center justify-between gap-3">
+          <h3 class="font-bold">{{ $t('plataforma.estudios.editarTitulo', { estudio: editando.nombre }) }}</h3>
+          <button class="tu-icono-btn" :aria-label="$t('comun.cerrar')" @click="editando = null">✕</button>
+        </div>
+        <form class="mt-3 grid gap-3 sm:grid-cols-2" @submit.prevent="guardarEstudio">
+          <div>
+            <label class="tu-label" for="mc">{{ $t('plataforma.estudios.modoCobro') }}</label>
+            <select id="mc" v-model="edit.modo_cobro" class="tu-input">
+              <option value="activos">{{ $t('plataforma.estudios.modo.activos') }}</option>
+              <option value="fijo">{{ $t('plataforma.estudios.modo.fijo') }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="tu-label" for="ef">{{ $t('plataforma.estudios.colFacturacion') }}</label>
+            <select id="ef" v-model="edit.estado_facturacion" class="tu-input">
+              <option v-for="s in ESTADOS_FACT" :key="s" :value="s">{{ s }}</option>
+            </select>
+          </div>
+          <div v-if="edit.modo_cobro === 'activos'">
+            <label class="tu-label" for="pa">{{ $t('plataforma.estudios.precioAlumno') }}</label>
+            <input id="pa" v-model="edit.precio" type="number" min="0" step="0.01" class="tu-input" />
+          </div>
+          <div v-else>
+            <label class="tu-label" for="cf">{{ $t('plataforma.estudios.cuotaFija') }}</label>
+            <input id="cf" v-model="edit.cuota" type="number" min="0" step="0.01" class="tu-input" />
+          </div>
+          <div class="sm:col-span-2 flex gap-2">
+            <button class="tu-btn tu-btn-primario" type="submit" :disabled="guardandoEstudio">{{ $t('plataforma.estudios.guardar') }}</button>
+            <button class="tu-btn tu-btn-fantasma" type="button" @click="editando = null">{{ $t('comun.cancelar') }}</button>
+          </div>
+        </form>
+      </div>
     </template>
   </section>
 </template>

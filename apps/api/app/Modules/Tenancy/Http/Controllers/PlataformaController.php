@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Modules\Tenancy\Http\Controllers;
 
+use App\Modules\Tenancy\EstadoFacturacion;
 use App\Modules\Tenancy\Models\ConfiguracionPlataforma;
 use App\Modules\Tenancy\Models\Estudio;
+use App\Modules\Tenancy\ModoCobroSaas;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
  * Administración de plataforma (PlatformAdmin): el operador de TurnoUno ve todos los
@@ -27,6 +30,10 @@ class PlataformaController
                 'nombre' => $e->nombre,
                 'estado' => $e->estado->value,
                 'estado_facturacion' => $e->estado_facturacion->value,
+                'modo_cobro' => $e->modo_cobro->value,
+                'precio_por_alumno_minor' => $e->precio_por_alumno_minor,
+                'cuota_fija_minor' => $e->cuota_fija_minor,
+                'moneda' => $e->moneda,
                 'publicado' => (bool) $e->publicado,
                 'pais' => $e->pais,
                 'ciudad' => $e->ciudad,
@@ -34,6 +41,37 @@ class PlataformaController
             ])->all(),
             'total' => $estudios->count(),
         ]);
+    }
+
+    /**
+     * Ajusta la facturación SaaS de un estudio: modo de cobro (activos/fijo), precio por
+     * alumno, cuota fija y estado de facturación. Solo el admin de la plataforma.
+     */
+    public function actualizarEstudio(Request $request, string $estudio): JsonResponse
+    {
+        $modelo = Estudio::query()->where('slug', $estudio)->firstOrFail();
+
+        $validado = $request->validate([
+            'modo_cobro' => ['required', Rule::enum(ModoCobroSaas::class)],
+            'precio_por_alumno_minor' => ['required', 'integer', 'min:0'],
+            'cuota_fija_minor' => ['required', 'integer', 'min:0'],
+            'estado_facturacion' => ['nullable', Rule::enum(EstadoFacturacion::class)],
+        ]);
+
+        $modelo->update([
+            'modo_cobro' => $validado['modo_cobro'],
+            'precio_por_alumno_minor' => (int) $validado['precio_por_alumno_minor'],
+            'cuota_fija_minor' => (int) $validado['cuota_fija_minor'],
+            'estado_facturacion' => $validado['estado_facturacion'] ?? $modelo->estado_facturacion->value,
+        ]);
+
+        return response()->json(['data' => [
+            'slug' => $modelo->slug,
+            'modo_cobro' => $modelo->modo_cobro->value,
+            'precio_por_alumno_minor' => $modelo->precio_por_alumno_minor,
+            'cuota_fija_minor' => $modelo->cuota_fija_minor,
+            'estado_facturacion' => $modelo->estado_facturacion->value,
+        ]]);
     }
 
     public function configuracion(): JsonResponse
