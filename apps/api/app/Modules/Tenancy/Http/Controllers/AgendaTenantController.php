@@ -139,6 +139,50 @@ class AgendaTenantController
         ]);
     }
 
+    /**
+     * Smart-fill (R32): clases PROXIMAS con lugares libres (oportunidades de llenado).
+     * Devuelve, por sesion, el cupo libre, la ocupacion y cuantas personas esperan
+     * (promovibles ya con `promover`). Un instructor acotado solo ve sus sesiones.
+     */
+    public function oportunidades(Request $request): JsonResponse
+    {
+        $dias = max(1, min($request->integer('dias', 14), 60));
+        $ahora = CarbonImmutable::now();
+
+        $consulta = SesionTenant::query()
+            ->with(['oferta.actividad', 'sucursal', 'instructor'])
+            ->where('estado', EstadoSesionTenant::Programada->value)
+            ->whereNotNull('capacidad')
+            ->where('inicia_en', '>=', $ahora)
+            ->where('inicia_en', '<', $ahora->addDays($dias))
+            // Cupo ocupado (confirmadas + ofrecidas) y cuantos esperan.
+            ->withCount([
+                'reservas as ocupados' => fn ($q) => $q->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::Ofrecida->value]),
+                'reservas as en_espera' => fn ($q) => $q->where('estado', EstadoReserva::EnEspera->value),
+            ])
+            ->orderBy('inicia_en');
+
+        $usuario = $request->attributes->get('usuario_tenant');
+        $usuario = $usuario instanceof Usuario ? $usuario : null;
+        if ($this->acceso->esInstructorAcotado($usuario)) {
+            $consulta->where('instructor_id', $usuario?->getKey());
+        }
+
+        if (is_string($request->query('sucursal_id')) && $request->query('sucursal_id') !== '') {
+            $sucursal = SucursalTenant::query()->where('ulid', $request->query('sucursal_id'))->first();
+            $consulta->where('sucursal_id', $sucursal instanceof SucursalTenant ? $sucursal->getKey() : 0);
+        }
+
+        // Solo las que de verdad tienen lugares libres (cupo - ocupados > 0).
+        $oportunidades = $consulta->limit(self::LIMITE)->get()
+            ->filter(fn (SesionTenant $s): bool => (int) $s->capacidad - (int) $s->getAttribute('ocupados') > 0)
+            ->map(fn (SesionTenant $s): array => $this->presentarOportunidad($s))
+            ->values()
+            ->all();
+
+        return response()->json(['data' => $oportunidades]);
+    }
+
     public function cancelar(Request $request): JsonResponse
     {
         $sesion = SesionTenant::query()->where('ulid', (string) $request->route('sesion'))->firstOrFail();
@@ -168,6 +212,34 @@ class AgendaTenantController
             'capacidad' => $sesion->capacidad,
             'ocupados' => (int) ($sesion->getAttribute('ocupados') ?? 0),
             'estado' => $sesion->estado->value,
+        ];
+    }
+
+    /**
+     * Presenta una oportunidad de smart-fill (R32): cupo libre, ocupacion y personas
+     * en espera de la sesion.
+     *
+     * @return array<string, mixed>
+     */
+    private function presentarOportunidad(SesionTenant $sesion): array
+    {
+        $capacidad = (int) $sesion->capacidad;
+        $ocupados = (int) $sesion->getAttribute('ocupados');
+        $enEspera = (int) $sesion->getAttribute('en_espera');
+
+        return [
+            'id' => $sesion->ulid,
+            'oferta' => $sesion->oferta?->nombre,
+            'actividad' => $sesion->oferta?->actividad?->nombre,
+            'sucursal' => $sesion->sucursal?->nombre,
+            'instructor' => $sesion->instructor?->name,
+            'inicia_en' => $sesion->inicia_en->toIso8601String(),
+            'zona_horaria' => $sesion->zona_horaria,
+            'capacidad' => $capacidad,
+            'ocupados' => $ocupados,
+            'libres' => max(0, $capacidad - $ocupados),
+            'en_espera' => $enEspera,
+            'ocupacion_pct' => $capacidad > 0 ? (int) round($ocupados / $capacidad * 100) : null,
         ];
     }
 }

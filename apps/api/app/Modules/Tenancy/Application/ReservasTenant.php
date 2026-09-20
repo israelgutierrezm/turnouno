@@ -429,6 +429,33 @@ class ReservasTenant
     }
 
     /**
+     * Smart-fill (R32): OFRECE de golpe todos los cupos libres de una sesion al inicio
+     * de la lista de espera (FIFO), hasta llenarla o agotar a los que esperan. Abre la
+     * transaccion y bloquea la sesion (contrato de {@see promover()}); devuelve cuantas
+     * ofertas se emitieron. Idempotente en el sentido de que no re-ofrece cupos ya
+     * ofrecidos ni sobrepasa la capacidad (invariante de no-sobreventa).
+     */
+    public function promoverCupos(SesionTenant $sesion): int
+    {
+        return DB::connection('tenant')->transaction(function () use ($sesion): int {
+            $bloqueada = SesionTenant::query()->whereKey($sesion->getKey())->lockForUpdate()->firstOrFail();
+
+            if ($bloqueada->estado !== EstadoSesionTenant::Programada || $bloqueada->capacidad === null) {
+                return 0;
+            }
+
+            $ofrecidas = 0;
+            // Cada promover() convierte una en_espera -> ofrecida (sube `ocupadas`), asi
+            // que el bucle termina al llenar el cupo o cuando ya no hay a quien ofrecer.
+            while ($this->promover($bloqueada) !== null) {
+                $ofrecidas++;
+            }
+
+            return $ofrecidas;
+        });
+    }
+
+    /**
      * El ofrecido ACEPTA su lugar (R7): la reserva `ofrecida` (con hold ya tomado) pasa
      * a `confirmada`. Idempotente si ya estaba confirmada. Rechaza si no esta ofrecida
      * o si la ventana expiro (OFFER_NOT_AVAILABLE).

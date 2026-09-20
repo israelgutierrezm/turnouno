@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import EncabezadoSeccion from '@/components/EncabezadoSeccion.vue'
 import { api, mensajeDeError } from '@/lib/api'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
+
+const { t } = useI18n()
 
 interface Negocio {
   moneda: string
@@ -39,6 +42,29 @@ interface Rentabilidad {
   totales: { asistentes: number; ingreso_minor: number; costo_minor: number; margen_minor: number; sin_costo_unitario: number }
   ofertas: RentabilidadOferta[]
 }
+interface DemandaCelda {
+  dia: number
+  hora: number
+  sesiones: number
+  capacidad: number
+  confirmadas: number
+  espera: number
+  ocupacion_pct: number | null
+}
+interface DemandaActividad {
+  id: string | null
+  actividad: string
+  sesiones: number
+  capacidad: number
+  confirmadas: number
+  espera: number
+  ocupacion_pct: number | null
+}
+interface Demanda {
+  totales: { sesiones: number; capacidad: number; confirmadas: number; espera: number; ocupacion_pct: number | null }
+  matriz: DemandaCelda[]
+  actividades: DemandaActividad[]
+}
 
 const sesion = useSesionTenantStore()
 const base = computed(() => `/api/v1/app/${sesion.slug}`)
@@ -57,8 +83,29 @@ const hasta = ref(iso(new Date()))
 const negocio = ref<Negocio | null>(null)
 const sucursales = ref<SucursalReporte[]>([])
 const rentabilidad = ref<Rentabilidad | null>(null)
+const demanda = ref<Demanda | null>(null)
 const cargando = ref(true)
 const error = ref<string | null>(null)
+
+// Etiquetas de días (lun..dom) desde i18n; el índice 0 corresponde a `dia = 1`.
+const diasSemana = computed(() => t('reportes.demanda.dias').split(','))
+// Horas presentes en la matriz (unión, ordenadas) → filas del heatmap.
+const horasDemanda = computed(() => {
+  const set = new Set<number>()
+  demanda.value?.matriz.forEach((c) => set.add(c.hora))
+  return [...set].sort((a, b) => a - b)
+})
+function celdaDemanda(dia: number, hora: number): DemandaCelda | undefined {
+  return demanda.value?.matriz.find((c) => c.dia === dia && c.hora === hora)
+}
+// Fondo del heatmap: más ocupación = acento más intenso (12%..92%).
+function colorOcupacion(pct: number | null): string {
+  if (pct === null) {
+    return 'transparent'
+  }
+  const mezcla = Math.round(12 + Math.min(100, pct) * 0.8)
+  return `color-mix(in srgb, var(--primario) ${mezcla}%, transparent)`
+}
 
 function dinero(minor: number | null, moneda: string): string {
   if (minor === null) {
@@ -109,6 +156,18 @@ async function cargarRentabilidad(): Promise<void> {
   }
 }
 
+async function cargarDemanda(): Promise<void> {
+  error.value = null
+  try {
+    const { data } = await api.get<{ data: Demanda }>(`${base.value}/reportes/demanda`, {
+      params: { desde: desde.value, hasta: hasta.value },
+    })
+    demanda.value = data.data
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  }
+}
+
 async function cargar(): Promise<void> {
   cargando.value = true
   try {
@@ -116,6 +175,7 @@ async function cargar(): Promise<void> {
       cargarNegocio(),
       api.get<{ data: SucursalReporte[] }>(`${base.value}/reportes/sucursales`),
       cargarRentabilidad(),
+      cargarDemanda(),
     ])
     sucursales.value = s.data.data
   } catch (e) {
@@ -133,6 +193,7 @@ function esteMes(): void {
 watch([desde, hasta], () => {
   void cargarNegocio()
   void cargarRentabilidad()
+  void cargarDemanda()
 })
 
 onMounted(cargar)
@@ -244,6 +305,82 @@ onMounted(cargar)
         <p v-if="rentabilidad.totales.sin_costo_unitario > 0" class="mt-3 text-xs" :style="{ color: 'var(--texto-suave)' }">
           {{ $t('reportes.rentabilidad.sinCosto', { n: rentabilidad.totales.sin_costo_unitario }) }}
         </p>
+      </template>
+
+      <!-- Demanda por horario (R31) -->
+      <h2 class="mt-8 font-bold text-lg">{{ $t('reportes.demanda.titulo') }}</h2>
+      <p class="mt-1 text-sm" :style="{ color: 'var(--texto-suave)' }">{{ $t('reportes.demanda.subtitulo') }}</p>
+      <p v-if="!demanda || demanda.matriz.length === 0" class="mt-3 text-sm" :style="{ color: 'var(--texto-suave)' }">
+        {{ $t('reportes.demanda.vacio') }}
+      </p>
+      <template v-else>
+        <!-- Heatmap día × hora -->
+        <div class="mt-3 tu-card overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-center" :style="{ color: 'var(--texto-suave)' }">
+                <th class="px-3 py-2 font-medium text-left">{{ $t('reportes.demanda.hora') }}</th>
+                <th v-for="(d, i) in diasSemana" :key="i" class="px-2 py-2 font-medium">{{ d }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="h in horasDemanda" :key="h" class="border-t" :style="{ borderColor: 'var(--borde)' }">
+                <td class="px-3 py-1.5 font-semibold whitespace-nowrap">{{ String(h).padStart(2, '0') }}:00</td>
+                <td v-for="dia in [1, 2, 3, 4, 5, 6, 7]" :key="dia" class="px-1 py-1 text-center">
+                  <div
+                    v-if="celdaDemanda(dia, h)"
+                    class="relative rounded-lg py-1.5 text-xs font-semibold"
+                    :style="{ background: colorOcupacion(celdaDemanda(dia, h)!.ocupacion_pct) }"
+                    :title="`${celdaDemanda(dia, h)!.confirmadas}/${celdaDemanda(dia, h)!.capacidad}`"
+                  >
+                    {{ pct(celdaDemanda(dia, h)!.ocupacion_pct) }}
+                    <span
+                      v-if="celdaDemanda(dia, h)!.espera > 0"
+                      class="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full"
+                      :style="{ background: 'var(--aviso)' }"
+                      :title="$t('reportes.demanda.colEspera')"
+                    />
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-2 text-xs" :style="{ color: 'var(--texto-suave)' }">{{ $t('reportes.demanda.leyenda') }}</p>
+
+        <!-- Por actividad -->
+        <h3 class="mt-6 font-semibold">{{ $t('reportes.demanda.porActividad') }}</h3>
+        <div class="mt-3 tu-card overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left" :style="{ color: 'var(--texto-suave)' }">
+                <th class="px-4 py-2 font-medium">{{ $t('reportes.demanda.colActividad') }}</th>
+                <th class="px-4 py-2 font-medium text-right hidden sm:table-cell">{{ $t('reportes.demanda.colSesiones') }}</th>
+                <th class="px-4 py-2 font-medium text-right">{{ $t('reportes.demanda.colConfirmadas') }}</th>
+                <th class="px-4 py-2 font-medium text-right">{{ $t('reportes.demanda.colEspera') }}</th>
+                <th class="px-4 py-2 font-medium text-right">{{ $t('reportes.demanda.colOcupacion') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="a in demanda.actividades" :key="a.id ?? a.actividad" class="border-t" :style="{ borderColor: 'var(--borde)' }">
+                <td class="px-4 py-2 font-semibold">{{ a.actividad }}</td>
+                <td class="px-4 py-2 text-right hidden sm:table-cell">{{ a.sesiones }}</td>
+                <td class="px-4 py-2 text-right">{{ a.confirmadas }}</td>
+                <td class="px-4 py-2 text-right font-semibold" :style="{ color: a.espera > 0 ? 'var(--aviso)' : 'inherit' }">{{ a.espera }}</td>
+                <td class="px-4 py-2 text-right font-semibold">{{ pct(a.ocupacion_pct) }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="border-t font-bold" :style="{ borderColor: 'var(--borde)' }">
+                <td class="px-4 py-2">{{ $t('reportes.demanda.total') }}</td>
+                <td class="px-4 py-2 text-right hidden sm:table-cell">{{ demanda.totales.sesiones }}</td>
+                <td class="px-4 py-2 text-right">{{ demanda.totales.confirmadas }}</td>
+                <td class="px-4 py-2 text-right">{{ demanda.totales.espera }}</td>
+                <td class="px-4 py-2 text-right">{{ pct(demanda.totales.ocupacion_pct) }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </template>
     </template>
   </section>

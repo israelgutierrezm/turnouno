@@ -153,6 +153,19 @@ class ReservasTenantController
     }
 
     /**
+     * Smart-fill (R32): promueve la lista de espera de una sesion — ofrece de golpe los
+     * cupos libres al inicio de la fila (FIFO). Devuelve cuantas ofertas se emitieron.
+     */
+    public function promover(Request $request): JsonResponse
+    {
+        $sesion = SesionTenant::query()->where('ulid', (string) $request->route('sesion'))->firstOrFail();
+
+        $ofrecidas = $this->reservas->promoverCupos($sesion);
+
+        return response()->json(['data' => ['ofrecidas' => $ofrecidas]]);
+    }
+
+    /**
      * Transfiere (regala) el lugar de una reserva a otra persona (R9).
      */
     public function transferir(Request $request): JsonResponse

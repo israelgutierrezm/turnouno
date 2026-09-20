@@ -92,6 +92,7 @@ use App\Modules\Tenancy\Http\Controllers\PuntoDeVentaTenantController;
 use App\Modules\Tenancy\Http\Controllers\RecursosTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReembolsosTenantController;
 use App\Modules\Tenancy\Http\Controllers\RegistroEstudioController;
+use App\Modules\Tenancy\Http\Controllers\ReporteDemandaTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReporteNegocioTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReporteRentabilidadTenantController;
 use App\Modules\Tenancy\Http\Controllers\ReporteSucursalesTenantController;
@@ -308,11 +309,16 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/reportes/negocio', ReporteNegocioTenantController::class)->middleware('puede:facturacion.ver')->name('reportes.negocio');
             // Reporte de rentabilidad por clase (R30): ingreso vs costo de instructor por oferta.
             Route::get('/reportes/rentabilidad', ReporteRentabilidadTenantController::class)->middleware('puede:facturacion.ver')->name('reportes.rentabilidad');
+            // Analitica de demanda (R31): mapa dia x hora + por actividad (ocupacion y espera).
+            Route::get('/reportes/demanda', ReporteDemandaTenantController::class)->middleware('puede:facturacion.ver')->name('reportes.demanda');
 
             // Agenda (data plane del tenant): materializa una Oferta en una Sucursal
             // a una hora concreta. La hora local (zona de la sucursal) se guarda en UTC
             // con snapshot de zona.
             Route::get('/sesiones', [AgendaTenantController::class, 'sesiones'])->middleware('puede:agenda.ver')->name('sesiones.index');
+            // Smart-fill (R32): clases proximas con lugares libres (oportunidades de llenado).
+            // Ruta literal ANTES de cualquier /sesiones/{sesion} para no ser sombreada.
+            Route::get('/sesiones/oportunidades', [AgendaTenantController::class, 'oportunidades'])->middleware('puede:agenda.ver')->name('sesiones.oportunidades');
             Route::post('/sesiones', [AgendaTenantController::class, 'crearSesion'])->middleware('puede:agenda.gestionar')->name('sesiones.store');
             Route::post('/sesiones/{sesion}/cancelar', [AgendaTenantController::class, 'cancelar'])->middleware('puede:agenda.gestionar')->name('sesiones.cancelar');
 
@@ -381,6 +387,8 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/reservas/{reserva}/cancelar', [ReservasTenantController::class, 'cancelar'])->middleware('puede:reservas.gestionar')->name('reservas.cancelar');
             // Waitlist robusta (R7): el ofrecido acepta su cupo antes de que expire.
             Route::post('/reservas/{reserva}/aceptar', [ReservasTenantController::class, 'aceptar'])->middleware('puede:reservas.gestionar')->name('reservas.aceptar');
+            // Smart-fill (R32): ofrece de golpe los cupos libres al inicio de la lista de espera.
+            Route::post('/sesiones/{sesion}/promover', [ReservasTenantController::class, 'promover'])->middleware('puede:reservas.gestionar')->name('sesiones.promover');
             // Transferir/regalar el lugar a otra persona (R9).
             Route::post('/reservas/{reserva}/transferir', [ReservasTenantController::class, 'transferir'])->middleware('puede:reservas.gestionar')->name('reservas.transferir');
             Route::post('/reservas/{reserva}/asistencia', [AsistenciaTenantController::class, 'marcar'])->middleware('puede:asistencia.marcar')->name('reservas.asistencia.store');

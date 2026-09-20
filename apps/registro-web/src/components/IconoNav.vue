@@ -140,6 +140,11 @@ const RUTAS: Record<string, string[]> = {
     'M8.5 12V8.5A1.5 1.5 0 0 1 10 7h4a1.5 1.5 0 0 1 1.5 1.5V12',
     'M9 16h6',
   ],
+  oportunidades: [
+    'M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16z',
+    'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+    'M12 12h.01',
+  ],
   chevron: ['M9 6l6 6-6 6'],
   punto: ['M12 12h.01'],
 }

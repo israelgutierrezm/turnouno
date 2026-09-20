@@ -100,6 +100,12 @@ const router = createRouter({
       meta: { requiereSesion: true },
     },
     {
+      path: '/oportunidades',
+      name: 'oportunidades',
+      component: () => import('@/views/OportunidadesView.vue'),
+      meta: { requiereSesion: true },
+    },
+    {
       path: '/tareas',
       name: 'tareas',
       component: () => import('@/views/TareasView.vue'),
