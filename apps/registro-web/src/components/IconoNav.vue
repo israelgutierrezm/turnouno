@@ -84,6 +84,13 @@ const RUTAS: Record<string, string[]> = {
     'M8 12h1.5',
     'M11 12h1.5',
   ],
+  reportes: [
+    'M4 20V13',
+    'M9 20V8',
+    'M14 20v-4',
+    'M19 20V5',
+    'M3.5 20h17',
+  ],
   recursos: [
     'M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5V20',
     'M4 5.5V20',
