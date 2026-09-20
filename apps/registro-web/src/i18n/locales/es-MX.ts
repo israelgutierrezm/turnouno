@@ -664,6 +664,9 @@ export default {
       marcarAusente: 'Ausente',
       aceptar: 'Aceptar',
       cancelarReserva: 'Cancelar',
+      transferir: 'Transferir',
+      transferirA: 'Regalar el lugar a',
+      confirmarTransfer: 'Transferir',
     },
   },
   pasarelas: {

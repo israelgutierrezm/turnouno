@@ -110,6 +110,20 @@ class ReservasTenantController
     }
 
     /**
+     * Transfiere (regala) el lugar de una reserva a otra persona (R9).
+     */
+    public function transferir(Request $request): JsonResponse
+    {
+        $reserva = ReservaTenant::query()->where('ulid', (string) $request->route('reserva'))->firstOrFail();
+        $validado = $request->validate(['persona_id' => ['required', 'string']]);
+        $destino = PersonaTenant::query()->where('ulid', $validado['persona_id'])->firstOrFail();
+
+        $this->reservas->transferir($reserva, $destino);
+
+        return response()->json(['data' => $this->presentar($reserva->refresh())]);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function presentar(ReservaTenant $reserva): array

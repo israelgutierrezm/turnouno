@@ -313,6 +313,8 @@ const detalle = ref<Sesion | null>(null)
 const roster = ref<Reserva[]>([])
 const cargandoRoster = ref(false)
 const reservarModel = ref({ miembroId: '', esperar: false })
+// Transferir (regalar) el lugar de una reserva a otro miembro (R9): selector inline por fila.
+const transferirModel = ref({ reservaId: '', personaId: '' })
 const accionando = ref(false)
 const checkins = ref<Checkin[]>([])
 const checkinModel = ref({ proveedor: 'wellhub', codigo: '' })
@@ -336,6 +338,7 @@ async function abrirDetalle(s: Sesion): Promise<void> {
   checkins.value = []
   staffSesion.value = []
   reservarModel.value = { miembroId: '', esperar: false }
+  transferirModel.value = { reservaId: '', personaId: '' }
   checkinModel.value = { proveedor: 'wellhub', codigo: '' }
   staffModel.value = { usuarioId: '', rol: 'instructor', sustituyeA: '' }
   okCheckin.value = false
@@ -455,6 +458,25 @@ async function cancelarReserva(reservaId: string, sesionId: string): Promise<voi
   try {
     await api.post(`${base.value}/reservas/${reservaId}/cancelar`, {})
     await refrescarTras(sesionId)
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    accionando.value = false
+  }
+}
+function abrirTransferir(reservaId: string): void {
+  transferirModel.value = { reservaId, personaId: '' }
+}
+async function transferir(reservaId: string, sesionId: string): Promise<void> {
+  if (transferirModel.value.personaId === '') {
+    return
+  }
+  accionando.value = true
+  error.value = null
+  try {
+    await api.post(`${base.value}/reservas/${reservaId}/transferir`, { persona_id: transferirModel.value.personaId })
+    transferirModel.value = { reservaId: '', personaId: '' }
+    await cargarRoster(sesionId)
   } catch (e) {
     error.value = mensajeDeError(e)
   } finally {
@@ -824,45 +846,76 @@ onMounted(async () => {
             {{ $t('agenda.roster.vacio') }}
           </p>
           <ul v-else class="mt-2 space-y-2">
-            <li v-for="r in roster" :key="r.id" class="flex items-center justify-between gap-2 text-sm">
-              <span class="flex items-center gap-2 min-w-0">
-                <span class="truncate">{{ r.persona ?? '—' }}</span>
-                <span
-                  class="tu-badge"
-                  :class="{
-                    'tu-badge-exito': r.estado === 'confirmada',
-                    'tu-badge-aviso': r.estado === 'en_espera' || r.estado === 'ofrecida',
-                  }"
-                >{{ $t(`agenda.roster.${r.estado}`) }}</span>
-                <span v-if="r.asistencia" class="tu-badge">{{ $t(`agenda.roster.${r.asistencia}`) }}</span>
-              </span>
-              <span class="flex items-center gap-2 shrink-0">
-                <button
-                  v-if="r.estado === 'ofrecida' && puedeReservar"
-                  class="tu-enlace"
-                  :disabled="accionando"
-                  @click="aceptar(r.id, detalle.id)"
-                >
-                  {{ $t('agenda.roster.aceptar') }}
-                </button>
-                <template v-if="r.estado === 'confirmada'">
-                  <button v-if="puedeMarcar" class="tu-enlace" :disabled="accionando" @click="marcar(r.id, 'presente', detalle.id)">
-                    {{ $t('agenda.roster.marcarPresente') }}
+            <li v-for="r in roster" :key="r.id" class="text-sm">
+              <div class="flex items-center justify-between gap-2">
+                <span class="flex items-center gap-2 min-w-0">
+                  <span class="truncate">{{ r.persona ?? '—' }}</span>
+                  <span
+                    class="tu-badge"
+                    :class="{
+                      'tu-badge-exito': r.estado === 'confirmada',
+                      'tu-badge-aviso': r.estado === 'en_espera' || r.estado === 'ofrecida',
+                    }"
+                  >{{ $t(`agenda.roster.${r.estado}`) }}</span>
+                  <span v-if="r.asistencia" class="tu-badge">{{ $t(`agenda.roster.${r.asistencia}`) }}</span>
+                </span>
+                <span class="flex items-center gap-2 shrink-0">
+                  <button
+                    v-if="r.estado === 'ofrecida' && puedeReservar"
+                    class="tu-enlace"
+                    :disabled="accionando"
+                    @click="aceptar(r.id, detalle.id)"
+                  >
+                    {{ $t('agenda.roster.aceptar') }}
                   </button>
-                  <button v-if="puedeMarcar" class="tu-enlace" :disabled="accionando" @click="marcar(r.id, 'ausente', detalle.id)">
-                    {{ $t('agenda.roster.marcarAusente') }}
+                  <template v-if="r.estado === 'confirmada'">
+                    <button v-if="puedeMarcar" class="tu-enlace" :disabled="accionando" @click="marcar(r.id, 'presente', detalle.id)">
+                      {{ $t('agenda.roster.marcarPresente') }}
+                    </button>
+                    <button v-if="puedeMarcar" class="tu-enlace" :disabled="accionando" @click="marcar(r.id, 'ausente', detalle.id)">
+                      {{ $t('agenda.roster.marcarAusente') }}
+                    </button>
+                  </template>
+                  <button
+                    v-if="puedeReservar && !r.asistencia && (r.estado === 'confirmada' || r.estado === 'ofrecida') && miembros.length > 0"
+                    class="tu-enlace"
+                    :disabled="accionando"
+                    @click="abrirTransferir(r.id)"
+                  >
+                    {{ $t('agenda.roster.transferir') }}
                   </button>
-                </template>
-                <button
-                  v-if="puedeReservar && r.estado !== 'cancelada'"
-                  class="tu-enlace"
-                  style="color: var(--error)"
-                  :disabled="accionando"
-                  @click="cancelarReserva(r.id, detalle.id)"
-                >
-                  {{ $t('agenda.roster.cancelarReserva') }}
+                  <button
+                    v-if="puedeReservar && r.estado !== 'cancelada'"
+                    class="tu-enlace"
+                    style="color: var(--error)"
+                    :disabled="accionando"
+                    @click="cancelarReserva(r.id, detalle.id)"
+                  >
+                    {{ $t('agenda.roster.cancelarReserva') }}
+                  </button>
+                </span>
+              </div>
+              <!-- Selector inline para transferir (regalar) el lugar a otro miembro -->
+              <form
+                v-if="transferirModel.reservaId === r.id"
+                class="mt-2 flex flex-wrap items-end gap-2 rounded-md p-2"
+                :style="{ background: 'var(--fondo-suave)' }"
+                @submit.prevent="transferir(r.id, detalle.id)"
+              >
+                <div class="min-w-0 grow">
+                  <label class="tu-label" :for="`tr-${r.id}`">{{ $t('agenda.roster.transferirA') }}</label>
+                  <select :id="`tr-${r.id}`" v-model="transferirModel.personaId" class="tu-input" required>
+                    <option value="" disabled>{{ $t('agenda.reservar.elegir') }}</option>
+                    <option v-for="m in miembros" :key="m.id" :value="m.id">{{ nombreMiembro(m) }}</option>
+                  </select>
+                </div>
+                <button class="tu-btn tu-btn-primario" type="submit" :disabled="accionando || transferirModel.personaId === ''">
+                  {{ $t('agenda.roster.confirmarTransfer') }}
                 </button>
-              </span>
+                <button class="tu-btn tu-btn-fantasma" type="button" :disabled="accionando" @click="transferirModel = { reservaId: '', personaId: '' }">
+                  {{ $t('comun.cancelar') }}
+                </button>
+              </form>
             </li>
           </ul>
         </div>

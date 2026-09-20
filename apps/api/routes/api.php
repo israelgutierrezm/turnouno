@@ -332,6 +332,8 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/reservas/{reserva}/cancelar', [ReservasTenantController::class, 'cancelar'])->middleware('puede:reservas.gestionar')->name('reservas.cancelar');
             // Waitlist robusta (R7): el ofrecido acepta su cupo antes de que expire.
             Route::post('/reservas/{reserva}/aceptar', [ReservasTenantController::class, 'aceptar'])->middleware('puede:reservas.gestionar')->name('reservas.aceptar');
+            // Transferir/regalar el lugar a otra persona (R9).
+            Route::post('/reservas/{reserva}/transferir', [ReservasTenantController::class, 'transferir'])->middleware('puede:reservas.gestionar')->name('reservas.transferir');
             Route::post('/reservas/{reserva}/asistencia', [AsistenciaTenantController::class, 'marcar'])->middleware('puede:asistencia.marcar')->name('reservas.asistencia.store');
 
             // Politica de cancelacion/no-show (R8): la reserva congela la vigente al

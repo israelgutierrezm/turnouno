@@ -13,6 +13,7 @@ use App\Modules\Reservas\Exceptions\OfertaNoDisponible;
 use App\Modules\Reservas\Exceptions\ReservaException;
 use App\Modules\Reservas\Exceptions\SesionNoReservable;
 use App\Modules\Reservas\Exceptions\SinDerechoDisponible;
+use App\Modules\Reservas\Exceptions\TransferenciaInvalida;
 use App\Modules\Reservas\Exceptions\YaReservado;
 use App\Modules\Tenancy\EstadoSesionTenant;
 use App\Modules\Tenancy\Models\PersonaTenant;
@@ -234,6 +235,42 @@ class ReservasTenant
      * confirma (penaliza). Al liberar un cupo confirmado, promueve de la lista de
      * espera. Idempotente: cancelar una reserva ya cancelada no hace nada.
      */
+    /**
+     * Transfiere (regala) el lugar de una reserva activa a otra persona (R9): el
+     * crédito ya consumido por el titular original NO se mueve (es un regalo); solo
+     * cambia el participante. No permite transferir tras registrar asistencia ni si el
+     * destino ya tiene lugar en la clase.
+     */
+    public function transferir(ReservaTenant $reserva, PersonaTenant $destino): ReservaTenant
+    {
+        return DB::connection('tenant')->transaction(function () use ($reserva, $destino): ReservaTenant {
+            $bloqueada = ReservaTenant::query()->whereKey($reserva->getKey())->lockForUpdate()->firstOrFail();
+
+            if (! in_array($bloqueada->estado, [EstadoReserva::Confirmada, EstadoReserva::Ofrecida], true)) {
+                throw new TransferenciaInvalida('Solo se puede transferir una reserva activa.');
+            }
+            if ((int) $bloqueada->persona_id === (int) $destino->getKey()) {
+                throw new TransferenciaInvalida('La reserva ya es de esa persona.');
+            }
+            if ($bloqueada->asistencia !== null) {
+                throw new TransferenciaInvalida('No se puede transferir despues de registrar asistencia.');
+            }
+
+            $duplicada = ReservaTenant::query()
+                ->where('sesion_id', $bloqueada->sesion_id)
+                ->where('persona_id', $destino->getKey())
+                ->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::Ofrecida->value, EstadoReserva::EnEspera->value])
+                ->exists();
+            if ($duplicada) {
+                throw new TransferenciaInvalida('Esa persona ya tiene lugar en esta clase.');
+            }
+
+            $bloqueada->update(['persona_id' => $destino->getKey()]);
+
+            return $bloqueada->refresh();
+        });
+    }
+
     public function cancelar(ReservaTenant $reserva, int $horasLimite = 6): ReservaTenant
     {
         return DB::connection('tenant')->transaction(function () use ($reserva, $horasLimite): ReservaTenant {
