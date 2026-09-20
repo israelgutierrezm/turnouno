@@ -75,6 +75,46 @@ it('el cambio de facturación de un estudio exige token de plataforma', function
     ], conTokenPlataforma('otro'))->assertUnauthorized();
 });
 
+it('activa y configura una pasarela de la plataforma sin devolver las llaves', function (): void {
+    Config::set('turnouno.plataforma.token', 'token-plataforma');
+
+    // Por defecto: apagadas, sin llaves.
+    test()->getJson('/api/v1/plataforma/pasarelas', conTokenPlataforma())
+        ->assertOk()
+        ->assertJsonPath('data.0.proveedor', 'stripe')
+        ->assertJsonPath('data.0.activa', false);
+
+    // Activa Stripe con llaves de prueba.
+    $r = test()->putJson('/api/v1/plataforma/pasarelas/stripe', [
+        'activa' => true, 'modo' => 'test',
+        'credenciales' => ['secret_key' => 'sk_test_plataforma', 'webhook_secret' => 'whsec_plat'],
+    ], conTokenPlataforma())->assertOk();
+
+    $r->assertJsonPath('data.activa', true)->assertJsonPath('data.modo', 'test');
+    expect($r->json('data.llaves_configuradas'))->toContain('secret_key');
+    // Nunca expone el secreto.
+    expect(json_encode($r->json()))->not->toContain('sk_test_plataforma');
+
+    // Persiste + sigue sin exponer secretos.
+    $lista = test()->getJson('/api/v1/plataforma/pasarelas', conTokenPlataforma())->assertOk();
+    $stripe = collect($lista->json('data'))->firstWhere('proveedor', 'stripe');
+    expect($stripe['activa'])->toBeTrue();
+    expect($stripe['llaves_configuradas'])->toContain('webhook_secret');
+    expect(json_encode($lista->json()))->not->toContain('sk_test_plataforma');
+});
+
+it('rechaza configurar un proveedor desconocido y exige token de plataforma', function (): void {
+    Config::set('turnouno.plataforma.token', 'token-plataforma');
+
+    test()->putJson('/api/v1/plataforma/pasarelas/desconocido', [
+        'activa' => true, 'modo' => 'test',
+    ], conTokenPlataforma())->assertNotFound();
+
+    test()->putJson('/api/v1/plataforma/pasarelas/stripe', [
+        'activa' => true, 'modo' => 'test',
+    ], conTokenPlataforma('otro'))->assertUnauthorized();
+});
+
 it('carga la llave de la cuenta FacturAPI sin devolverla nunca', function (): void {
     Config::set('turnouno.plataforma.token', 'token-plataforma');
 

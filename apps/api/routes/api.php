@@ -145,6 +145,9 @@ Route::prefix('v1')->group(function (): void {
         Route::put('/estudios/{estudio}', [PlataformaController::class, 'actualizarEstudio'])->name('estudios.actualizar');
         Route::get('/configuracion', [PlataformaController::class, 'configuracion'])->name('configuracion');
         Route::put('/configuracion', [PlataformaController::class, 'guardarConfiguracion'])->name('configuracion.guardar');
+        // Pasarelas de la plataforma (para cobrar la renta del SaaS): on/off + llaves test/prod.
+        Route::get('/pasarelas', [PlataformaController::class, 'pasarelas'])->name('pasarelas');
+        Route::put('/pasarelas/{proveedor}', [PlataformaController::class, 'guardarPasarela'])->name('pasarelas.guardar');
     });
 
     /*

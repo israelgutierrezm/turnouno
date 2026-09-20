@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Tenancy\Http\Controllers;
 
 use App\Modules\Tenancy\EstadoFacturacion;
+use App\Modules\Tenancy\Models\ConfiguracionPasarelaPlataforma;
 use App\Modules\Tenancy\Models\ConfiguracionPlataforma;
 use App\Modules\Tenancy\Models\Estudio;
 use App\Modules\Tenancy\ModoCobroSaas;
@@ -71,6 +72,78 @@ class PlataformaController
             'precio_por_alumno_minor' => $modelo->precio_por_alumno_minor,
             'cuota_fija_minor' => $modelo->cuota_fija_minor,
             'estado_facturacion' => $modelo->estado_facturacion->value,
+        ]]);
+    }
+
+    /**
+     * Proveedores de pasarela que la plataforma puede activar para cobrar la renta.
+     *
+     * @return list<string>
+     */
+    private function proveedores(): array
+    {
+        return ['stripe', 'mercadopago', 'openpay'];
+    }
+
+    /**
+     * Estado de las pasarelas de la plataforma (activa/modo + qué llaves están puestas).
+     * Nunca devuelve las credenciales.
+     */
+    public function pasarelas(): JsonResponse
+    {
+        $configs = ConfiguracionPasarelaPlataforma::query()->get()->keyBy('proveedor');
+
+        $data = array_map(function (string $proveedor) use ($configs): array {
+            $config = $configs->get($proveedor);
+
+            return [
+                'proveedor' => $proveedor,
+                'activa' => $config instanceof ConfiguracionPasarelaPlataforma ? $config->activa : false,
+                'modo' => $config instanceof ConfiguracionPasarelaPlataforma ? $config->modo : 'test',
+                'llaves_configuradas' => $config instanceof ConfiguracionPasarelaPlataforma ? array_keys($config->llaves()) : [],
+            ];
+        }, $this->proveedores());
+
+        return response()->json(['data' => $data]);
+    }
+
+    /**
+     * Activa/configura una pasarela de la plataforma. Las llaves se combinan (solo se
+     * actualizan las provistas con valor); nunca se devuelven.
+     */
+    public function guardarPasarela(Request $request, string $proveedor): JsonResponse
+    {
+        abort_unless(in_array($proveedor, $this->proveedores(), true), 404);
+
+        $validado = $request->validate([
+            'activa' => ['required', 'boolean'],
+            'modo' => ['required', Rule::in(['test', 'live'])],
+            'credenciales' => ['nullable', 'array'],
+            'credenciales.*' => ['nullable', 'string'],
+        ]);
+
+        $config = ConfiguracionPasarelaPlataforma::query()->firstOrNew(['proveedor' => $proveedor]);
+        $config->activa = (bool) $validado['activa'];
+        $config->modo = (string) $validado['modo'];
+
+        // Merge: solo actualiza las llaves con valor; conserva las demás.
+        $credenciales = $validado['credenciales'] ?? null;
+        if (is_array($credenciales)) {
+            $nuevas = [];
+            foreach ($credenciales as $nombre => $valor) {
+                if (is_string($valor) && $valor !== '') {
+                    $nuevas[(string) $nombre] = $valor;
+                }
+            }
+            $config->credenciales = array_merge($config->llaves(), $nuevas);
+        }
+        $config->save();
+
+        return response()->json(['data' => [
+            'proveedor' => $proveedor,
+            'activa' => $config->activa,
+            'modo' => $config->modo,
+            'llaves_configuradas' => array_keys($config->llaves()),
         ]]);
     }
 

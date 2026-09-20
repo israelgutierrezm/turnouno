@@ -491,6 +491,18 @@ export default {
       guardado: 'Configuración guardada.',
       ayuda: 'Se guarda cifrada y nunca se vuelve a mostrar. Deja vacío para borrarla.',
     },
+    pasarelas: {
+      titulo: 'Pasarelas de cobro',
+      subtitulo: 'Cobra la renta del SaaS a los dueños. Las llaves se guardan cifradas y nunca se muestran.',
+      activa: 'Activa',
+      modo: 'Modo',
+      test: 'Pruebas',
+      live: 'Producción',
+      configurada: '•••••• (configurada)',
+      guardar: 'Guardar',
+      guardando: 'Guardando…',
+      guardado: 'Pasarela actualizada.',
+    },
     estudios: {
       titulo: 'Estudios',
       colSlug: 'Slug',

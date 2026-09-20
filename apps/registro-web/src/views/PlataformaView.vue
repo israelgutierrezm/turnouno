@@ -39,6 +39,23 @@ const llaveInput = ref('')
 const guardando = ref(false)
 const mensaje = ref<string | null>(null)
 
+// Pasarelas de la plataforma (para cobrar la renta del SaaS).
+interface Pasarela {
+  proveedor: string
+  activa: boolean
+  modo: string
+  llaves_configuradas: string[]
+}
+const LLAVES_PASARELA: Record<string, string[]> = {
+  stripe: ['secret_key', 'webhook_secret'],
+  mercadopago: ['access_token', 'webhook_secret'],
+  openpay: ['merchant_id', 'private_key', 'webhook_user', 'webhook_password'],
+}
+const pasarelas = ref<Pasarela[]>([])
+// Borrador por proveedor: activa, modo y llaves nuevas (write-only).
+const pasarelaDraft = ref<Record<string, { activa: boolean; modo: string; llaves: Record<string, string> }>>({})
+const guardandoPasarela = ref<string | null>(null)
+
 const columnas = computed(() => [
   { clave: 'slug', etiqueta: t('plataforma.estudios.colSlug') },
   { clave: 'nombre', etiqueta: t('plataforma.estudios.colNombre') },
@@ -105,12 +122,17 @@ async function cargar(): Promise<void> {
   cargando.value = true
   error.value = null
   try {
-    const [est, cfg] = await Promise.all([
+    const [est, cfg, pas] = await Promise.all([
       cliente.get<{ data: Estudio[] }>('/api/v1/plataforma/estudios', encabezados()),
       cliente.get<{ data: { facturapi_configurada: boolean } }>('/api/v1/plataforma/configuracion', encabezados()),
+      cliente.get<{ data: Pasarela[] }>('/api/v1/plataforma/pasarelas', encabezados()),
     ])
     estudios.value = est.data.data
     facturapiConfigurada.value = cfg.data.data.facturapi_configurada
+    pasarelas.value = pas.data.data
+    for (const p of pasarelas.value) {
+      pasarelaDraft.value[p.proveedor] = { activa: p.activa, modo: p.modo, llaves: {} }
+    }
     autenticado.value = true
   } catch {
     autenticado.value = false
@@ -152,6 +174,36 @@ async function guardarLlave(): Promise<void> {
     error.value = t('plataforma.tokenInvalido')
   } finally {
     guardando.value = false
+  }
+}
+
+function llavesDe(proveedor: string): string[] {
+  return LLAVES_PASARELA[proveedor] ?? []
+}
+
+async function guardarPasarela(proveedor: string): Promise<void> {
+  const draft = pasarelaDraft.value[proveedor]
+  if (draft === undefined) {
+    return
+  }
+  guardandoPasarela.value = proveedor
+  error.value = null
+  try {
+    const { data } = await cliente.put<{ data: Pasarela }>(
+      `/api/v1/plataforma/pasarelas/${proveedor}`,
+      { activa: draft.activa, modo: draft.modo, credenciales: draft.llaves },
+      encabezados(),
+    )
+    const i = pasarelas.value.findIndex((p) => p.proveedor === proveedor)
+    if (i >= 0) {
+      pasarelas.value[i] = data.data
+    }
+    draft.llaves = {} // limpia las llaves escritas (write-only)
+    mensaje.value = 'pasarela'
+  } catch {
+    error.value = t('plataforma.tokenInvalido')
+  } finally {
+    guardandoPasarela.value = null
   }
 }
 
@@ -232,8 +284,48 @@ function borrar(): void {
           </button>
         </form>
         <p class="mt-2 text-xs" :style="{ color: 'var(--texto-suave)' }">{{ $t('plataforma.facturapi.ayuda') }}</p>
-        <p v-if="mensaje" class="mt-2 text-sm" :style="{ color: 'var(--exito)' }">
+        <p v-if="mensaje === 'ok'" class="mt-2 text-sm" :style="{ color: 'var(--exito)' }">
           {{ $t('plataforma.facturapi.guardado') }}
+        </p>
+      </div>
+
+      <!-- Pasarelas de cobro de la plataforma -->
+      <div class="mt-6">
+        <h2 class="font-bold text-lg">{{ $t('plataforma.pasarelas.titulo') }}</h2>
+        <p class="text-sm" :style="{ color: 'var(--texto-suave)' }">{{ $t('plataforma.pasarelas.subtitulo') }}</p>
+        <div class="mt-3 grid gap-3 sm:grid-cols-3">
+          <div v-for="p in pasarelas" :key="p.proveedor" class="tu-card p-4">
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-bold capitalize">{{ p.proveedor }}</span>
+              <label class="flex items-center gap-1.5 text-xs">
+                <input v-model="pasarelaDraft[p.proveedor].activa" type="checkbox" />
+                {{ $t('plataforma.pasarelas.activa') }}
+              </label>
+            </div>
+            <div class="mt-2">
+              <label class="tu-label" :for="`modo-${p.proveedor}`">{{ $t('plataforma.pasarelas.modo') }}</label>
+              <select :id="`modo-${p.proveedor}`" v-model="pasarelaDraft[p.proveedor].modo" class="tu-input">
+                <option value="test">{{ $t('plataforma.pasarelas.test') }}</option>
+                <option value="live">{{ $t('plataforma.pasarelas.live') }}</option>
+              </select>
+            </div>
+            <div v-for="llave in llavesDe(p.proveedor)" :key="llave" class="mt-2">
+              <label class="tu-label" :for="`${p.proveedor}-${llave}`">{{ llave }}</label>
+              <input
+                :id="`${p.proveedor}-${llave}`"
+                v-model="pasarelaDraft[p.proveedor].llaves[llave]"
+                class="tu-input"
+                type="password"
+                :placeholder="p.llaves_configuradas.includes(llave) ? $t('plataforma.pasarelas.configurada') : ''"
+              />
+            </div>
+            <button class="tu-btn tu-btn-primario w-full mt-3" type="button" :disabled="guardandoPasarela === p.proveedor" @click="guardarPasarela(p.proveedor)">
+              {{ guardandoPasarela === p.proveedor ? $t('plataforma.pasarelas.guardando') : $t('plataforma.pasarelas.guardar') }}
+            </button>
+          </div>
+        </div>
+        <p v-if="mensaje === 'pasarela'" class="mt-2 text-sm" :style="{ color: 'var(--exito)' }">
+          {{ $t('plataforma.pasarelas.guardado') }}
         </p>
       </div>
 
