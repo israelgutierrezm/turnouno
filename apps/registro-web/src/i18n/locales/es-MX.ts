@@ -87,6 +87,11 @@ export default {
       pagosDesc: 'Cobra en ventanilla hoy y conecta tu pasarela cuando estes listo.',
     },
     prueba: 'Prueba de {dias} dias. Sin tarjeta.',
+    pieHero: 'Sin tarjeta de credito. Cancela cuando quieras.',
+    seccionTitulo: 'Todo lo que tu estudio necesita.',
+    seccionSub: 'Un solo lugar para tus miembros, clases, reservas y cobros.',
+    ctaFinalTitulo: 'Empieza hoy.',
+    ctaFinalSub: 'Crea tu estudio en minutos. Gratis por {dias} dias, sin tarjeta.',
   },
   registro: {
     titulo: 'Crea tu estudio',
