@@ -248,12 +248,12 @@ function irActivar(): void {
           <div>
             <label class="tu-label">{{ $t('registro.whatsapp') }}</label>
             <div class="flex gap-2">
-              <select v-model="whatsappPais" class="tu-input w-auto shrink-0" :aria-label="$t('registro.whatsappPais')">
+              <select v-model="whatsappPais" class="tu-input w-24 shrink-0" :aria-label="$t('registro.whatsappPais')">
                 <option v-for="p in PAISES" :key="p.lada" :value="p.lada">{{ p.bandera }} +{{ p.lada }}</option>
               </select>
               <input
                 v-model="whatsappNumero"
-                class="tu-input"
+                class="tu-input flex-1 min-w-0"
                 type="tel"
                 inputmode="tel"
                 :placeholder="$t('registro.whatsappNumeroPh')"
