@@ -25,6 +25,7 @@ class MiembrosTenantController
     public function index(Request $request): JsonResponse
     {
         $tipo = (string) $request->query('tipo', TipoPersonaTenant::Miembro->value);
+        $busqueda = trim((string) $request->query('q', ''));
 
         $personas = PersonaTenant::query()
             ->with('sucursal')
@@ -32,6 +33,14 @@ class MiembrosTenantController
             ->where('archivado', false)
             // Filtro opcional por sucursal de casa (R18).
             ->when($this->sucursalIdDe((string) $request->query('sucursal_id', '')), fn ($q, int $id) => $q->where('sucursal_id', $id))
+            // Búsqueda server-side (nombre/apellidos/email): el buscador global de
+            // Recepción no debe perder al alumno 101 (antes topaba en LIMITE sin filtro).
+            ->when($busqueda !== '', fn ($q) => $q->where(fn ($sub) => $sub
+                ->where('nombre', 'like', "%{$busqueda}%")
+                ->orWhere('segundo_nombre', 'like', "%{$busqueda}%")
+                ->orWhere('primer_apellido', 'like', "%{$busqueda}%")
+                ->orWhere('segundo_apellido', 'like', "%{$busqueda}%")
+                ->orWhere('email', 'like', "%{$busqueda}%")))
             ->orderByDesc('id')
             ->limit(self::LIMITE)
             ->get();

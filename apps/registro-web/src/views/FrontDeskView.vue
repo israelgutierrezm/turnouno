@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 
 import EncabezadoSeccion from '@/components/EncabezadoSeccion.vue'
 import PanelClase from '@/components/PanelClase.vue'
+import PanelMiembro from '@/components/PanelMiembro.vue'
 import { api, mensajeDeError } from '@/lib/api'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
 
@@ -55,6 +56,45 @@ const sesionActiva = ref<SesionDia | null>(null)
 
 function abrir(s: SesionDia): void {
   sesionActiva.value = s
+}
+
+// Buscador global de alumno (server-side): encuentra a cualquiera, no solo a los
+// primeros 100. Al elegir uno se abre su panel con alertas.
+interface MiembroResultado {
+  id: string
+  nombre_completo: string
+  email: string | null
+}
+const busqueda = ref('')
+const resultados = ref<MiembroResultado[]>([])
+const buscando = ref(false)
+const miembroActivo = ref<{ id: string; nombre: string } | null>(null)
+let tempBusqueda: ReturnType<typeof setTimeout> | undefined
+
+async function buscar(): Promise<void> {
+  const q = busqueda.value.trim()
+  if (q.length < 2) {
+    resultados.value = []
+    return
+  }
+  buscando.value = true
+  try {
+    const { data } = await api.get<{ data: MiembroResultado[] }>(`${base.value}/miembros`, { params: { q } })
+    resultados.value = data.data
+  } catch {
+    resultados.value = []
+  } finally {
+    buscando.value = false
+  }
+}
+watch(busqueda, () => {
+  clearTimeout(tempBusqueda)
+  tempBusqueda = setTimeout(() => void buscar(), 300)
+})
+function abrirMiembro(m: MiembroResultado): void {
+  miembroActivo.value = { id: m.id, nombre: m.nombre_completo }
+  resultados.value = []
+  busqueda.value = ''
 }
 
 function horaCorta(iso: string, zona: string): string {
@@ -112,6 +152,28 @@ onMounted(async () => {
 <template>
   <section class="mx-auto max-w-5xl px-4 sm:px-6 py-8">
     <EncabezadoSeccion icono="recepcion" :titulo="$t('recepcion.titulo')" :subtitulo="$t('recepcion.subtitulo')" />
+
+    <!-- Buscador global de alumno -->
+    <div class="relative mt-6">
+      <input v-model="busqueda" type="search" class="tu-input" :placeholder="$t('recepcion.buscarMiembro')" />
+      <div v-if="busqueda.trim().length >= 2" class="absolute z-20 mt-1 w-full tu-card overflow-hidden">
+        <p v-if="buscando" class="px-4 py-3 text-sm" :style="{ color: 'var(--texto-suave)' }">{{ $t('comun.cargando') }}</p>
+        <p v-else-if="resultados.length === 0" class="px-4 py-3 text-sm" :style="{ color: 'var(--texto-suave)' }">{{ $t('recepcion.sinResultados') }}</p>
+        <ul v-else class="max-h-72 overflow-y-auto">
+          <li v-for="m in resultados" :key="m.id">
+            <button
+              type="button"
+              class="w-full border-t px-4 py-2.5 text-left first:border-t-0 hover:brightness-95"
+              :style="{ borderColor: 'var(--borde)' }"
+              @click="abrirMiembro(m)"
+            >
+              <span class="block font-medium">{{ m.nombre_completo }}</span>
+              <span v-if="m.email" class="block text-xs" :style="{ color: 'var(--texto-suave)' }">{{ m.email }}</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
 
     <!-- Controles -->
     <div class="mt-6 flex flex-wrap items-center gap-3">
@@ -187,5 +249,6 @@ onMounted(async () => {
     </div>
 
     <PanelClase v-if="sesionActiva" :sesion="sesionActiva" @cerrar="sesionActiva = null" @cambio="cargar" />
+    <PanelMiembro v-if="miembroActivo" :persona-id="miembroActivo.id" :nombre="miembroActivo.nombre" @cerrar="miembroActivo = null" />
   </section>
 </template>
