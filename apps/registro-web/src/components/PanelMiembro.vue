@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { api, mensajeDeError } from '@/lib/api'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
@@ -24,12 +25,69 @@ interface Resumen {
 const props = defineProps<{ personaId: string; nombre: string }>()
 const emit = defineEmits<{ (e: 'cerrar'): void }>()
 
+const { t } = useI18n()
 const sesionStore = useSesionTenantStore()
 const base = computed(() => `/api/v1/app/${sesionStore.slug}`)
+const puedeVender = computed(() => sesionStore.puede('ordenes.gestionar'))
 
 const resumen = ref<Resumen | null>(null)
 const cargando = ref(true)
 const error = ref<string | null>(null)
+
+// Venta rápida + cobro en ventanilla: crea la orden y la liquida (fulfillment).
+interface Producto {
+  id: string
+  nombre: string
+  precio_minor: number
+  moneda: string
+}
+const vendiendo = ref(false)
+const productos = ref<Producto[]>([])
+const productoSel = ref('')
+const metodo = ref('efectivo')
+const procesando = ref(false)
+const avisoVenta = ref<string | null>(null)
+
+function dinero(minor: number, moneda: string): string {
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: moneda }).format(minor / 100)
+}
+
+async function abrirVenta(): Promise<void> {
+  vendiendo.value = true
+  avisoVenta.value = null
+  if (productos.value.length === 0) {
+    try {
+      const { data } = await api.get<{ data: Producto[] }>(`${base.value}/productos`)
+      productos.value = data.data
+    } catch (e) {
+      error.value = mensajeDeError(e)
+    }
+  }
+}
+
+async function vender(): Promise<void> {
+  if (productoSel.value === '') {
+    return
+  }
+  procesando.value = true
+  error.value = null
+  avisoVenta.value = null
+  try {
+    const { data: orden } = await api.post<{ data: { id: string } }>(`${base.value}/ordenes`, {
+      comprador_id: props.personaId,
+      items: [{ producto_id: productoSel.value, cantidad: 1 }],
+    })
+    await api.post(`${base.value}/ordenes/${orden.data.id}/liquidar`, { metodo: metodo.value })
+    avisoVenta.value = t('recepcion.miembro.vendido')
+    vendiendo.value = false
+    productoSel.value = ''
+    await cargar()
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    procesando.value = false
+  }
+}
 
 // Chip ámbar para "por vencer"; roja para el resto de alertas.
 function estiloAlerta(codigo: string): Record<string, string> {
@@ -130,6 +188,32 @@ watch(() => props.personaId, cargar, { immediate: true })
               <dd class="text-right font-medium" :style="{ color: 'var(--aviso)' }">{{ resumen.documentos_pendientes }}</dd>
             </div>
           </dl>
+
+          <!-- Venta rápida + cobro en ventanilla -->
+          <div v-if="puedeVender" class="mt-5 border-t pt-4" :style="{ borderColor: 'var(--borde)' }">
+            <button v-if="!vendiendo" type="button" class="tu-btn tu-btn-primario w-full text-sm" @click="abrirVenta">
+              {{ $t('recepcion.miembro.vender') }}
+            </button>
+            <div v-else class="space-y-2">
+              <select v-model="productoSel" class="tu-input">
+                <option value="" disabled>{{ $t('recepcion.miembro.elegirProducto') }}</option>
+                <option v-for="p in productos" :key="p.id" :value="p.id">{{ p.nombre }} — {{ dinero(p.precio_minor, p.moneda) }}</option>
+              </select>
+              <select v-model="metodo" class="tu-input">
+                <option value="efectivo">{{ $t('recepcion.miembro.efectivo') }}</option>
+                <option value="transferencia">{{ $t('recepcion.miembro.transferencia') }}</option>
+              </select>
+              <div class="flex gap-2">
+                <button type="button" class="tu-btn tu-btn-primario flex-1 text-sm" :disabled="procesando || productoSel === ''" @click="vender">
+                  {{ procesando ? $t('recepcion.miembro.cobrando') : $t('recepcion.miembro.cobrar') }}
+                </button>
+                <button type="button" class="tu-btn tu-btn-fantasma text-sm" :disabled="procesando" @click="vendiendo = false">
+                  {{ $t('comun.cancelar') }}
+                </button>
+              </div>
+            </div>
+            <p v-if="avisoVenta" class="mt-2 text-sm" style="color: var(--exito)">{{ avisoVenta }}</p>
+          </div>
         </template>
       </div>
     </aside>

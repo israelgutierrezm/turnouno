@@ -109,6 +109,60 @@ async function promover(): Promise<void> {
   }
 }
 
+// Walk-in: agregar a un alumno a la clase en el momento (busca y reserva; si está
+// llena, va a lista de espera). Reusa el buscador server-side y el motor de reservas.
+interface MiembroResultado {
+  id: string
+  nombre_completo: string
+  email: string | null
+}
+const agregando = ref(false)
+const busqueda = ref('')
+const resultados = ref<MiembroResultado[]>([])
+const buscando = ref(false)
+let tempBusqueda: ReturnType<typeof setTimeout> | undefined
+
+async function buscarMiembro(): Promise<void> {
+  const q = busqueda.value.trim()
+  if (q.length < 2) {
+    resultados.value = []
+    return
+  }
+  buscando.value = true
+  try {
+    const { data } = await api.get<{ data: MiembroResultado[] }>(`${base.value}/miembros`, { params: { q } })
+    resultados.value = data.data
+  } catch {
+    resultados.value = []
+  } finally {
+    buscando.value = false
+  }
+}
+watch(busqueda, () => {
+  clearTimeout(tempBusqueda)
+  tempBusqueda = setTimeout(() => void buscarMiembro(), 300)
+})
+
+async function agregar(m: MiembroResultado): Promise<void> {
+  accionando.value = true
+  error.value = null
+  aviso.value = null
+  try {
+    // Si no hay lugar, entra a lista de espera (esperar=true) en vez de fallar.
+    const esperar = (libres.value ?? 0) <= 0
+    await api.post(`${base.value}/sesiones/${props.sesion.id}/reservas`, { persona_id: m.id, esperar })
+    busqueda.value = ''
+    resultados.value = []
+    agregando.value = false
+    await cargar()
+    emit('cambio')
+  } catch (e) {
+    error.value = mensajeDeError(e)
+  } finally {
+    accionando.value = false
+  }
+}
+
 watch(() => props.sesion.id, cargar, { immediate: true })
 </script>
 
@@ -145,6 +199,34 @@ watch(() => props.sesion.id, cargar, { immediate: true })
       <div class="flex-1 px-5 py-4">
         <p v-if="aviso" class="mb-3 text-sm" style="color: var(--exito)">{{ aviso }}</p>
         <p v-if="error" class="mb-3 text-sm" style="color: var(--error)">{{ error }}</p>
+
+        <!-- Walk-in: agregar alumno en el momento (a la clase o a la lista de espera) -->
+        <div v-if="puedeGestionar" class="mb-4">
+          <button v-if="!agregando" type="button" class="tu-btn tu-btn-fantasma text-xs px-3 py-1.5" @click="agregando = true">
+            + {{ $t('recepcion.panel.agregar') }}
+          </button>
+          <div v-else class="relative">
+            <input v-model="busqueda" type="search" class="tu-input" :placeholder="$t('recepcion.panel.buscarAgregar')" />
+            <div v-if="busqueda.trim().length >= 2" class="absolute z-10 mt-1 w-full tu-card overflow-hidden">
+              <p v-if="buscando" class="px-3 py-2 text-sm" :style="{ color: 'var(--texto-suave)' }">{{ $t('comun.cargando') }}</p>
+              <p v-else-if="resultados.length === 0" class="px-3 py-2 text-sm" :style="{ color: 'var(--texto-suave)' }">{{ $t('recepcion.sinResultados') }}</p>
+              <ul v-else class="max-h-56 overflow-y-auto">
+                <li v-for="m in resultados" :key="m.id">
+                  <button
+                    type="button"
+                    class="w-full border-t px-3 py-2 text-left text-sm first:border-t-0 hover:brightness-95"
+                    :style="{ borderColor: 'var(--borde)' }"
+                    :disabled="accionando"
+                    @click="agregar(m)"
+                  >
+                    {{ m.nombre_completo }}
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
         <p v-if="cargando" class="text-sm" :style="{ color: 'var(--texto-suave)' }">{{ $t('comun.cargando') }}</p>
 
         <template v-else>
