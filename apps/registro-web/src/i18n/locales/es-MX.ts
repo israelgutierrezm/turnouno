@@ -121,6 +121,7 @@ export default {
       titulo: 'Claro para ti y tu equipo',
       subtitulo: 'Una interfaz simple, rápida y sin curva de aprendizaje.',
       barra: 'Panel',
+      demo: 'Vista de ejemplo',
       m1: 'Alumnos activos',
       m2: 'Ocupación',
       m3: 'Reservas hoy',
