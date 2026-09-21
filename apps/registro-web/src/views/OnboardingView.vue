@@ -39,17 +39,20 @@ const prod = ref({ nombre: '', tipo: 'paquete', precio: '899', creditos: '8' })
 const per = ref({ nombre: '', email: '', rol: 'recepcionista' })
 const pub = ref({ publicado: true, privado: false })
 const invitacion = ref<{ email: string; token: string } | null>(null)
+const configReal = ref<{ horarios: boolean; politicas: boolean }>({ horarios: false, politicas: false })
+const politica = ref({ horas: '6', penalizaTarde: true, penalizaNoShow: true })
 
 async function cargar(): Promise<void> {
   cargando.value = true
   error.value = null
   try {
-    const { data } = await api.get<{ data: { pasos: string[]; completados: string[]; completo: boolean } }>(
+    const { data } = await api.get<{ data: { pasos: string[]; completados: string[]; completo: boolean; config?: { horarios: boolean; politicas: boolean } } }>(
       `${base.value}/onboarding`,
     )
     pasos.value = data.data.pasos
     completados.value = new Set(data.data.completados)
     completo.value = data.data.completo
+    configReal.value = data.data.config ?? { horarios: false, politicas: false }
     // Empieza en el primer paso no completado.
     const pendiente = pasos.value.findIndex((p) => !completados.value.has(p))
     indice.value = pendiente === -1 ? pasos.value.length - 1 : pendiente
@@ -176,6 +179,23 @@ const publicar = () =>
 
 function continuarSimple(): void {
   void ejecutar(pasoActual.value, async () => null)
+}
+
+// Política de cancelación: config mínima inline (sin salir del asistente).
+const guardarPolitica = () =>
+  ejecutar('politicas', async () => {
+    await api.put(`${base.value}/politicas-cancelacion`, {
+      horas_limite: Number(politica.value.horas) || 0,
+      penaliza_tarde: politica.value.penalizaTarde,
+      penaliza_no_show: politica.value.penalizaNoShow,
+    })
+    configReal.value.politicas = true
+    return null
+  })
+
+// Horarios: se crean en la Agenda; se abre la pantalla y al volver el paso continúa.
+function irAgenda(): void {
+  void router.push({ name: 'agenda' })
 }
 
 const mensajeTexto = computed(() => {
@@ -417,7 +437,48 @@ onMounted(cargar)
             </button>
           </template>
 
-          <!-- pasos informativos (horarios / politicas / pasarela) -->
+          <!-- horarios (guiado: crear en la Agenda; sin callejón) -->
+          <template v-else-if="pasoActual === 'horarios'">
+            <div v-if="configReal.horarios" class="rounded-lg p-3 text-sm" :style="{ background: 'var(--exito-suave)', color: 'var(--exito)' }">
+              {{ $t('onboarding.horarios.listo') }}
+            </div>
+            <p v-else class="text-sm" :style="{ color: 'var(--texto-suave)' }">{{ $t('onboarding.horarios.ayuda') }}</p>
+            <div class="flex flex-wrap gap-2">
+              <button v-if="!configReal.horarios" class="tu-btn tu-btn-fantasma" type="button" @click="irAgenda">
+                {{ $t('onboarding.horarios.abrirAgenda') }}
+              </button>
+              <button class="tu-btn tu-btn-primario" :disabled="guardando" @click="continuarSimple">
+                {{ configReal.horarios ? $t('onboarding.siguiente') : $t('onboarding.horarios.yaListo') }}
+              </button>
+            </div>
+          </template>
+
+          <!-- politicas (config minima inline; sin callejón) -->
+          <template v-else-if="pasoActual === 'politicas'">
+            <div v-if="configReal.politicas" class="rounded-lg p-3 text-sm" :style="{ background: 'var(--exito-suave)', color: 'var(--exito)' }">
+              {{ $t('onboarding.politicas.listo') }}
+            </div>
+            <template v-else>
+              <div>
+                <label class="tu-label" for="poh">{{ $t('onboarding.politicas.horas') }}</label>
+                <input id="poh" v-model="politica.horas" class="tu-input w-32" type="number" min="0" max="720" />
+                <p class="mt-1 text-xs" :style="{ color: 'var(--texto-suave)' }">{{ $t('onboarding.politicas.horasAyuda') }}</p>
+              </div>
+              <label class="flex items-center gap-2 text-sm cursor-pointer">
+                <input v-model="politica.penalizaTarde" type="checkbox" />
+                <span>{{ $t('onboarding.politicas.penalizaTarde') }}</span>
+              </label>
+              <label class="flex items-center gap-2 text-sm cursor-pointer">
+                <input v-model="politica.penalizaNoShow" type="checkbox" />
+                <span>{{ $t('onboarding.politicas.penalizaNoShow') }}</span>
+              </label>
+            </template>
+            <button class="tu-btn tu-btn-primario" :disabled="guardando" @click="configReal.politicas ? continuarSimple() : guardarPolitica()">
+              {{ configReal.politicas ? $t('onboarding.siguiente') : $t('onboarding.politicas.guardar') }}
+            </button>
+          </template>
+
+          <!-- pasos informativos (pasarela) -->
           <template v-else>
             <button class="tu-btn tu-btn-primario" :disabled="guardando" @click="continuarSimple">
               {{ $t('onboarding.siguiente') }}

@@ -40,6 +40,12 @@ class OnboardingController
             'pasos' => self::PASOS,
             'completados' => array_keys($estudio->onboarding_pasos ?? []),
             'completo' => $estudio->onboarding_completo,
+            // Estado REAL de la config que ciertos pasos exigen, para que el asistente
+            // guíe (no deje callejones) en vez de fallar con "siguiente".
+            'config' => [
+                'horarios' => PlantillaHorarioTenant::query()->exists() || SesionTenant::query()->exists(),
+                'politicas' => PoliticaCancelacionTenant::query()->exists(),
+            ],
         ]]);
     }
 

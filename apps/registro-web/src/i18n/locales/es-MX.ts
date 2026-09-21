@@ -295,7 +295,11 @@ export default {
       creada: 'Sucursal creada: {nombre}',
     },
     horarios: {
-      desc: 'Mas adelante podras materializar clases desde tus ofertas. Por ahora solo confirma este paso.',
+      desc: 'Programa al menos un horario recurrente o una clase para poder recibir reservas.',
+      ayuda: 'Aún no tienes horarios ni clases. Créalos en la Agenda y vuelve para continuar.',
+      abrirAgenda: 'Abrir la Agenda',
+      yaListo: 'Ya lo hice, continuar',
+      listo: 'Ya tienes clases u horarios programados.',
     },
     actividades: {
       desc: 'Crea una actividad y una oferta (una clase que tus alumnos podran reservar).',
@@ -322,7 +326,13 @@ export default {
       creado: 'Producto creado: {nombre}',
     },
     politicas: {
-      desc: 'Define tus politicas de cancelacion y reglas del estudio. Podras ajustarlas luego.',
+      desc: 'Define tu política de cancelación para poder continuar. Podrás ajustarla luego.',
+      horas: 'Horas límite para cancelar',
+      horasAyuda: 'Cancelar con esta antelación no cobra la clase.',
+      penalizaTarde: 'Cobrar cancelaciones tardías',
+      penalizaNoShow: 'Cobrar inasistencias (no-show)',
+      guardar: 'Guardar y continuar',
+      listo: 'Ya tienes una política de cancelación definida.',
     },
     pasarela: {
       desc: 'Conecta tu pasarela de pagos (Stripe, OpenPay o Mercado Pago) cuando tengas tus llaves. Por ahora puedes cobrar en ventanilla.',
