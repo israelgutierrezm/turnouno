@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import IconoNav from '@/components/IconoNav.vue'
+import LogoTurnoUno from '@/components/LogoTurnoUno.vue'
 import NavArbol from '@/components/NavArbol.vue'
 import type { MenuItem, NavEstado } from '@/components/nav'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
@@ -447,11 +448,7 @@ onMounted(() => {
     <header class="tu-public-nav">
       <div class="mx-auto max-w-6xl px-4 h-14 flex items-center justify-between gap-4">
         <RouterLink :to="{ name: 'inicio' }" class="flex items-center gap-2 font-bold text-lg shrink-0">
-          <span
-            class="tu-public-logo inline-flex h-8 w-8 items-center justify-center"
-            aria-hidden="true"
-            >T</span
-          >
+          <LogoTurnoUno :tam="32" />
           <span class="hidden sm:inline">{{ $t('marca') }}</span>
         </RouterLink>
 

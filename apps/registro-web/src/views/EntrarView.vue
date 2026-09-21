@@ -3,7 +3,6 @@ import { onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import CampoContrasena from '@/components/CampoContrasena.vue'
-import LogoTurnoUno from '@/components/LogoTurnoUno.vue'
 import { api } from '@/lib/api'
 import { clientIdGoogle, renderizarBotonGoogle } from '@/lib/google'
 import { useSesionTenantStore } from '@/stores/sesionTenant'
@@ -96,7 +95,7 @@ onMounted(() => {
       class="h-16 w-16 rounded-2xl object-cover"
       :style="{ boxShadow: 'var(--sombra)' }"
     />
-    <LogoTurnoUno v-else :tam="64" />
+    <img v-else src="/assets/brand/turnouno-logo.webp" alt="TurnoUno" class="h-20 w-auto" />
 
     <h1 class="mt-4 text-2xl font-extrabold text-center">
       {{ marca?.nombre ? $t('entrar.tituloEstudio', { nombre: marca.nombre }) : $t('entrar.titulo') }}
