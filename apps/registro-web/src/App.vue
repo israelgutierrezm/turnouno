@@ -85,6 +85,7 @@ const MENU: MenuItem[] = [
     icono: 'renta',
     hijos: [
       { clave: 'renta', etiqueta: 'nav.renta', icono: 'renta', ruta: 'renta', permiso: 'facturacion.ver' },
+      { clave: 'padron', etiqueta: 'nav.padron', icono: 'facturas', ruta: 'padron', permiso: 'facturacion.ver' },
     ],
   },
 ]
@@ -443,12 +444,11 @@ onMounted(() => {
 
   <!-- ===================== APP PÚBLICA ===================== -->
   <div v-else class="min-h-screen flex flex-col">
-    <header class="border-b" :style="{ borderColor: 'var(--borde)', background: 'var(--superficie)' }">
-      <div class="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between gap-4">
+    <header class="tu-public-nav">
+      <div class="mx-auto max-w-6xl px-4 h-14 flex items-center justify-between gap-4">
         <RouterLink :to="{ name: 'inicio' }" class="flex items-center gap-2 font-bold text-lg shrink-0">
           <span
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-white"
-            :style="{ background: 'var(--primario)' }"
+            class="tu-public-logo inline-flex h-8 w-8 items-center justify-center"
             aria-hidden="true"
             >T</span
           >
@@ -456,7 +456,7 @@ onMounted(() => {
         </RouterLink>
 
         <nav class="flex items-center gap-1 sm:gap-2 shrink-0">
-          <RouterLink class="tu-btn tu-btn-fantasma hidden sm:inline-flex" :to="{ name: 'directorio' }">
+          <RouterLink class="tu-btn tu-btn-fantasma tu-public-community" :to="{ name: 'directorio' }">
             {{ $t('nav.directorio') }}
           </RouterLink>
           <RouterLink class="tu-btn tu-btn-fantasma" :to="{ name: 'entrar' }">
@@ -469,7 +469,13 @@ onMounted(() => {
             :aria-label="tema.esOscuro ? $t('tema.claro') : $t('tema.oscuro')"
             @click="tema.alternarModo()"
           >
-            <span aria-hidden="true">{{ tema.esOscuro ? '☀' : '☾' }}</span>
+            <svg v-if="tema.esOscuro" aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" />
+            </svg>
+            <svg v-else aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.5 15.2A8.5 8.5 0 0 1 8.8 3.5 8.5 8.5 0 1 0 20.5 15.2Z" />
+            </svg>
           </button>
           <RouterLink class="tu-btn tu-btn-primario" :to="{ name: 'registro' }">
             {{ $t('nav.registrar') }}
@@ -482,8 +488,8 @@ onMounted(() => {
       <RouterView />
     </main>
 
-    <footer class="border-t text-sm" :style="{ borderColor: 'var(--borde)', color: 'var(--texto-suave)' }">
-      <div class="mx-auto max-w-6xl px-4 py-6 flex items-center justify-between">
+    <footer class="text-sm" :style="{ color: 'var(--texto-suave)', background: 'var(--fondo)' }">
+      <div class="mx-auto max-w-6xl px-4 py-8 flex items-center justify-between">
         <span>© {{ new Date().getFullYear() }} {{ $t('marca') }}</span>
         <RouterLink class="tu-enlace" :to="{ name: 'directorio' }">{{ $t('nav.directorio') }}</RouterLink>
       </div>
@@ -492,6 +498,31 @@ onMounted(() => {
 </template>
 
 <style>
+/* Navegación pública discreta: fija, translúcida y sin elevación artificial. */
+.tu-public-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--superficie) 84%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--borde) 70%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+.tu-public-logo {
+  border-radius: 10px;
+  background: var(--texto);
+  color: var(--superficie);
+  letter-spacing: -0.04em;
+}
+.tu-public-community {
+  display: none;
+}
+@media (min-width: 640px) {
+  .tu-public-community {
+    display: inline-flex;
+  }
+}
+
 /* Enlaces del sidebar OSCURO (estilo panel). */
 .tu-side-link {
   display: flex;

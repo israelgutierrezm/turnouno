@@ -52,6 +52,12 @@ const router = createRouter({
       meta: { requiereSesion: true },
     },
     {
+      path: '/padron',
+      name: 'padron',
+      component: () => import('@/views/PadronView.vue'),
+      meta: { requiereSesion: true },
+    },
+    {
       path: '/instructores',
       name: 'instructores',
       component: () => import('@/views/InstructoresView.vue'),

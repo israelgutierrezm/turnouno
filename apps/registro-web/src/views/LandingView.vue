@@ -30,6 +30,8 @@ const funciones = [
   { icono: 'reportes', clave: 'reportes' },
 ] as const
 
+const beneficiosMoviles = ['b1', 'b2', 'b3'] as const
+
 const pasos = [
   { n: 1, t: 'p1t', d: 'p1d' },
   { n: 2, t: 'p2t', d: 'p2d' },
@@ -118,10 +120,11 @@ onBeforeUnmount(() => observador?.disconnect())
 </script>
 
 <template>
+  <div class="tu-landing">
   <!-- ===================== HERO ===================== -->
-  <section class="tu-banda" :style="{ background: 'var(--superficie)' }">
-    <div class="mx-auto max-w-5xl px-4 sm:px-6 pt-16 sm:pt-24 pb-10 text-center reveal">
-      <span class="tu-badge tu-badge-exito mb-6">{{ $t('landing.prueba', { dias: DIAS_PRUEBA }) }}</span>
+  <section class="tu-banda tu-hero" :style="{ background: 'var(--superficie)' }">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6 pt-20 sm:pt-28 pb-10 text-center reveal">
+      <span class="tu-eyebrow">{{ $t('landing.prueba', { dias: DIAS_PRUEBA }) }}</span>
       <h1 class="tu-display mx-auto max-w-4xl">{{ $t('landing.titulo') }}</h1>
       <p class="mt-6 text-xl sm:text-2xl mx-auto max-w-2xl" style="color: var(--texto-suave); letter-spacing: -0.01em">
         {{ $t('landing.subtitulo') }}
@@ -137,8 +140,32 @@ onBeforeUnmount(() => observador?.disconnect())
       <p class="mt-4 text-sm" :style="{ color: 'var(--texto-suave)' }">{{ $t('landing.pieHero') }}</p>
     </div>
 
-    <!-- Mockup de producto animado (el color y el movimiento viven aquí) -->
-    <div class="mx-auto max-w-5xl px-4 sm:px-6 pb-16 sm:pb-24">
+    <figure class="tu-hero-visual reveal mx-auto max-w-6xl px-4 sm:px-6 pb-16 sm:pb-24">
+      <div class="tu-imagen-marco tu-imagen-cielo">
+        <img
+          src="/assets/landing/turnouno-calendar.webp"
+          :alt="$t('landing.producto.imagenAlt')"
+          width="1776"
+          height="887"
+          fetchpriority="high"
+          decoding="async"
+        />
+      </div>
+    </figure>
+  </section>
+
+  <!-- ===================== PRODUCTO ===================== -->
+  <section class="tu-banda" :style="{ background: 'var(--fondo)' }">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6 pt-20 sm:pt-28">
+      <p class="tu-seccion-etiqueta reveal">{{ $t('landing.producto.etiqueta') }}</p>
+      <h2 class="tu-titulo mt-3 max-w-3xl reveal">{{ $t('landing.producto.titulo') }}</h2>
+      <p class="mt-4 text-lg max-w-2xl reveal" :style="{ color: 'var(--texto-suave)' }">
+        {{ $t('landing.producto.subtitulo') }}
+      </p>
+    </div>
+
+    <!-- Mockup funcional animado: los textos siguen siendo HTML traducible. -->
+    <div class="mx-auto max-w-5xl px-4 sm:px-6 pt-10 pb-20 sm:pb-28">
       <div class="tu-ventana reveal mx-auto max-w-4xl">
         <!-- Barra de título -->
         <div class="tu-ventana-barra">
@@ -196,7 +223,7 @@ onBeforeUnmount(() => observador?.disconnect())
   </section>
 
   <!-- ===================== CÓMO FUNCIONA ===================== -->
-  <section class="tu-banda" :style="{ background: 'var(--fondo)' }">
+  <section class="tu-banda" :style="{ background: 'var(--superficie)' }">
     <div class="mx-auto max-w-5xl px-4 sm:px-6 py-20 sm:py-28">
       <h2 class="tu-titulo reveal">{{ $t('landing.comoFunciona.titulo') }}</h2>
       <p class="mt-3 text-lg max-w-2xl reveal" :style="{ color: 'var(--texto-suave)' }">{{ $t('landing.comoFunciona.subtitulo') }}</p>
@@ -211,7 +238,7 @@ onBeforeUnmount(() => observador?.disconnect())
   </section>
 
   <!-- ===================== FUNCIONES ===================== -->
-  <section class="tu-banda" :style="{ background: 'var(--superficie)' }">
+  <section class="tu-banda" :style="{ background: 'var(--fondo)' }">
     <div class="mx-auto max-w-6xl px-4 sm:px-6 py-20 sm:py-28">
       <h2 class="tu-titulo reveal">{{ $t('landing.seccionTitulo') }}</h2>
       <p class="mt-3 text-lg max-w-2xl reveal" :style="{ color: 'var(--texto-suave)' }">{{ $t('landing.seccionSub') }}</p>
@@ -225,6 +252,45 @@ onBeforeUnmount(() => observador?.disconnect())
           <h3 class="mt-4 font-semibold text-xl tracking-tight">{{ $t(`landing.funciones.${f.clave}`) }}</h3>
           <p class="mt-2" :style="{ color: 'var(--texto-suave)' }">{{ $t(`landing.funciones.${f.clave}Desc`) }}</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== OPERACIÓN MÓVIL ===================== -->
+  <section class="tu-banda" :style="{ background: 'var(--superficie)' }">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6 py-20 sm:py-28">
+      <div class="tu-operacion grid items-center gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+        <div class="reveal">
+          <p class="tu-seccion-etiqueta">{{ $t('landing.operacion.etiqueta') }}</p>
+          <h2 class="tu-titulo mt-3">{{ $t('landing.operacion.titulo') }}</h2>
+          <p class="mt-5 text-lg max-w-xl" :style="{ color: 'var(--texto-suave)' }">
+            {{ $t('landing.operacion.subtitulo') }}
+          </p>
+          <ul class="mt-8 space-y-4" role="list">
+            <li v-for="beneficio in beneficiosMoviles" :key="beneficio" class="tu-check-item">
+              <span class="tu-check" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m5 12.5 4 4 10-10" />
+                </svg>
+              </span>
+              <span>{{ $t(`landing.operacion.${beneficio}`) }}</span>
+            </li>
+          </ul>
+          <RouterLink class="tu-link-flecha mt-8" :to="{ name: 'registro' }">
+            {{ $t('landing.operacion.enlace') }} <span aria-hidden="true">›</span>
+          </RouterLink>
+        </div>
+
+        <figure class="tu-imagen-marco tu-imagen-rosa reveal">
+          <img
+            src="/assets/landing/turnouno-checkin-pos.webp"
+            :alt="$t('landing.operacion.imagenAlt')"
+            width="1536"
+            height="1024"
+            loading="lazy"
+            decoding="async"
+          />
+        </figure>
       </div>
     </div>
   </section>
@@ -279,27 +345,93 @@ onBeforeUnmount(() => observador?.disconnect())
       </RouterLink>
     </div>
   </section>
+  </div>
 </template>
 
 <style scoped>
-/* Título de sección grande (estética Apple). */
+.tu-landing {
+  --landing-radius: 28px;
+  overflow: clip;
+}
+
+/* Títulos grandes y aireados: la jerarquía hace el trabajo, no los adornos. */
 .tu-titulo {
   font-weight: 700;
-  font-size: clamp(1.9rem, 4vw, 2.6rem);
-  letter-spacing: -0.02em;
-  line-height: 1.08;
+  font-size: clamp(2.35rem, 5vw, 3.5rem);
+  letter-spacing: -0.028em;
+  line-height: 1.05;
 }
 .tu-display {
   font-weight: 700;
-  font-size: clamp(2.6rem, 7vw, 4.5rem);
-  letter-spacing: -0.03em;
+  font-size: clamp(3.2rem, 8vw, 6rem);
+  letter-spacing: -0.04em;
   line-height: 1.04;
+  text-wrap: balance;
+}
+.tu-eyebrow,
+.tu-seccion-etiqueta {
+  display: inline-block;
+  color: #b64400;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.tu-seccion-etiqueta {
+  color: var(--texto-suave);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Las tarjetas de la landing son superficies planas de 28 px, sin borde ni sombra. */
+.tu-landing .tu-card {
+  border: 0;
+  border-radius: var(--landing-radius);
+}
+.tu-pasos .tu-card,
+.tu-landing details.tu-card {
+  background: var(--fondo);
+}
+
+/* Fotografía de producto: el color vive en la imagen, no en la interfaz. */
+.tu-imagen-marco {
+  overflow: hidden;
+  border-radius: var(--landing-radius);
+  background: var(--fondo);
+}
+.tu-imagen-marco img {
+  display: block;
+  width: 100%;
+  height: auto;
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tu-imagen-marco:hover img {
+  transform: scale(1.012);
+}
+.tu-hero-visual {
+  transform-origin: 50% 100%;
+}
+.tu-hero-visual.reveal-in .tu-imagen-marco {
+  animation: tu-entrada-producto 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.tu-imagen-cielo {
+  background: #edf5fb;
+}
+.tu-imagen-rosa {
+  background: #f6e5e7;
+}
+@keyframes tu-entrada-producto {
+  from {
+    transform: translateY(24px) scale(0.985);
+  }
+  to {
+    transform: none;
+  }
 }
 
 /* Ventana de app (mockup). */
 .tu-ventana {
   border: 1px solid var(--borde);
-  border-radius: 1.5rem;
+  border-radius: var(--landing-radius);
   overflow: hidden;
   background: var(--superficie);
 }
@@ -360,8 +492,8 @@ onBeforeUnmount(() => observador?.disconnect())
   justify-content: center;
   font-weight: 700;
   font-size: 1.1rem;
-  background: var(--primario);
-  color: var(--primario-contraste, #fff);
+  background: var(--texto);
+  color: var(--superficie);
 }
 
 /* Caja de icono de función. */
@@ -369,20 +501,51 @@ onBeforeUnmount(() => observador?.disconnect())
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 3rem;
-  width: 3rem;
-  border-radius: 0.9rem;
-  background: var(--primario-suave);
-  color: var(--primario-fuerte, var(--primario));
+  height: 3.25rem;
+  width: 3.25rem;
+  border-radius: 1rem;
+  background: var(--fondo);
+  color: var(--texto);
+}
+
+.tu-check-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  color: var(--texto);
+  font-size: 1rem;
+}
+.tu-check {
+  display: inline-flex;
+  height: 2rem;
+  width: 2rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--fondo);
+  color: var(--texto);
+}
+.tu-link-flecha {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--enlace);
+  font-size: 1.05rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.tu-link-flecha:hover {
+  text-decoration: underline;
 }
 
 /* Finish swatch (vertical). */
 .tu-swatch {
   display: flex;
   align-items: flex-end;
-  min-height: 8rem;
-  padding: 1.25rem;
-  border-radius: 1.5rem;
+  min-height: 10.5rem;
+  padding: 1.5rem;
+  border-radius: var(--landing-radius);
   transition:
     transform 0.2s ease,
     opacity 0.6s ease;
@@ -417,11 +580,26 @@ details[open] > summary > span {
 @media (prefers-reduced-motion: reduce) {
   .reveal,
   .tu-barra-fill,
-  .tu-swatch {
+  .tu-swatch,
+  .tu-imagen-marco img {
     transition: none;
   }
-  .tu-vivo {
+  .tu-vivo,
+  .tu-hero-visual.reveal-in .tu-imagen-marco {
     animation: none;
+  }
+}
+
+@media (max-width: 639px) {
+  .tu-display {
+    font-size: clamp(2.8rem, 14vw, 4rem);
+  }
+  .tu-imagen-marco {
+    border-radius: 20px;
+  }
+  .tu-swatch {
+    min-height: 8rem;
+    border-radius: 22px;
   }
 }
 </style>
