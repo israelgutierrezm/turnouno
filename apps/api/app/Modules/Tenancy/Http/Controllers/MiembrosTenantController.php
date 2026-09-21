@@ -5,48 +5,94 @@ declare(strict_types=1);
 namespace App\Modules\Tenancy\Http\Controllers;
 
 use App\Modules\Asistencia\EstadoAsistencia;
+use App\Modules\Tenancy\Application\PoliticaAlumnosActivosV1;
+use App\Modules\Tenancy\Application\RegistrarAuditoria;
 use App\Modules\Tenancy\Http\Requests\CrearMiembroRequest;
 use App\Modules\Tenancy\Models\PersonaTenant;
 use App\Modules\Tenancy\Models\ReservaTenant;
 use App\Modules\Tenancy\Models\SucursalTenant;
+use App\Modules\Tenancy\Models\Usuario;
 use App\Modules\Tenancy\TipoPersonaTenant;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Alta y listado de personas (alumnos/instructores) del estudio. Opera SIEMPRE
- * sobre la BD del tenant ya resuelto (ResolverEstudio + AutenticarTenant), así que
- * un estudio nunca ve ni crea personas de otro. Listado paginado/limitado.
+ * Alta, listado y gestión de personas (alumnos/instructores) del estudio. Opera
+ * SIEMPRE sobre la BD del tenant ya resuelto. Listado con búsqueda, filtros y
+ * paginación server-side; edición de datos y de estado (activo/facturable/archivado)
+ * con bitácora de auditoría; y padrón facturable (base de la renta SaaS) exportable.
  */
 class MiembrosTenantController
 {
     private const LIMITE = 100;
+
+    public function __construct(private readonly RegistrarAuditoria $auditoria) {}
 
     public function index(Request $request): JsonResponse
     {
         $tipo = (string) $request->query('tipo', TipoPersonaTenant::Miembro->value);
         $busqueda = trim((string) $request->query('q', ''));
 
-        $personas = PersonaTenant::query()
+        $consulta = PersonaTenant::query()
             ->with('sucursal')
             ->where('tipo', $tipo)
-            ->where('archivado', false)
-            // Filtro opcional por sucursal de casa (R18).
             ->when($this->sucursalIdDe((string) $request->query('sucursal_id', '')), fn ($q, int $id) => $q->where('sucursal_id', $id))
-            // Búsqueda server-side (nombre/apellidos/email): el buscador global de
-            // Recepción no debe perder al alumno 101 (antes topaba en LIMITE sin filtro).
+            // Búsqueda server-side (nombre/apellidos/email): no perder al alumno 101.
             ->when($busqueda !== '', fn ($q) => $q->where(fn ($sub) => $sub
                 ->where('nombre', 'like', "%{$busqueda}%")
                 ->orWhere('segundo_nombre', 'like', "%{$busqueda}%")
                 ->orWhere('primer_apellido', 'like', "%{$busqueda}%")
                 ->orWhere('segundo_apellido', 'like', "%{$busqueda}%")
-                ->orWhere('email', 'like', "%{$busqueda}%")))
-            ->orderByDesc('id')
-            ->limit(self::LIMITE)
-            ->get();
+                ->orWhere('email', 'like', "%{$busqueda}%")));
 
-        // First-timer (R14): asistencias `presente` por persona en un solo query (sin N+1);
-        // 0 asistencias = primerizo (nunca ha asistido).
+        // Filtros del padrón: estado facturable y activo.
+        $facturable = (string) $request->query('facturable', '');
+        if ($facturable === 'si') {
+            $consulta->where('es_facturable', true);
+        } elseif ($facturable === 'no') {
+            $consulta->where('es_facturable', false);
+        }
+
+        $estado = (string) $request->query('estado', '');
+        if ($estado === 'activo') {
+            $consulta->where('activo', true);
+        } elseif ($estado === 'inactivo') {
+            $consulta->where('activo', false);
+        }
+
+        // Archivados ocultos por defecto.
+        $archivado = (string) $request->query('archivado', 'no');
+        if ($archivado === 'no') {
+            $consulta->where('archivado', false);
+        } elseif ($archivado === 'si') {
+            $consulta->where('archivado', true);
+        }
+
+        $consulta->orderByDesc('id');
+
+        // Paginación OPT-IN: con `page` devuelve meta; sin él, comportamiento previo
+        // (tope LIMITE) para no romper selectores existentes.
+        if ($request->has('page')) {
+            $perPage = min(max((int) $request->query('per_page', 25), 1), 100);
+            $pagina = $consulta->paginate($perPage, ['*'], 'page', max(1, (int) $request->query('page', 1)));
+            /** @var Collection<int, PersonaTenant> $items */
+            $items = $pagina->getCollection();
+            $asistencias = $this->conteoAsistencias($items->pluck('id')->all());
+
+            return response()->json([
+                'data' => $items->map(fn (PersonaTenant $persona): array => $this->presentar($persona, (int) ($asistencias[$persona->getKey()] ?? 0)))->all(),
+                'meta' => [
+                    'total' => $pagina->total(),
+                    'page' => $pagina->currentPage(),
+                    'per_page' => $pagina->perPage(),
+                    'ultima_pagina' => $pagina->lastPage(),
+                ],
+            ]);
+        }
+
+        $personas = $consulta->limit(self::LIMITE)->get();
         $asistencias = $this->conteoAsistencias($personas->pluck('id')->all());
 
         return response()->json([
@@ -99,6 +145,127 @@ class MiembrosTenantController
     }
 
     /**
+     * Edita datos y ESTADO del alumno (suspender = activo false; no facturable =
+     * es_facturable false; archivar = archivado true). Registra el cambio en la
+     * bitácora de auditoría (historial), por ser sensible para la renta SaaS.
+     */
+    public function actualizar(Request $request): JsonResponse
+    {
+        $persona = PersonaTenant::query()->where('ulid', (string) $request->route('persona'))->firstOrFail();
+
+        $validado = $request->validate([
+            'nombre' => ['sometimes', 'string', 'max:255'],
+            'segundo_nombre' => ['nullable', 'string', 'max:255'],
+            'primer_apellido' => ['nullable', 'string', 'max:255'],
+            'segundo_apellido' => ['nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'sucursal_id' => ['nullable', 'string'],
+            'activo' => ['sometimes', 'boolean'],
+            'es_facturable' => ['sometimes', 'boolean'],
+            'archivado' => ['sometimes', 'boolean'],
+        ]);
+
+        $campos = ['nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'email', 'activo', 'es_facturable', 'archivado', 'sucursal_id'];
+        $antes = $persona->only($campos);
+
+        $cambios = [];
+        foreach (['nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'email', 'activo', 'es_facturable', 'archivado'] as $campo) {
+            if ($request->has($campo)) {
+                $cambios[$campo] = $validado[$campo] ?? null;
+            }
+        }
+        if ($request->has('sucursal_id')) {
+            $cambios['sucursal_id'] = $this->sucursalIdDe((string) ($validado['sucursal_id'] ?? ''));
+        }
+        if ($cambios !== []) {
+            $persona->update($cambios);
+        }
+
+        $actor = $request->attributes->get('usuario_tenant');
+        $this->auditoria->registrar(
+            $actor instanceof Usuario ? $actor : null,
+            'miembro.actualizado',
+            'persona',
+            $persona->ulid,
+            $antes,
+            $persona->refresh()->only($campos),
+        );
+
+        return response()->json(['data' => $this->presentar($persona->load('sucursal'))]);
+    }
+
+    /**
+     * Padrón facturable: alumnos activos, facturables y no archivados — la base que la
+     * renta SaaS cuenta ({@see PoliticaAlumnosActivosV1}).
+     * Con `?formato=csv` descarga el padrón para conciliar/aclarar.
+     */
+    public function padron(Request $request): Response
+    {
+        /** @var Collection<int, PersonaTenant> $miembros */
+        $miembros = PersonaTenant::query()
+            ->with('sucursal')
+            ->where('tipo', TipoPersonaTenant::Miembro->value)
+            ->where('activo', true)
+            ->where('es_facturable', true)
+            ->where('archivado', false)
+            ->orderBy('primer_apellido')
+            ->orderBy('nombre')
+            ->get();
+
+        if ((string) $request->query('formato') === 'csv') {
+            return $this->exportarCsv($miembros);
+        }
+
+        return response()->json([
+            'data' => $miembros->map(fn (PersonaTenant $persona): array => [
+                'id' => $persona->ulid,
+                'nombre_completo' => $persona->nombreCompleto(),
+                'email' => $persona->email,
+                'sucursal' => $persona->sucursal?->nombre,
+                'alta' => $persona->created_at?->toDateString(),
+                'razon' => 'Alumno activo y facturable',
+            ])->all(),
+            'meta' => [
+                'total' => $miembros->count(),
+                'regla' => 'Alumnos activos, facturables y no archivados',
+            ],
+        ]);
+    }
+
+    /**
+     * @param  Collection<int, PersonaTenant>  $miembros
+     */
+    private function exportarCsv(Collection $miembros): Response
+    {
+        $lineas = ['Nombre,Correo,Sucursal,Alta,Razon de cobro'];
+        foreach ($miembros as $persona) {
+            $sucursal = $persona->sucursal;
+            $lineas[] = implode(',', array_map(
+                fn (string $v): string => $this->escaparCsv($v),
+                [
+                    $persona->nombreCompleto(),
+                    (string) ($persona->email ?? ''),
+                    $sucursal !== null ? $sucursal->nombre : '',
+                    (string) ($persona->created_at?->toDateString() ?? ''),
+                    'Alumno activo y facturable',
+                ],
+            ));
+        }
+
+        return response(implode("\n", $lineas)."\n", 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="padron-facturable.csv"',
+        ]);
+    }
+
+    private function escaparCsv(string $valor): string
+    {
+        return str_contains($valor, ',') || str_contains($valor, '"') || str_contains($valor, "\n")
+            ? '"'.str_replace('"', '""', $valor).'"'
+            : $valor;
+    }
+
+    /**
      * Resuelve el ULID de una sucursal a su id interno tenant-local (o null).
      */
     private function sucursalIdDe(string $ulid): ?int
@@ -128,6 +295,8 @@ class MiembrosTenantController
             'tipo' => $persona->tipo->value,
             'activo' => $persona->activo,
             'es_facturable' => $persona->es_facturable,
+            'archivado' => $persona->archivado,
+            'alta' => $persona->created_at?->toDateString(),
             'asistencias' => $asistencias,
             'primera_vez' => $asistencias !== null ? $asistencias === 0 : null,
             'sucursal' => $persona->sucursal !== null
