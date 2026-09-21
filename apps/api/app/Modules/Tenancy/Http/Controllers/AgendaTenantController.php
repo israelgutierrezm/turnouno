@@ -99,8 +99,12 @@ class AgendaTenantController
     {
         $consulta = SesionTenant::query()
             ->with(['oferta', 'sucursal', 'instructor'])
-            // Ocupacion = reservas que toman un lugar (confirmadas + ofrecidas).
-            ->withCount(['reservas as ocupados' => fn ($q) => $q->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::Ofrecida->value])])
+            // Ocupacion = reservas que toman un lugar (confirmadas + ofrecidas); mas
+            // cuantos esperan (para el estado "lista de espera" en la agenda).
+            ->withCount([
+                'reservas as ocupados' => fn ($q) => $q->whereIn('estado', [EstadoReserva::Confirmada->value, EstadoReserva::Ofrecida->value]),
+                'reservas as en_espera' => fn ($q) => $q->where('estado', EstadoReserva::EnEspera->value),
+            ])
             ->orderBy('inicia_en');
 
         // Un instructor solo ve SUS sesiones asignadas.
@@ -211,6 +215,7 @@ class AgendaTenantController
             'zona_horaria' => $sesion->zona_horaria,
             'capacidad' => $sesion->capacidad,
             'ocupados' => (int) ($sesion->getAttribute('ocupados') ?? 0),
+            'en_espera' => (int) ($sesion->getAttribute('en_espera') ?? 0),
             'estado' => $sesion->estado->value,
         ];
     }

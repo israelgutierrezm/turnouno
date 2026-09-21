@@ -27,6 +27,7 @@ interface Sesion {
   zona_horaria: string
   capacidad: number | null
   ocupados: number
+  en_espera: number
   estado: string
 }
 interface Miembro {
@@ -259,11 +260,36 @@ function bloquesDe(iso: string): Bloque[] {
 }
 
 // Estado visual de la clase (color + etiqueta): cancelada / completa / programada.
-function estadoClase(s: Sesion): 'cancelada' | 'completa' | 'programada' {
+// Color estable por TIPO de clase (identidad visual; el color lo lleva la clase,
+// no la decoración). Hash del nombre de la oferta → paleta de acabados.
+const PALETA_TIPO = ['#c8d8e0', '#dddc8c', '#e8d0d0', '#e3e4e5', '#f0e4d3', '#596680', '#2e3642', '#9db8a4'] as const
+function colorTipo(oferta: string | null): string {
+  const s = oferta ?? ''
+  let h = 0
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) >>> 0
+  }
+  return PALETA_TIPO[h % PALETA_TIPO.length]
+}
+function pctOcupacion(s: Sesion): number | null {
+  return s.capacidad !== null && s.capacidad > 0 ? Math.round((s.ocupados / s.capacidad) * 100) : null
+}
+// Estado perceptible por ocupación: disponible / casi (>=80%) / llena / cancelada.
+function estadoAgenda(s: Sesion): 'cancelada' | 'llena' | 'casi' | 'disponible' {
   if (s.estado !== 'programada') {
     return 'cancelada'
   }
-  return completo(s) ? 'completa' : 'programada'
+  if (completo(s)) {
+    return 'llena'
+  }
+  const p = pctOcupacion(s)
+  return p !== null && p >= 80 ? 'casi' : 'disponible'
+}
+const COLOR_ESTADO: Record<string, string> = {
+  disponible: 'var(--exito)',
+  casi: '#f59e0b',
+  llena: 'var(--error)',
+  cancelada: 'var(--texto-suave)',
 }
 
 async function cargarReferencias(): Promise<void> {
@@ -790,11 +816,12 @@ onMounted(async () => {
 
       <!-- ===== Vista SEMANA (escritorio): cuadricula horaria ===== -->
       <div v-if="vista === 'semana'" class="mt-4 hidden lg:block">
-        <!-- Leyenda de estados -->
-        <div class="flex items-center gap-4 mb-2 text-xs" :style="{ color: 'var(--texto-suave)' }">
-          <span class="inline-flex items-center gap-1.5"><span class="tu-punto tu-bloque--programada" />{{ $t('agenda.estados.programada') }}</span>
-          <span class="inline-flex items-center gap-1.5"><span class="tu-punto tu-bloque--completa" />{{ $t('agenda.estados.completa') }}</span>
-          <span class="inline-flex items-center gap-1.5"><span class="tu-punto tu-bloque--cancelada" />{{ $t('agenda.estados.cancelada') }}</span>
+        <!-- Leyenda: el color del bloque = tipo de clase; el punto = estado de ocupación. -->
+        <div class="flex flex-wrap items-center gap-4 mb-2 text-xs" :style="{ color: 'var(--texto-suave)' }">
+          <span class="inline-flex items-center gap-1.5"><span class="tu-estado-dot" :style="{ background: COLOR_ESTADO.disponible }" />{{ $t('agenda.estados.disponible') }}</span>
+          <span class="inline-flex items-center gap-1.5"><span class="tu-estado-dot" :style="{ background: COLOR_ESTADO.casi }" />{{ $t('agenda.estados.casi') }}</span>
+          <span class="inline-flex items-center gap-1.5"><span class="tu-estado-dot" :style="{ background: COLOR_ESTADO.llena }" />{{ $t('agenda.estados.llena') }}</span>
+          <span class="inline-flex items-center gap-1.5"><span class="tu-espera-dot" />{{ $t('agenda.estados.espera') }}</span>
         </div>
 
         <div class="rounded-xl border overflow-hidden" :style="{ borderColor: 'var(--borde)', background: 'var(--superficie)' }">
@@ -841,13 +868,24 @@ onMounted(async () => {
                 v-for="b in bloquesDe(d.iso)"
                 :key="b.sesion.id"
                 class="tu-bloque"
-                :class="`tu-bloque--${estadoClase(b.sesion)}`"
-                :style="{ top: b.top + 'px', height: b.alto + 'px', left: `calc(${b.izq}% + 2px)`, width: `calc(${b.ancho}% - 4px)` }"
+                :class="{ 'tu-bloque--cancelada': estadoAgenda(b.sesion) === 'cancelada' }"
+                :style="{
+                  top: b.top + 'px',
+                  height: b.alto + 'px',
+                  left: `calc(${b.izq}% + 2px)`,
+                  width: `calc(${b.ancho}% - 4px)`,
+                  background: estadoAgenda(b.sesion) === 'cancelada' ? 'var(--superficie-2)' : `color-mix(in srgb, ${colorTipo(b.sesion.oferta)} 22%, var(--superficie))`,
+                  borderLeft: `3px solid ${estadoAgenda(b.sesion) === 'cancelada' ? 'var(--texto-suave)' : colorTipo(b.sesion.oferta)}`,
+                }"
                 @click="abrirDetalle(b.sesion)"
               >
-                <div class="font-semibold text-[11px] leading-tight">{{ horaCorta(b.sesion.inicia_en, b.sesion.zona_horaria) }}</div>
+                <div class="flex items-center gap-1">
+                  <span class="font-semibold text-[11px] leading-tight">{{ horaCorta(b.sesion.inicia_en, b.sesion.zona_horaria) }}</span>
+                  <span v-if="b.sesion.en_espera > 0" class="tu-espera-dot" :title="$t('agenda.estados.espera')"></span>
+                </div>
                 <div class="text-[12px] font-medium leading-tight truncate">{{ b.sesion.oferta ?? '—' }}</div>
-                <div class="text-[10px] leading-tight truncate" :style="{ opacity: 0.85 }">
+                <div class="text-[10px] leading-tight truncate flex items-center gap-1" :style="{ opacity: 0.85 }">
+                  <span class="tu-estado-dot" :style="{ background: COLOR_ESTADO[estadoAgenda(b.sesion)] }"></span>
                   {{ b.sesion.capacidad !== null ? `${b.sesion.ocupados}/${b.sesion.capacidad}` : b.sesion.ocupados }}<span v-if="b.sesion.instructor"> · {{ b.sesion.instructor }}</span>
                 </div>
               </button>
@@ -882,17 +920,27 @@ onMounted(async () => {
             :key="s.id"
           >
             <button
-              class="tu-card w-full text-left p-3 flex items-center justify-between gap-3"
+              class="tu-card w-full text-left p-3"
               :class="{ 'opacity-60': s.estado !== 'programada' }"
+              :style="{ borderLeft: `4px solid ${estadoAgenda(s) === 'cancelada' ? 'var(--texto-suave)' : colorTipo(s.oferta)}` }"
               @click="abrirDetalle(s)"
             >
-              <div class="min-w-0">
-                <div class="font-semibold">{{ horaCorta(s.inicia_en, s.zona_horaria) }} · {{ s.oferta ?? '—' }}</div>
-                <div v-if="s.instructor" class="text-sm truncate" :style="{ color: 'var(--texto-suave)' }">{{ s.instructor }}</div>
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="font-semibold">{{ horaCorta(s.inicia_en, s.zona_horaria) }} · {{ s.oferta ?? '—' }}</div>
+                  <div v-if="s.instructor" class="text-sm truncate" :style="{ color: 'var(--texto-suave)' }">{{ s.instructor }}</div>
+                </div>
+                <span class="flex flex-col items-end gap-1 shrink-0">
+                  <span class="tu-badge" :style="{ background: `color-mix(in srgb, ${COLOR_ESTADO[estadoAgenda(s)]} 16%, transparent)`, color: COLOR_ESTADO[estadoAgenda(s)] }">
+                    {{ $t(`agenda.estados.${estadoAgenda(s)}`) }}
+                  </span>
+                  <span v-if="s.en_espera > 0" class="text-[11px]" :style="{ color: 'var(--aviso)' }">{{ $t('agenda.estados.esperaN', { n: s.en_espera }) }}</span>
+                </span>
               </div>
-              <span class="tu-badge shrink-0" :class="completo(s) ? 'tu-badge-aviso' : 'tu-badge-exito'">
-                {{ s.capacidad !== null ? `${s.ocupados}/${s.capacidad}` : s.ocupados }}
-              </span>
+              <div v-if="pctOcupacion(s) !== null" class="mt-2 flex items-center gap-2">
+                <div class="tu-ocupa flex-1"><span :style="{ width: Math.min(100, pctOcupacion(s) ?? 0) + '%', background: COLOR_ESTADO[estadoAgenda(s)] }"></span></div>
+                <span class="text-xs shrink-0" :style="{ color: 'var(--texto-suave)' }">{{ s.ocupados }}/{{ s.capacidad }}</span>
+              </div>
             </button>
           </li>
         </ul>
@@ -1328,6 +1376,32 @@ onMounted(async () => {
   border-color: var(--texto-suave);
   color: var(--texto-suave);
   text-decoration: line-through;
+}
+.tu-ocupa {
+  height: 5px;
+  border-radius: 9999px;
+  background: var(--borde);
+  overflow: hidden;
+}
+.tu-ocupa > span {
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+}
+.tu-estado-dot {
+  display: inline-block;
+  height: 6px;
+  width: 6px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+.tu-espera-dot {
+  display: inline-block;
+  height: 6px;
+  width: 6px;
+  border-radius: 9999px;
+  background: var(--aviso);
+  flex-shrink: 0;
 }
 .tu-punto {
   display: inline-block;
